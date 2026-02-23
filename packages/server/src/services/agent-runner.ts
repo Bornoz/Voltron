@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
+import { openSync } from 'node:fs';
 import { AGENT_CONSTANTS, type AgentStatus, type AgentActivity, type AgentLocation, type AgentPlan, type AgentBreadcrumb, type AgentSpawnConfig, type PromptInjection, type SimulatorConstraint } from '@voltron/shared';
 import { AgentStreamParser, type LocationChangeEvent, type TokenUsageEvent } from './agent-stream-parser.js';
 import { extractPlan, updatePlanProgress } from './agent-plan-extractor.js';
@@ -259,6 +260,8 @@ export class AgentRunner extends EventEmitter {
       '--output-format', 'stream-json',
       '--model', agent.model,
       '--verbose',
+      '--permission-mode', 'acceptEdits',
+      '--allowedTools', 'Read,Write,Edit,Bash,Glob,Grep,NotebookEdit',
     ];
 
     if (isContinue) {
@@ -266,12 +269,23 @@ export class AgentRunner extends EventEmitter {
       args.push('--session-id', agent.sessionId);
     }
 
-    args.push(prompt);
+    // Use explicit -p flag to prevent --allowedTools from swallowing the prompt
+    args.push('-p', prompt);
 
+    // Clean env: remove CLAUDECODE to prevent nested session errors
+    const cleanEnv = { ...process.env };
+    delete cleanEnv.CLAUDECODE;
+    delete cleanEnv.CLAUDE_CODE_ENTRYPOINT;
+    delete cleanEnv.CLAUDE_DEV;
+
+    // CRITICAL: Claude CLI hangs when stdin is a Node.js pipe (socketpair).
+    // Known bug: https://github.com/anthropics/claude-code/issues/771
+    // Fix: Use /dev/null for stdin since we don't need to write to it.
+    const devNull = openSync('/dev/null', 'r');
     const proc = spawn(this.claudeBinary, args, {
       cwd: agent.targetDir,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, CLAUDE_CODE_ENTRYPOINT: 'voltron' },
+      stdio: [devNull, 'pipe', 'pipe'],
+      env: { ...cleanEnv, CLAUDE_CODE_ENTRYPOINT: 'voltron' },
     });
 
     agent.process = proc;

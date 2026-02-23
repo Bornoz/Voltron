@@ -53,6 +53,9 @@ export const WsMessageType = z.enum([
   // Simulator -> Server (Agent Constraints)
   'SIMULATOR_CONSTRAINT',
   'SIMULATOR_REFERENCE_IMAGE',
+
+  // Simulator -> Server (Design Snapshot)
+  'SIMULATOR_DESIGN_SNAPSHOT',
 ]);
 export type WsMessageType = z.infer<typeof WsMessageType>;
 

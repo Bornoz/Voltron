@@ -1,3 +1,4 @@
+import { resolve, isAbsolute } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import type { WebSocket } from 'ws';
 import { ClientRegistration, WsMessage, hashString, schemas, type AiActionEvent, type Snapshot } from '@voltron/shared';
@@ -530,12 +531,19 @@ async function handleMessage(
       const { agentRunner } = services as typeof services & { agentRunner?: AgentRunner };
       if (!agentRunner) return;
       const spawnPayload = msg.payload as { model?: string; prompt: string; targetDir: string };
+
+      // Resolve targetDir relative to project rootPath
+      const project = projectRepo.findById(projectId);
+      const resolvedDir = project && !isAbsolute(spawnPayload.targetDir)
+        ? resolve(project.rootPath, spawnPayload.targetDir)
+        : spawnPayload.targetDir;
+
       try {
         const sessionId = await agentRunner.spawn({
           projectId,
           model: spawnPayload.model ?? 'claude-haiku-4-5-20251001',
           prompt: spawnPayload.prompt,
-          targetDir: spawnPayload.targetDir,
+          targetDir: resolvedDir,
         });
         socket.send(JSON.stringify({ type: 'ACK', payload: { sessionId, status: 'SPAWNING' }, correlationId: msg.correlationId, timestamp: Date.now() }));
       } catch (err) {
@@ -649,5 +657,126 @@ async function handleMessage(
       });
       break;
     }
+
+    // ── Design Snapshot (Simulator -> Server) ────────────
+    case 'SIMULATOR_DESIGN_SNAPSHOT': {
+      if (clientType !== 'simulator') return;
+      const designPayload = msg.payload as {
+        addedElements: Array<{ selector: string; html: string; parentSelector: string }>;
+        deletedElements: Array<{ selector: string; outerHTML: string; parentSelector: string }>;
+        movedElements: Array<{ selector: string; deltaX: number; deltaY: number }>;
+        styleChanges: Array<{ selector: string; property: string; oldValue: string; newValue: string }>;
+        timestamp: number;
+      };
+      const { constraintRepo: cRepo3, agentRunner: runner7 } = services as typeof services & { constraintRepo?: SimulatorConstraintRepository; agentRunner?: AgentRunner };
+
+      // Store as a design_snapshot constraint
+      if (cRepo3) {
+        const session7 = runner7?.getSession(projectId);
+        cRepo3.insert({
+          sessionId: session7?.sessionId ?? 'none',
+          projectId,
+          constraintType: 'design_snapshot',
+          selector: null,
+          property: null,
+          value: JSON.stringify(designPayload),
+          imageUrl: null,
+          description: buildDesignSnapshotDescription(designPayload),
+          appliedAt: Date.now(),
+        });
+      }
+
+      // If agent is running, inject the design changes as a prompt
+      if (runner7) {
+        const activeSession = runner7.getSession(projectId);
+        if (activeSession && ['RUNNING', 'PAUSED'].includes(activeSession.status)) {
+          const designPrompt = buildDesignSnapshotPrompt(designPayload);
+          try {
+            await runner7.injectPrompt(projectId, {
+              prompt: designPrompt,
+              urgency: 'high',
+            });
+          } catch (err) {
+            console.warn('[WS] Design snapshot injection failed:', err instanceof Error ? err.message : err);
+          }
+        }
+      }
+
+      // Relay to dashboard
+      broadcaster.broadcast('dashboard', projectId, {
+        type: 'SIMULATOR_DESIGN_SNAPSHOT',
+        payload: designPayload,
+        timestamp: Date.now(),
+      });
+      break;
+    }
   }
+}
+
+/**
+ * Build a human-readable description of a design snapshot.
+ */
+function buildDesignSnapshotDescription(snapshot: {
+  addedElements: unknown[];
+  deletedElements: unknown[];
+  movedElements: unknown[];
+  styleChanges: unknown[];
+}): string {
+  const parts: string[] = [];
+  if (snapshot.addedElements.length > 0) parts.push(`${snapshot.addedElements.length} added`);
+  if (snapshot.deletedElements.length > 0) parts.push(`${snapshot.deletedElements.length} deleted`);
+  if (snapshot.movedElements.length > 0) parts.push(`${snapshot.movedElements.length} moved`);
+  if (snapshot.styleChanges.length > 0) parts.push(`${snapshot.styleChanges.length} styled`);
+  return `Design snapshot: ${parts.join(', ') || 'no changes'}`;
+}
+
+/**
+ * Build a prompt string from design snapshot for injecting into the agent.
+ */
+function buildDesignSnapshotPrompt(snapshot: {
+  addedElements: Array<{ selector: string; html: string; parentSelector: string }>;
+  deletedElements: Array<{ selector: string; outerHTML: string; parentSelector: string }>;
+  movedElements: Array<{ selector: string; deltaX: number; deltaY: number }>;
+  styleChanges: Array<{ selector: string; property: string; oldValue: string; newValue: string }>;
+}): string {
+  const lines: string[] = [
+    '[Human Operator Design Changes - Apply these to the source code:]',
+    '',
+  ];
+
+  if (snapshot.addedElements.length > 0) {
+    lines.push('ADDED ELEMENTS:');
+    for (const el of snapshot.addedElements) {
+      lines.push(`  - Added to "${el.parentSelector}": ${el.html.substring(0, 200)}`);
+    }
+    lines.push('');
+  }
+
+  if (snapshot.deletedElements.length > 0) {
+    lines.push('DELETED ELEMENTS:');
+    for (const el of snapshot.deletedElements) {
+      lines.push(`  - Removed from "${el.parentSelector}": element matching "${el.selector}"`);
+    }
+    lines.push('');
+  }
+
+  if (snapshot.movedElements.length > 0) {
+    lines.push('REPOSITIONED ELEMENTS:');
+    for (const el of snapshot.movedElements) {
+      lines.push(`  - Move "${el.selector}" by (${el.deltaX}px, ${el.deltaY}px)`);
+    }
+    lines.push('');
+  }
+
+  if (snapshot.styleChanges.length > 0) {
+    lines.push('STYLE CHANGES:');
+    for (const sc of snapshot.styleChanges) {
+      lines.push(`  - "${sc.selector}": ${sc.property}: ${sc.oldValue} -> ${sc.newValue}`);
+    }
+    lines.push('');
+  }
+
+  lines.push('Please update the source code to reflect these visual changes made by the human operator.');
+
+  return lines.join('\n');
 }

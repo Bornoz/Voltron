@@ -33,6 +33,8 @@ interface PendingConstraint {
   timestamp: number;
 }
 
+export type PanelType = 'css' | 'layout' | 'props' | 'responsive' | 'reference' | 'add';
+
 export interface SimulatorState {
   // Selected element
   selectedElement: ElementInfo | null;
@@ -50,7 +52,10 @@ export interface SimulatorState {
   viewportSize: ViewportSize;
 
   // Active panel
-  activePanel: 'css' | 'layout' | 'props' | 'responsive' | 'reference';
+  activePanel: PanelType;
+
+  // Drag mode
+  dragMode: boolean;
 
   // Agent state
   agentStatus: string;
@@ -66,7 +71,8 @@ export interface SimulatorState {
   setIframeError: (error: string | null) => void;
   setConnected: (connected: boolean) => void;
   setViewportSize: (size: ViewportSize) => void;
-  setActivePanel: (panel: 'css' | 'layout' | 'props' | 'responsive' | 'reference') => void;
+  setActivePanel: (panel: PanelType) => void;
+  setDragMode: (enabled: boolean) => void;
   clearSelection: () => void;
   setAgentStatus: (status: string) => void;
   setAgentCurrentFile: (file: string | null) => void;
@@ -92,6 +98,7 @@ export const useSimulatorStore = create<SimulatorState>((set) => ({
   isConnected: false,
   viewportSize: VIEWPORT_PRESETS[VIEWPORT_PRESETS.length - 1],
   activePanel: 'css',
+  dragMode: false,
   agentStatus: 'IDLE',
   agentCurrentFile: null,
   pendingConstraints: [],
@@ -120,6 +127,9 @@ export const useSimulatorStore = create<SimulatorState>((set) => ({
 
   setActivePanel: (panel) =>
     set({ activePanel: panel }),
+
+  setDragMode: (enabled) =>
+    set({ dragMode: enabled }),
 
   clearSelection: () =>
     set({ selectedElement: null, elementPath: [] }),

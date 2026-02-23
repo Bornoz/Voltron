@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Monitor, Undo2, Redo2, MousePointer2, Wifi, WifiOff,
-  Paintbrush, Layout, Settings2, Smartphone, Pipette, ImagePlus,
+  Paintbrush, Layout, Settings2, Smartphone, Pipette, ImagePlus, Plus,
 } from 'lucide-react';
 import { IframeSandbox } from './sandbox/IframeSandbox';
 import { SandboxBridge } from './sandbox/SandboxBridge';
@@ -10,17 +10,23 @@ import { LayoutPanel } from './panels/LayoutPanel';
 import { PropEditor } from './panels/PropEditor';
 import { ResponsivePanel } from './panels/ResponsivePanel';
 import { ReferenceOverlay } from './panels/ReferenceOverlay';
-import { useSimulatorStore, VIEWPORT_PRESETS } from './stores/simulatorStore';
-import { useHistoryStore } from './stores/historyStore';
+import { AddElementPanel } from './panels/AddElementPanel';
+import { ElementToolbar } from './panels/ElementToolbar';
+import { SaveDesignButton } from './panels/SaveDesignButton';
+import { useSimulatorStore, VIEWPORT_PRESETS, type PanelType } from './stores/simulatorStore';
+import { useHistoryStore, createHistoryEntry } from './stores/historyStore';
+import { useDesignSnapshotStore } from './stores/designSnapshotStore';
 import { useUndoRedo } from './hooks/useUndoRedo';
 import { useServerSync } from './hooks/useServerSync';
+import type { BridgeMessage, ElementMovedPayload, ElementAddedPayload, ElementDeletedPayload, ElementDuplicatedPayload, ToolbarActionPayload } from './sandbox/SandboxBridge';
 
-const PANELS = [
-  { id: 'css' as const, label: 'CSS', icon: Paintbrush },
-  { id: 'layout' as const, label: 'Layout', icon: Layout },
-  { id: 'props' as const, label: 'Props', icon: Settings2 },
-  { id: 'responsive' as const, label: 'Viewport', icon: Smartphone },
-  { id: 'reference' as const, label: 'Ref', icon: ImagePlus },
+const PANELS: { id: PanelType; label: string; icon: React.ElementType }[] = [
+  { id: 'css', label: 'CSS', icon: Paintbrush },
+  { id: 'layout', label: 'Layout', icon: Layout },
+  { id: 'props', label: 'Props', icon: Settings2 },
+  { id: 'responsive', label: 'Viewport', icon: Smartphone },
+  { id: 'reference', label: 'Ref', icon: ImagePlus },
+  { id: 'add', label: 'Add', icon: Plus },
 ];
 
 export function App() {
@@ -38,11 +44,15 @@ export function App() {
   const isConnected = useSimulatorStore((s) => s.isConnected);
   const agentStatus = useSimulatorStore((s) => s.agentStatus);
   const agentCurrentFile = useSimulatorStore((s) => s.agentCurrentFile);
+  const dragMode = useSimulatorStore((s) => s.dragMode);
+
+  const pushHistory = useHistoryStore((s) => s.push);
+  const addDesignChange = useDesignSnapshotStore((s) => s.addChange);
 
   // Server sync - extract projectId from URL params
   const urlParams = new URLSearchParams(window.location.search);
   const projectId = urlParams.get('projectId');
-  const { sendConstraint, sendReferenceImage } = useServerSync(projectId);
+  const { sendConstraint, sendReferenceImage, sendDesignSnapshot } = useServerSync(projectId);
 
   const canUndo = useHistoryStore((s) => s.undoStack.length > 0);
   const canRedo = useHistoryStore((s) => s.redoStack.length > 0);
@@ -83,6 +93,97 @@ export function App() {
       bridgeRef.current = new SandboxBridge([window.location.origin]);
     }
   }, []);
+
+  // Wire up bridge listeners for design operations
+  useEffect(() => {
+    const bridge = bridgeRef.current;
+    if (!bridge) return;
+
+    const unsubs: (() => void)[] = [];
+
+    unsubs.push(bridge.onMessage('ELEMENT_MOVED', (msg: BridgeMessage) => {
+      const payload = msg.payload as ElementMovedPayload;
+      pushHistory(createHistoryEntry(
+        'move',
+        payload.selector,
+        `Move ${payload.selector}`,
+        { selector: payload.selector, changes: [{ property: 'left', value: payload.to.x + 'px' }, { property: 'top', value: payload.to.y + 'px' }] },
+        { selector: payload.selector, changes: [{ property: 'left', value: payload.from.x + 'px' }, { property: 'top', value: payload.from.y + 'px' }] },
+      ));
+      addDesignChange({
+        type: 'move',
+        selector: payload.selector,
+        description: `Moved ${payload.selector} by (${payload.deltaX}px, ${payload.deltaY}px)`,
+        timestamp: Date.now(),
+        data: payload,
+      });
+    }));
+
+    unsubs.push(bridge.onMessage('ELEMENT_ADDED', (msg: BridgeMessage) => {
+      const payload = msg.payload as ElementAddedPayload;
+      pushHistory(createHistoryEntry(
+        'add',
+        payload.selector,
+        `Add ${payload.tagName}`,
+        { selector: payload.selector, changes: [], elementHTML: payload.html, parentSelector: payload.parentSelector },
+        { selector: payload.selector, changes: [], elementHTML: payload.html, parentSelector: payload.parentSelector },
+      ));
+      addDesignChange({
+        type: 'add',
+        selector: payload.selector,
+        description: `Added ${payload.tagName} to ${payload.parentSelector}`,
+        timestamp: Date.now(),
+        data: payload,
+      });
+    }));
+
+    unsubs.push(bridge.onMessage('ELEMENT_DELETED', (msg: BridgeMessage) => {
+      const payload = msg.payload as ElementDeletedPayload;
+      pushHistory(createHistoryEntry(
+        'delete',
+        payload.selector,
+        `Delete ${payload.selector}`,
+        { selector: payload.selector, changes: [] },
+        { selector: payload.selector, changes: [], elementHTML: payload.outerHTML, parentSelector: payload.parentSelector, indexInParent: payload.indexInParent },
+      ));
+      addDesignChange({
+        type: 'delete',
+        selector: payload.selector,
+        description: `Deleted ${payload.selector}`,
+        timestamp: Date.now(),
+        data: payload,
+      });
+    }));
+
+    unsubs.push(bridge.onMessage('ELEMENT_DUPLICATED', (msg: BridgeMessage) => {
+      const payload = msg.payload as ElementDuplicatedPayload;
+      pushHistory(createHistoryEntry(
+        'duplicate',
+        payload.newSelector,
+        `Duplicate ${payload.originalSelector}`,
+        { selector: payload.newSelector, changes: [], elementHTML: payload.html },
+        { selector: payload.newSelector, changes: [] },
+      ));
+      addDesignChange({
+        type: 'duplicate',
+        selector: payload.newSelector,
+        description: `Duplicated ${payload.originalSelector}`,
+        timestamp: Date.now(),
+        data: payload,
+      });
+    }));
+
+    unsubs.push(bridge.onMessage('TOOLBAR_ACTION', (msg: BridgeMessage) => {
+      const payload = msg.payload as ToolbarActionPayload;
+      // Toolbar actions are already handled by the iframe-side toolbar
+      // This listener is for tracking/logging purposes
+      console.log('[App] Toolbar action:', payload.action, payload.selector);
+    }));
+
+    return () => {
+      for (const unsub of unsubs) unsub();
+    };
+  }, [pushHistory, addDesignChange]);
 
   const bridge = bridgeRef.current;
 
@@ -129,6 +230,16 @@ export function App() {
             <Redo2 className="w-4 h-4" />
           </button>
         </div>
+
+        <div className="w-px h-5 bg-gray-700" />
+
+        {/* Save Design Button */}
+        {bridge && (
+          <SaveDesignButton
+            bridge={bridge}
+            onSendSnapshot={(snapshot) => sendDesignSnapshot?.(snapshot)}
+          />
+        )}
 
         <div className="w-px h-5 bg-gray-700" />
 
@@ -219,6 +330,11 @@ export function App() {
         </div>
       )}
 
+      {/* Element toolbar (host-side) */}
+      {selectedElement && bridge && (
+        <ElementToolbar bridge={bridge} />
+      )}
+
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Preview area */}
@@ -284,6 +400,7 @@ export function App() {
                 onImageUpload={(dataUrl) => sendReferenceImage?.(dataUrl, 'Reference design image uploaded by operator')}
               />
             )}
+            {activePanel === 'add' && bridge && <AddElementPanel bridge={bridge} />}
           </div>
         </div>
       </div>
@@ -294,6 +411,12 @@ export function App() {
           <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-green-400' : 'bg-gray-600'}`} />
           {isConnected ? 'Connected' : 'Disconnected'}
         </span>
+        {dragMode && (
+          <>
+            <span className="text-gray-700">|</span>
+            <span className="text-purple-400">Drag Mode</span>
+          </>
+        )}
         {selectedElement && (
           <>
             <span className="text-gray-700">|</span>

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Radio, Cpu, Monitor, Eye, Activity, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Radio, Cpu, Monitor, Eye, Activity } from 'lucide-react';
 import * as api from '../../lib/api';
 import { useTranslation } from '../../i18n';
 
@@ -10,6 +10,7 @@ interface InterceptorStatusProps {
 export function InterceptorStatus({ projectId }: InterceptorStatusProps) {
   const { t } = useTranslation();
   const [status, setStatus] = useState<api.InterceptorStatus | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const poll = useCallback(async () => {
     try {
@@ -21,9 +22,30 @@ export function InterceptorStatus({ projectId }: InterceptorStatusProps) {
   }, [projectId]);
 
   useEffect(() => {
+    // Initial fetch
     poll();
-    const interval = setInterval(poll, 5000); // Poll every 5s
-    return () => clearInterval(interval);
+    // Long interval: 30s fallback only - primary updates come via WS events
+    intervalRef.current = setInterval(poll, 30_000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [poll]);
+
+  // Listen to WS events that indicate connection changes
+  // and refresh status when relevant events arrive
+  useEffect(() => {
+    const handler = (event: CustomEvent) => {
+      const { type } = event.detail ?? {};
+      if (
+        type === 'AGENT_STATUS_CHANGE' ||
+        type === 'STATE_CHANGE' ||
+        type === 'INTERCEPTOR_STATUS'
+      ) {
+        poll();
+      }
+    };
+    window.addEventListener('voltron-ws-event', handler as EventListener);
+    return () => window.removeEventListener('voltron-ws-event', handler as EventListener);
   }, [poll]);
 
   if (!status) return null;

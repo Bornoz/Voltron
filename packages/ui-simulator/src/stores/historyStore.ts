@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export interface HistoryEntry {
   id: string;
-  type: 'style' | 'layout' | 'prop';
+  type: 'style' | 'layout' | 'prop' | 'add' | 'delete' | 'move' | 'duplicate';
   selector: string;
   description: string;
   timestamp: number;
@@ -16,6 +16,10 @@ export interface ChangeRecord {
     property: string;
     value: string;
   }>;
+  // For add/delete/duplicate operations
+  elementHTML?: string;
+  parentSelector?: string;
+  indexInParent?: number;
 }
 
 interface HistoryState {

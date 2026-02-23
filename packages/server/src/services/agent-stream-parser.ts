@@ -79,8 +79,8 @@ export class AgentStreamParser extends EventEmitter {
 
     switch (event.type) {
       case 'assistant': {
-        // Assistant message with content blocks
-        const message = event.message as { content?: Array<{ type: string; text?: string; thinking?: string }> } | undefined;
+        // Assistant message with content blocks (thinking, text, tool_use)
+        const message = event.message as { content?: Array<{ type: string; text?: string; thinking?: string; name?: string; id?: string; input?: Record<string, unknown> }>; usage?: { input_tokens?: number; output_tokens?: number } } | undefined;
         if (message?.content) {
           for (const block of message.content) {
             if (block.type === 'thinking' && block.thinking) {
@@ -88,8 +88,39 @@ export class AgentStreamParser extends EventEmitter {
               this.emit('thinking_block', block.thinking);
             } else if (block.type === 'text' && block.text) {
               this.emit('text_output', block.text);
+            } else if (block.type === 'tool_use' && block.name) {
+              // Tool use embedded in assistant message (stream-json format)
+              const toolName = block.name;
+              const input = block.input ?? {};
+              const now = Date.now();
+
+              this.emit('tool_start', { toolName, input, timestamp: now } as ToolEvent);
+
+              // Extract file path and activity
+              const filePathKey = AGENT_CONSTANTS.TOOL_FILE_PATH_MAP[toolName];
+              const activity = (AGENT_CONSTANTS.TOOL_ACTIVITY_MAP[toolName] ?? 'THINKING') as AgentActivity;
+
+              if (filePathKey && input[filePathKey]) {
+                const filePath = String(input[filePathKey]);
+                this.emitLocationThrottled({
+                  filePath,
+                  activity,
+                  toolName,
+                  lineRange: this.extractLineRange(input),
+                  timestamp: now,
+                });
+              } else if (activity !== 'THINKING') {
+                this.emit('activity_change', activity);
+              }
             }
           }
+        }
+        // Token usage from assistant message
+        if (message?.usage) {
+          this.emit('token_usage', {
+            inputTokens: message.usage.input_tokens ?? 0,
+            outputTokens: message.usage.output_tokens ?? 0,
+          } as TokenUsageEvent);
         }
         break;
       }

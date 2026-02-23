@@ -133,6 +133,10 @@ export class VoltronWebSocket {
     if (typeCallbacks) {
       typeCallbacks.forEach((cb) => cb(message));
     }
+    // Emit CustomEvent for components that listen via DOM events
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('voltron-ws-event', { detail: message }));
+    }
   }
 
   on(type: WsMessageType | '*', callback: WsCallback): () => void {

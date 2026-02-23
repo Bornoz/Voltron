@@ -4,7 +4,11 @@
  * - MutationObserver for DOM change tracking
  * - Click interception for element selection mode
  * - Message handlers for INJECT_STYLES, UPDATE_LAYOUT, UPDATE_PROPS
- * - Outbound messages: ELEMENT_SELECTED, DOM_MUTATED, STATE_SNAPSHOT
+ * - Drag & drop for element repositioning
+ * - Element add/delete/duplicate operations
+ * - Floating toolbar on selected elements
+ * - Design snapshot serialization
+ * - Outbound messages: ELEMENT_SELECTED, DOM_MUTATED, STATE_SNAPSHOT, etc.
  * - CSS selector generation and computed style extraction
  */
 export const INJECTED_SCRIPT = `
@@ -19,6 +23,21 @@ export const INJECTED_SCRIPT = `
   let hoverOverlay = null;
   let mutationObserver = null;
 
+  // ── Drag State ──
+  let dragMode = false;
+  let dragElement = null;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let dragOrigLeft = 0;
+  let dragOrigTop = 0;
+  let dragOrigPosition = '';
+
+  // ── Change Tracking (for design snapshots) ──
+  var addedElements = [];
+  var deletedElements = [];
+  var movedElements = [];
+  var styleChanges = [];
+
   // ---------- Utilities ----------
 
   /**
@@ -30,24 +49,24 @@ export const INJECTED_SCRIPT = `
     }
 
     // ID selector (most specific)
-    if (el.id) {
+    if (el.id && el.id.indexOf('__voltron') === -1) {
       return '#' + CSS.escape(el.id);
     }
 
     // Build path-based selector
-    const parts = [];
-    let current = el;
+    var parts = [];
+    var current = el;
     while (current && current !== document.body && current !== document.documentElement) {
-      let selector = current.tagName.toLowerCase();
+      var selector = current.tagName.toLowerCase();
 
-      if (current.id) {
+      if (current.id && current.id.indexOf('__voltron') === -1) {
         selector = '#' + CSS.escape(current.id);
         parts.unshift(selector);
         break;
       }
 
       // Add meaningful classes (filter out dynamic/generated ones)
-      const classes = Array.from(current.classList || [])
+      var classes = Array.from(current.classList || [])
         .filter(function(c) { return !c.match(/^(js-|is-|has-|__)/); })
         .slice(0, 2);
       if (classes.length > 0) {
@@ -56,10 +75,10 @@ export const INJECTED_SCRIPT = `
 
       // Add nth-child if needed for uniqueness
       if (current.parentElement) {
-        const siblings = Array.from(current.parentElement.children)
+        var siblings = Array.from(current.parentElement.children)
           .filter(function(s) { return s.tagName === current.tagName; });
         if (siblings.length > 1) {
-          const index = siblings.indexOf(current) + 1;
+          var index = siblings.indexOf(current) + 1;
           selector += ':nth-child(' + index + ')';
         }
       }
@@ -128,6 +147,20 @@ export const INJECTED_SCRIPT = `
   }
 
   /**
+   * Check if an element is a Voltron internal element.
+   */
+  function isVoltronElement(el) {
+    if (!el) return false;
+    if (el.id && el.id.indexOf('__voltron') === 0) return true;
+    var current = el;
+    while (current) {
+      if (current.id && current.id.indexOf('__voltron') === 0) return true;
+      current = current.parentElement;
+    }
+    return false;
+  }
+
+  /**
    * Send a message to the parent window.
    */
   function sendToHost(type, payload) {
@@ -151,7 +184,7 @@ export const INJECTED_SCRIPT = `
       'pointer-events: none',
       'border: 2px solid #3b82f6',
       'background: rgba(59, 130, 246, 0.1)',
-      'z-index: 2147483647',
+      'z-index: 2147483646',
       'transition: all 0.1s ease',
       'display: none',
     ].join(';');
@@ -174,28 +207,324 @@ export const INJECTED_SCRIPT = `
     }
   }
 
+  // ---------- Floating Toolbar ----------
+
+  var elementToolbar = null;
+  var toolbarTarget = null;
+
+  function createToolbar() {
+    if (elementToolbar) return;
+    elementToolbar = document.createElement('div');
+    elementToolbar.id = '__voltron-element-toolbar';
+    elementToolbar.style.cssText = [
+      'position: fixed',
+      'display: none',
+      'z-index: 2147483647',
+      'background: rgba(17, 17, 27, 0.92)',
+      'backdrop-filter: blur(8px)',
+      'border: 1px solid rgba(139, 92, 246, 0.3)',
+      'border-radius: 8px',
+      'padding: 4px',
+      'gap: 2px',
+      'flex-direction: row',
+      'align-items: center',
+      'box-shadow: 0 4px 12px rgba(0,0,0,0.4)',
+      'font-family: system-ui, -apple-system, sans-serif',
+    ].join(';');
+
+    var buttons = [
+      { action: 'move', label: '\\u2725', title: 'Move (drag)' },
+      { action: 'duplicate', label: '\\u2398', title: 'Duplicate' },
+      { action: 'delete', label: '\\u2715', title: 'Delete' },
+    ];
+
+    buttons.forEach(function(btn) {
+      var b = document.createElement('button');
+      b.textContent = btn.label;
+      b.title = btn.title;
+      b.dataset.action = btn.action;
+      b.style.cssText = [
+        'background: transparent',
+        'border: none',
+        'color: #e2e8f0',
+        'cursor: pointer',
+        'padding: 4px 8px',
+        'border-radius: 4px',
+        'font-size: 14px',
+        'line-height: 1',
+        'transition: background 0.15s',
+      ].join(';');
+      b.addEventListener('mouseenter', function() {
+        b.style.background = 'rgba(139, 92, 246, 0.3)';
+      });
+      b.addEventListener('mouseleave', function() {
+        b.style.background = 'transparent';
+      });
+      b.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (toolbarTarget) {
+          sendToHost('TOOLBAR_ACTION', {
+            action: btn.action,
+            selector: generateSelector(toolbarTarget),
+          });
+          if (btn.action === 'move') {
+            enableDragOnElement(toolbarTarget);
+          } else if (btn.action === 'duplicate') {
+            duplicateElement(toolbarTarget);
+          } else if (btn.action === 'delete') {
+            deleteElement(toolbarTarget);
+          }
+        }
+      });
+      elementToolbar.appendChild(b);
+    });
+
+    document.body.appendChild(elementToolbar);
+  }
+
+  function showToolbar(el) {
+    if (!el || isVoltronElement(el)) return;
+    createToolbar();
+    toolbarTarget = el;
+    var rect = el.getBoundingClientRect();
+    elementToolbar.style.display = 'flex';
+    elementToolbar.style.top = Math.max(0, rect.top - 36) + 'px';
+    elementToolbar.style.left = rect.left + 'px';
+  }
+
+  function hideToolbar() {
+    if (elementToolbar) {
+      elementToolbar.style.display = 'none';
+    }
+    toolbarTarget = null;
+  }
+
+  // ---------- Drag & Drop System ----------
+
+  function enableDragOnElement(el) {
+    if (!el || isVoltronElement(el)) return;
+    dragMode = true;
+    dragElement = el;
+    el.style.cursor = 'grabbing';
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+  }
+
+  function startDrag(el, clientX, clientY) {
+    dragElement = el;
+    dragStartX = clientX;
+    dragStartY = clientY;
+
+    var computed = window.getComputedStyle(el);
+    dragOrigPosition = computed.position;
+
+    // Make static elements relative so they can be moved
+    if (dragOrigPosition === 'static') {
+      el.style.position = 'relative';
+    }
+
+    dragOrigLeft = parseFloat(computed.left) || 0;
+    dragOrigTop = parseFloat(computed.top) || 0;
+
+    el.style.cursor = 'grabbing';
+    el.style.zIndex = '10000';
+    el.style.opacity = '0.85';
+    el.style.transition = 'none';
+  }
+
+  function handleDragMove(e) {
+    if (!dragElement) return;
+    e.preventDefault();
+
+    var dx = e.clientX - dragStartX;
+    var dy = e.clientY - dragStartY;
+
+    dragElement.style.left = (dragOrigLeft + dx) + 'px';
+    dragElement.style.top = (dragOrigTop + dy) + 'px';
+  }
+
+  function handleDragEnd(e) {
+    if (!dragElement) return;
+
+    var dx = e.clientX - dragStartX;
+    var dy = e.clientY - dragStartY;
+
+    dragElement.style.cursor = '';
+    dragElement.style.zIndex = '';
+    dragElement.style.opacity = '';
+    dragElement.style.transition = '';
+
+    var selector = generateSelector(dragElement);
+
+    // Track for design snapshot
+    movedElements.push({
+      selector: selector,
+      deltaX: dx,
+      deltaY: dy,
+    });
+
+    sendToHost('ELEMENT_MOVED', {
+      selector: selector,
+      from: { x: dragOrigLeft, y: dragOrigTop },
+      to: { x: dragOrigLeft + dx, y: dragOrigTop + dy },
+      deltaX: dx,
+      deltaY: dy,
+    });
+
+    dragElement = null;
+    dragMode = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
+
+  document.addEventListener('mousemove', function(e) {
+    if (dragElement) {
+      handleDragMove(e);
+    }
+  }, true);
+
+  document.addEventListener('mouseup', function(e) {
+    if (dragElement) {
+      handleDragEnd(e);
+    }
+  }, true);
+
+  // ---------- Element Operations ----------
+
+  function addElement(config) {
+    var parent = document.querySelector(config.parentSelector);
+    if (!parent) return;
+
+    var el = document.createElement(config.tagName);
+    el.setAttribute('data-voltron-added', 'true');
+
+    if (config.attributes) {
+      for (var key in config.attributes) {
+        el.setAttribute(key, config.attributes[key]);
+      }
+    }
+    if (config.styles) {
+      for (var prop in config.styles) {
+        el.style.setProperty(prop, config.styles[prop]);
+      }
+    }
+    if (config.innerHTML) {
+      el.innerHTML = config.innerHTML;
+    } else if (config.textContent) {
+      el.textContent = config.textContent;
+    }
+
+    switch (config.position) {
+      case 'prepend':
+        parent.prepend(el);
+        break;
+      case 'before':
+        parent.parentElement && parent.parentElement.insertBefore(el, parent);
+        break;
+      case 'after':
+        parent.parentElement && parent.parentElement.insertBefore(el, parent.nextSibling);
+        break;
+      default: // append
+        parent.appendChild(el);
+    }
+
+    var selector = generateSelector(el);
+    addedElements.push({
+      selector: selector,
+      html: el.outerHTML,
+      parentSelector: config.parentSelector,
+    });
+
+    sendToHost('ELEMENT_ADDED', {
+      selector: selector,
+      tagName: config.tagName,
+      parentSelector: config.parentSelector,
+      html: el.outerHTML,
+    });
+  }
+
+  function deleteElement(el) {
+    if (!el || isVoltronElement(el) || el === document.body || el === document.documentElement) return;
+
+    var selector = generateSelector(el);
+    var parentSelector = el.parentElement ? generateSelector(el.parentElement) : 'body';
+    var indexInParent = el.parentElement ? Array.from(el.parentElement.children).indexOf(el) : 0;
+    var outerHTML = el.outerHTML;
+
+    deletedElements.push({
+      selector: selector,
+      outerHTML: outerHTML,
+      parentSelector: parentSelector,
+    });
+
+    el.remove();
+    hideToolbar();
+
+    sendToHost('ELEMENT_DELETED', {
+      selector: selector,
+      outerHTML: outerHTML,
+      parentSelector: parentSelector,
+      indexInParent: indexInParent,
+    });
+  }
+
+  function duplicateElement(el) {
+    if (!el || isVoltronElement(el) || el === document.body || el === document.documentElement) return;
+
+    var clone = el.cloneNode(true);
+    clone.setAttribute('data-voltron-added', 'true');
+    // Remove ID to avoid duplication
+    clone.removeAttribute('id');
+
+    // Offset the clone slightly
+    var computed = window.getComputedStyle(el);
+    if (computed.position === 'static') {
+      clone.style.position = 'relative';
+    }
+    clone.style.top = '8px';
+    clone.style.left = '8px';
+
+    el.parentElement.insertBefore(clone, el.nextSibling);
+
+    var originalSelector = generateSelector(el);
+    var newSelector = generateSelector(clone);
+
+    addedElements.push({
+      selector: newSelector,
+      html: clone.outerHTML,
+      parentSelector: generateSelector(el.parentElement),
+    });
+
+    sendToHost('ELEMENT_DUPLICATED', {
+      originalSelector: originalSelector,
+      newSelector: newSelector,
+      html: clone.outerHTML,
+    });
+  }
+
   // ---------- Element Selection ----------
 
   function handleMouseOver(e) {
-    if (!selectionMode) return;
+    if (!selectionMode || dragElement) return;
     var target = e.target;
-    if (target.id === '__voltron-hover-overlay') return;
+    if (isVoltronElement(target)) return;
     showOverlay(target);
   }
 
   function handleMouseOut() {
-    if (!selectionMode) return;
+    if (!selectionMode || dragElement) return;
     hideOverlay();
   }
 
   function handleClick(e) {
-    if (!selectionMode) return;
+    if (!selectionMode || dragElement) return;
     e.preventDefault();
     e.stopPropagation();
     e.stopImmediatePropagation();
 
     var target = e.target;
-    if (target.id === '__voltron-hover-overlay') return;
+    if (isVoltronElement(target)) return;
 
     var rect = target.getBoundingClientRect();
 
@@ -217,6 +546,9 @@ export const INJECTED_SCRIPT = `
       childCount: target.children.length,
       elementPath: getElementPath(target),
     });
+
+    // Show toolbar on selected element
+    showToolbar(target);
   }
 
   document.addEventListener('mouseover', handleMouseOver, true);
@@ -232,8 +564,18 @@ export const INJECTED_SCRIPT = `
       var mutationRecords = [];
       for (var i = 0; i < mutations.length; i++) {
         var m = mutations[i];
-        // Skip our own overlay changes
-        if (m.target && m.target.id === '__voltron-hover-overlay') continue;
+        // Skip Voltron internal element changes
+        if (m.target && isVoltronElement(m.target)) continue;
+
+        // Check added/removed nodes for voltron elements
+        var hasVoltronChild = false;
+        for (var j = 0; j < m.addedNodes.length; j++) {
+          if (isVoltronElement(m.addedNodes[j])) { hasVoltronChild = true; break; }
+        }
+        for (var k = 0; k < m.removedNodes.length; k++) {
+          if (isVoltronElement(m.removedNodes[k])) { hasVoltronChild = true; break; }
+        }
+        if (hasVoltronChild && m.addedNodes.length + m.removedNodes.length <= 1) continue;
 
         mutationRecords.push({
           type: m.type,
@@ -262,6 +604,18 @@ export const INJECTED_SCRIPT = `
     });
   }
 
+  // ---------- Design Snapshot ----------
+
+  function buildDesignSnapshot() {
+    return {
+      addedElements: addedElements.slice(),
+      deletedElements: deletedElements.slice(),
+      movedElements: movedElements.slice(),
+      styleChanges: styleChanges.slice(),
+      timestamp: Date.now(),
+    };
+  }
+
   // ---------- Message Handlers ----------
 
   window.addEventListener('message', function(event) {
@@ -273,7 +627,15 @@ export const INJECTED_SCRIPT = `
         var p = data.payload;
         var targets = document.querySelectorAll(p.selector);
         for (var i = 0; i < targets.length; i++) {
+          // Track style changes for snapshot
+          var oldVal = targets[i].style.getPropertyValue(p.property);
           targets[i].style.setProperty(p.property, p.value);
+          styleChanges.push({
+            selector: p.selector,
+            property: p.property,
+            oldValue: oldVal,
+            newValue: p.value,
+          });
         }
         sendToHost('STYLE_APPLIED', {
           selector: p.selector,
@@ -328,6 +690,7 @@ export const INJECTED_SCRIPT = `
         var styles = {};
         var allElements = document.querySelectorAll('[style]');
         for (var s = 0; s < allElements.length; s++) {
+          if (isVoltronElement(allElements[s])) continue;
           var sel = generateSelector(allElements[s]);
           styles[sel] = getComputedStylesForElement(allElements[s]);
         }
@@ -346,8 +709,56 @@ export const INJECTED_SCRIPT = `
           document.body.style.cursor = 'crosshair';
         } else {
           hideOverlay();
+          hideToolbar();
           document.body.style.cursor = '';
         }
+        break;
+      }
+
+      case 'ENABLE_DRAG_MODE': {
+        dragMode = !!data.payload.enabled;
+        if (!dragMode) {
+          dragElement = null;
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+        }
+        break;
+      }
+
+      case 'ADD_ELEMENT': {
+        addElement(data.payload);
+        break;
+      }
+
+      case 'DELETE_ELEMENT': {
+        var delTarget = document.querySelector(data.payload.selector);
+        if (delTarget) deleteElement(delTarget);
+        break;
+      }
+
+      case 'DUPLICATE_ELEMENT': {
+        var dupTarget = document.querySelector(data.payload.selector);
+        if (dupTarget) duplicateElement(dupTarget);
+        break;
+      }
+
+      case 'SHOW_ELEMENT_TOOLBAR': {
+        if (data.payload.selector) {
+          var tbTarget = document.querySelector(data.payload.selector);
+          if (tbTarget) showToolbar(tbTarget);
+        } else {
+          hideToolbar();
+        }
+        break;
+      }
+
+      case 'REQUEST_DESIGN_SNAPSHOT': {
+        sendToHost('DESIGN_SNAPSHOT', buildDesignSnapshot());
+        // Clear tracked changes after sending
+        addedElements = [];
+        deletedElements = [];
+        movedElements = [];
+        styleChanges = [];
         break;
       }
     }

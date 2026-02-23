@@ -8,7 +8,13 @@ export type OutboundMessageType =
   | 'UPDATE_LAYOUT'
   | 'UPDATE_PROPS'
   | 'REQUEST_SNAPSHOT'
-  | 'SELECT_ELEMENT';
+  | 'SELECT_ELEMENT'
+  | 'ENABLE_DRAG_MODE'
+  | 'ADD_ELEMENT'
+  | 'DELETE_ELEMENT'
+  | 'DUPLICATE_ELEMENT'
+  | 'SHOW_ELEMENT_TOOLBAR'
+  | 'REQUEST_DESIGN_SNAPSHOT';
 
 export type InboundMessageType =
   | 'ELEMENT_SELECTED'
@@ -17,7 +23,13 @@ export type InboundMessageType =
   | 'LAYOUT_APPLIED'
   | 'STATE_SNAPSHOT'
   | 'BRIDGE_READY'
-  | 'ERROR';
+  | 'ERROR'
+  | 'ELEMENT_MOVED'
+  | 'ELEMENT_ADDED'
+  | 'ELEMENT_DELETED'
+  | 'ELEMENT_DUPLICATED'
+  | 'TOOLBAR_ACTION'
+  | 'DESIGN_SNAPSHOT';
 
 export interface BridgeMessage<T = unknown> {
   source: 'voltron-host' | 'voltron-iframe';
@@ -70,6 +82,57 @@ export interface StateSnapshotPayload {
   html: string;
   styles: Record<string, Record<string, string>>;
   viewport: { width: number; height: number };
+}
+
+export interface ElementMovedPayload {
+  selector: string;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  deltaX: number;
+  deltaY: number;
+}
+
+export interface ElementAddedPayload {
+  selector: string;
+  tagName: string;
+  parentSelector: string;
+  html: string;
+}
+
+export interface ElementDeletedPayload {
+  selector: string;
+  outerHTML: string;
+  parentSelector: string;
+  indexInParent: number;
+}
+
+export interface ElementDuplicatedPayload {
+  originalSelector: string;
+  newSelector: string;
+  html: string;
+}
+
+export interface ToolbarActionPayload {
+  action: 'move' | 'duplicate' | 'delete';
+  selector: string;
+}
+
+export interface DesignSnapshotPayload {
+  addedElements: Array<{ selector: string; html: string; parentSelector: string }>;
+  deletedElements: Array<{ selector: string; outerHTML: string; parentSelector: string }>;
+  movedElements: Array<{ selector: string; deltaX: number; deltaY: number }>;
+  styleChanges: Array<{ selector: string; property: string; oldValue: string; newValue: string }>;
+  timestamp: number;
+}
+
+export interface AddElementConfig {
+  tagName: string;
+  parentSelector: string;
+  position: 'append' | 'prepend' | 'before' | 'after';
+  attributes?: Record<string, string>;
+  styles?: Record<string, string>;
+  textContent?: string;
+  innerHTML?: string;
 }
 
 export type MessageCallback = (msg: BridgeMessage) => void;
@@ -206,6 +269,8 @@ export class SandboxBridge {
     }
   }
 
+  // ── Convenience Methods ──────────────────────────────
+
   /**
    * Inject CSS into the iframe.
    */
@@ -239,6 +304,48 @@ export class SandboxBridge {
    */
   selectElement(enabled: boolean): void {
     this.sendToIframe('SELECT_ELEMENT', { enabled });
+  }
+
+  /**
+   * Enable/disable drag mode in the iframe.
+   */
+  enableDragMode(enabled: boolean): void {
+    this.sendToIframe('ENABLE_DRAG_MODE', { enabled });
+  }
+
+  /**
+   * Add a new element to the iframe DOM.
+   */
+  addElement(config: AddElementConfig): void {
+    this.sendToIframe('ADD_ELEMENT', config);
+  }
+
+  /**
+   * Delete an element from the iframe DOM.
+   */
+  deleteElement(selector: string): void {
+    this.sendToIframe('DELETE_ELEMENT', { selector });
+  }
+
+  /**
+   * Duplicate an element in the iframe DOM.
+   */
+  duplicateElement(selector: string): void {
+    this.sendToIframe('DUPLICATE_ELEMENT', { selector });
+  }
+
+  /**
+   * Show/hide the floating toolbar on a selected element.
+   */
+  showElementToolbar(selector: string | null): void {
+    this.sendToIframe('SHOW_ELEMENT_TOOLBAR', { selector });
+  }
+
+  /**
+   * Request a design snapshot (all human changes since last snapshot).
+   */
+  requestDesignSnapshot(): void {
+    this.sendToIframe('REQUEST_DESIGN_SNAPSHOT', {});
   }
 
   /**

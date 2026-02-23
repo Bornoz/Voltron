@@ -1,7 +1,9 @@
+import { resolve, isAbsolute } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AgentSpawnConfig, PromptInjection } from '@voltron/shared';
 import type { AgentRunner } from '../services/agent-runner.js';
+import { ProjectRepository } from '../db/repositories/projects.js';
 
 const SpawnBody = z.object({
   model: z.string().optional(),
@@ -24,17 +26,28 @@ const InjectBody = z.object({
 });
 
 export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner): void {
+  const projectRepo = new ProjectRepository();
+
   // Spawn a new agent
   app.post<{ Params: { id: string } }>('/api/projects/:id/agent/spawn', async (request, reply) => {
     const body = SpawnBody.parse(request.body);
     const projectId = request.params.id;
+
+    // Resolve targetDir relative to project rootPath
+    const project = projectRepo.findById(projectId);
+    if (!project) {
+      return reply.status(404).send({ error: 'Project not found' });
+    }
+    const resolvedTargetDir = isAbsolute(body.targetDir)
+      ? body.targetDir
+      : resolve(project.rootPath, body.targetDir);
 
     try {
       const sessionId = await agentRunner.spawn({
         projectId,
         model: body.model ?? 'claude-haiku-4-5-20251001',
         prompt: body.prompt,
-        targetDir: body.targetDir,
+        targetDir: resolvedTargetDir,
       });
       return reply.send({ sessionId, status: 'SPAWNING' });
     } catch (err) {

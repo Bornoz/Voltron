@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { SimulatorWebSocket } from '../lib/ws';
 import { useSimulatorStore } from '../stores/simulatorStore';
 import type { AgentStatus, AgentLocation } from '@voltron/shared';
+import type { DesignSnapshotPayload } from '../sandbox/SandboxBridge';
 
 /**
  * Connects the UI Simulator to the Voltron server via WebSocket.
@@ -9,6 +10,7 @@ import type { AgentStatus, AgentLocation } from '@voltron/shared';
  * - Listens for AGENT_STATUS_CHANGE -> updates simulator store
  * - Sends SIMULATOR_CONSTRAINT on human edits
  * - Sends SIMULATOR_REFERENCE_IMAGE on image upload
+ * - Sends SIMULATOR_DESIGN_SNAPSHOT for design changes
  */
 export function useServerSync(projectId: string | null) {
   const wsRef = useRef<SimulatorWebSocket | null>(null);
@@ -74,9 +76,17 @@ export function useServerSync(projectId: string | null) {
     wsRef.current?.send('SIMULATOR_REFERENCE_IMAGE', { imageUrl, description });
   }, []);
 
+  /**
+   * Send a design snapshot (all human-made changes) to the server.
+   */
+  const sendDesignSnapshot = useCallback((snapshot: DesignSnapshotPayload) => {
+    wsRef.current?.send('SIMULATOR_DESIGN_SNAPSHOT', snapshot);
+  }, []);
+
   return {
     wsClient: wsRef.current,
     sendConstraint,
     sendReferenceImage,
+    sendDesignSnapshot,
   };
 }

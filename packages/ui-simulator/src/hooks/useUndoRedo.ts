@@ -23,18 +23,69 @@ export function useUndoRedo(bridge?: SandboxBridge | null) {
       const record = direction === 'forward' ? entry.forward : entry.backward;
 
       if (!bridge) return;
-      for (const change of record.changes) {
-        switch (entry.type) {
-          case 'style':
+
+      switch (entry.type) {
+        case 'style':
+          for (const change of record.changes) {
             bridge.injectStyles(record.selector, change.property, change.value);
-            break;
-          case 'layout':
+          }
+          break;
+        case 'layout':
+          for (const change of record.changes) {
             bridge.updateLayout(record.selector, { [change.property]: change.value });
-            break;
-          case 'prop':
+          }
+          break;
+        case 'prop':
+          for (const change of record.changes) {
             bridge.updateProps(record.selector, { [change.property]: change.value });
-            break;
-        }
+          }
+          break;
+        case 'add':
+          if (direction === 'backward') {
+            // Undo add = delete
+            bridge.deleteElement(record.selector);
+          } else {
+            // Redo add = re-add
+            if (record.elementHTML && record.parentSelector) {
+              bridge.addElement({
+                tagName: 'div',
+                parentSelector: record.parentSelector,
+                position: 'append',
+                innerHTML: record.elementHTML,
+              });
+            }
+          }
+          break;
+        case 'delete':
+          if (direction === 'backward') {
+            // Undo delete = re-add the element
+            if (record.elementHTML && record.parentSelector) {
+              bridge.addElement({
+                tagName: 'div',
+                parentSelector: record.parentSelector,
+                position: 'append',
+                innerHTML: record.elementHTML,
+              });
+            }
+          } else {
+            // Redo delete = delete again
+            bridge.deleteElement(record.selector);
+          }
+          break;
+        case 'move':
+          for (const change of record.changes) {
+            bridge.updateLayout(record.selector, { [change.property]: change.value });
+          }
+          break;
+        case 'duplicate':
+          if (direction === 'backward') {
+            // Undo duplicate = delete the clone
+            bridge.deleteElement(record.selector);
+          } else {
+            // Redo duplicate = duplicate again
+            bridge.duplicateElement(record.selector);
+          }
+          break;
       }
     },
     [bridge],
