@@ -1,0 +1,163 @@
+@import "tailwindcss";
+
+/* ── Theme: Dark (default) ────────────────────── */
+:root,
+[data-theme="dark"] {
+  --color-bg-primary: #030712;
+  --color-bg-secondary: #111827;
+  --color-bg-tertiary: #1f2937;
+  --color-border: #374151;
+  --color-border-hover: #4b5563;
+  --color-text-primary: #f3f4f6;
+  --color-text-secondary: #9ca3af;
+  --color-text-muted: #6b7280;
+  --color-danger: #ef4444;
+  --color-success: #22c55e;
+  --color-warning: #eab308;
+  color-scheme: dark;
+
+  /* Risk level colors */
+  --risk-none: #6b7280;
+  --risk-low: #22c55e;
+  --risk-medium: #eab308;
+  --risk-high: #f97316;
+  --risk-critical: #ef4444;
+}
+
+/* ── Theme: Midnight ────────────────────── */
+[data-theme="midnight"] {
+  --color-bg-primary: #0a0a1a;
+  --color-bg-secondary: #0f0f2e;
+  --color-bg-tertiary: #1a1a3e;
+  --color-border: #2a2a5e;
+  --color-border-hover: #3a3a7e;
+  --color-text-primary: #e0e0ff;
+  --color-text-secondary: #a0a0d0;
+  --color-text-muted: #6060a0;
+  color-scheme: dark;
+}
+
+/* ── Theme: Light ────────────────────── */
+[data-theme="light"] {
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f9fafb;
+  --color-bg-tertiary: #f3f4f6;
+  --color-border: #e5e7eb;
+  --color-border-hover: #d1d5db;
+  --color-text-primary: #111827;
+  --color-text-secondary: #4b5563;
+  --color-text-muted: #9ca3af;
+  color-scheme: light;
+}
+
+/* ── Accent Colors (applied via data-accent) ── */
+[data-accent="blue"] { --color-accent: #3b82f6; --color-accent-hover: #2563eb; }
+[data-accent="purple"] { --color-accent: #a855f7; --color-accent-hover: #9333ea; }
+[data-accent="green"] { --color-accent: #22c55e; --color-accent-hover: #16a34a; }
+[data-accent="orange"] { --color-accent: #f97316; --color-accent-hover: #ea580c; }
+[data-accent="red"] { --color-accent: #ef4444; --color-accent-hover: #dc2626; }
+[data-accent="cyan"] { --color-accent: #06b6d4; --color-accent-hover: #0891b2; }
+[data-accent="pink"] { --color-accent: #ec4899; --color-accent-hover: #db2777; }
+
+/* Default accent */
+:root { --color-accent: #3b82f6; --color-accent-hover: #2563eb; }
+
+/* Base styles */
+html {
+  color-scheme: dark;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  min-height: 100vh;
+  margin: 0;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-hover);
+}
+
+/* Diff viewer syntax */
+.diff-add {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #86efac;
+}
+
+.diff-remove {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
+
+.diff-header {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+}
+
+/* Pulse animation for live indicators */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* Risk gauge gradient */
+.risk-gauge-bg {
+  background: linear-gradient(to right, var(--risk-none), var(--risk-low), var(--risk-medium), var(--risk-high), var(--risk-critical));
+}
+
+/* Protection zone striped overlay */
+.zone-overlay-surgical {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 4px,
+    rgba(234, 179, 8, 0.06) 4px,
+    rgba(234, 179, 8, 0.06) 8px
+  );
+}
+
+.zone-overlay-dnt {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 4px,
+    rgba(239, 68, 68, 0.08) 4px,
+    rgba(239, 68, 68, 0.08) 8px
+  );
+}
+
+/* Split diff line highlight on hover */
+.diff-split-line:hover {
+  filter: brightness(1.2);
+}
+
+/* Monospace for code/diff content */
+.font-mono {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+}

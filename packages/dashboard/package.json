@@ -1,0 +1,31 @@
+{
+  "name": "@voltron/dashboard",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@voltron/shared": "workspace:*",
+    "react": "^19.0",
+    "react-dom": "^19.0",
+    "zustand": "^5.0",
+    "lucide-react": "^0.474",
+    "clsx": "^2.1",
+    "tailwind-merge": "^3.0",
+    "date-fns": "^4.1",
+    "recharts": "^2.15"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0",
+    "@types/react-dom": "^19.0",
+    "@vitejs/plugin-react": "^4.3",
+    "vite": "^6.1",
+    "typescript": "~5.7",
+    "tailwindcss": "^4.0",
+    "@tailwindcss/vite": "^4.0"
+  }
+}
