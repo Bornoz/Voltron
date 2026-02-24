@@ -1,37 +1,127 @@
 import { useRef, useEffect, useState } from 'react';
-import { Terminal, Search, Download, ChevronDown, ChevronRight } from 'lucide-react';
+import {
+  Search,
+  Download,
+  ChevronDown,
+  ChevronRight,
+  AlertCircle,
+  Brain,
+  Eye,
+  Pencil,
+  Terminal as TerminalIcon,
+  FileText,
+  Wrench,
+} from 'lucide-react';
 import { useAgentStore, type AgentOutputEntry } from '../../stores/agentStore';
 import { useTranslation } from '../../i18n';
 
-const TYPE_COLORS: Record<string, string> = {
-  text: 'text-gray-200',
-  delta: 'text-gray-200',
-  tool: 'text-blue-400',
-  error: 'text-red-400',
-  thinking: 'text-gray-500',
+/* ───── Tool icon mapping ───── */
+const TOOL_ICONS: Record<string, typeof Eye> = {
+  Read: Eye,
+  Write: Pencil,
+  Edit: Pencil,
+  Bash: TerminalIcon,
+  Glob: FileText,
+  Grep: Search,
 };
 
+function getToolIcon(entry: AgentOutputEntry) {
+  if (entry.toolName && TOOL_ICONS[entry.toolName]) {
+    return TOOL_ICONS[entry.toolName];
+  }
+  return Wrench;
+}
+
+function extractFilePath(entry: AgentOutputEntry): string | null {
+  if (!entry.input) return null;
+  const input = entry.input as Record<string, unknown>;
+  return (input.file_path ?? input.filePath ?? input.path ?? input.command) as string | null;
+}
+
+/* ───── Card: Tool call ───── */
 function ToolCard({ entry }: { entry: AgentOutputEntry }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
+  const Icon = getToolIcon(entry);
+  const filePath = extractFilePath(entry);
 
   return (
-    <div className="my-0.5">
+    <div className="my-1 rounded-lg border border-gray-800 bg-gray-900/50 overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1.5 text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+        className="flex items-center gap-2 w-full text-left px-3 py-2 hover:bg-gray-800/50 transition-colors"
       >
-        {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-        <span className="font-mono">{entry.text}</span>
+        <Icon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+        <span className="text-[11px] text-blue-300 font-medium">
+          {entry.toolName ?? 'Tool'}
+        </span>
+        {filePath && (
+          <span className="text-[10px] text-gray-500 truncate flex-1 font-mono">
+            {filePath}
+          </span>
+        )}
+        <span className="text-[9px] text-gray-600 ml-auto shrink-0">
+          {t('agent.clickToExpand')}
+        </span>
+        {expanded ? (
+          <ChevronDown className="w-3 h-3 text-gray-600 shrink-0" />
+        ) : (
+          <ChevronRight className="w-3 h-3 text-gray-600 shrink-0" />
+        )}
       </button>
       {expanded && entry.input && (
-        <pre className="text-[9px] text-gray-600 ml-4 mt-0.5 max-h-24 overflow-auto font-mono">
-          {JSON.stringify(entry.input, null, 2)}
-        </pre>
+        <div className="px-3 py-2 border-t border-gray-800 bg-gray-950/50">
+          <pre className="text-[10px] text-gray-500 max-h-32 overflow-auto whitespace-pre-wrap break-all">
+            {JSON.stringify(entry.input, null, 2)}
+          </pre>
+        </div>
       )}
     </div>
   );
 }
 
+/* ───── Card: Thinking block ───── */
+function ThinkingCard({ entry }: { entry: AgentOutputEntry }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="my-1 rounded-lg border border-purple-900/30 bg-purple-950/20 overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-purple-900/20 transition-colors"
+      >
+        <Brain className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+        <span className="text-[10px] text-purple-400 font-medium">
+          {entry.text.slice(0, 60)}{entry.text.length > 60 ? '...' : ''}
+        </span>
+        {expanded ? (
+          <ChevronDown className="w-3 h-3 text-purple-600 ml-auto shrink-0" />
+        ) : (
+          <ChevronRight className="w-3 h-3 text-purple-600 ml-auto shrink-0" />
+        )}
+      </button>
+      {expanded && (
+        <div className="px-3 py-2 border-t border-purple-900/30">
+          <p className="text-[11px] text-purple-300/80 leading-relaxed whitespace-pre-wrap">
+            {entry.text}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ───── Card: Error ───── */
+function ErrorCard({ entry }: { entry: AgentOutputEntry }) {
+  return (
+    <div className="my-1 flex items-start gap-2 px-3 py-2 rounded-lg border border-red-900/40 bg-red-950/20">
+      <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+      <p className="text-[11px] text-red-300 leading-relaxed whitespace-pre-wrap">{entry.text}</p>
+    </div>
+  );
+}
+
+/* ───── Main component ───── */
 export function AgentOutput() {
   const { t } = useTranslation();
   const output = useAgentStore((s) => s.output);
@@ -70,9 +160,9 @@ export function AgentOutput() {
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 px-2 py-1.5 border-b border-gray-800">
-        <Terminal className="w-3.5 h-3.5 text-gray-500" />
-        <span className="text-[10px] text-gray-500 uppercase tracking-wider">{t('agent.output')}</span>
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-800 bg-gray-900/30">
+        <FileText className="w-3.5 h-3.5 text-gray-500" />
+        <span className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">{t('agent.output')}</span>
         <div className="flex-1" />
 
         {/* Search */}
@@ -96,11 +186,11 @@ export function AgentOutput() {
         </button>
       </div>
 
-      {/* Output */}
+      {/* Output area */}
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-2 font-mono text-[11px] leading-relaxed space-y-px"
+        className="flex-1 overflow-y-auto px-2 py-1.5 space-y-0.5"
       >
         {filteredOutput.length === 0 ? (
           <div className="flex items-center justify-center h-full text-xs text-gray-600">
@@ -111,9 +201,15 @@ export function AgentOutput() {
             if (entry.type === 'tool') {
               return <ToolCard key={i} entry={entry} />;
             }
+            if (entry.type === 'thinking') {
+              return <ThinkingCard key={i} entry={entry} />;
+            }
+            if (entry.type === 'error') {
+              return <ErrorCard key={i} entry={entry} />;
+            }
+            // Normal text / delta
             return (
-              <div key={i} className={TYPE_COLORS[entry.type] ?? 'text-gray-300'}>
-                {entry.type === 'error' && <span className="text-red-500 font-bold mr-1">ERR</span>}
+              <div key={i} className="px-1 py-0.5 text-[11px] text-gray-300 leading-relaxed">
                 {entry.text}
               </div>
             );

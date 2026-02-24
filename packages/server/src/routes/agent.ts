@@ -1,9 +1,32 @@
-import { resolve, isAbsolute } from 'node:path';
+import { resolve, isAbsolute, normalize, relative, extname } from 'node:path';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AgentSpawnConfig, PromptInjection } from '@voltron/shared';
 import type { AgentRunner } from '../services/agent-runner.js';
+import type { DevServerManager } from '../services/dev-server-manager.js';
 import { ProjectRepository } from '../db/repositories/projects.js';
+
+import { EDITOR_SCRIPT } from './editor-script.js';
+
+const MIME_TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.txt': 'text/plain; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
+  '.webp': 'image/webp',
+};
 
 const SpawnBody = z.object({
   model: z.string().optional(),
@@ -25,7 +48,7 @@ const InjectBody = z.object({
   includeConstraints: z.boolean().optional(),
 });
 
-export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner): void {
+export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner, devServerManager?: DevServerManager): void {
   const projectRepo = new ProjectRepository();
 
   // Spawn a new agent
@@ -154,5 +177,134 @@ export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner): voi
   // Get injection history
   app.get<{ Params: { id: string } }>('/api/projects/:id/agent/injections', async (request, reply) => {
     return reply.send(agentRunner.getInjections(request.params.id));
+  });
+
+  // Get dev server status
+  app.get<{ Params: { id: string } }>('/api/projects/:id/agent/devserver', async (request, reply) => {
+    if (!devServerManager) {
+      return reply.send(null);
+    }
+    const info = devServerManager.getInfo(request.params.id);
+    if (!info) {
+      return reply.send(null);
+    }
+    return reply.send({
+      status: info.status,
+      port: info.port,
+      url: info.url,
+      projectType: info.projectType,
+      error: info.error ?? null,
+    });
+  });
+
+  // Restart dev server
+  app.post<{ Params: { id: string } }>('/api/projects/:id/agent/devserver/restart', async (request, reply) => {
+    if (!devServerManager) {
+      return reply.status(400).send({ error: 'Dev server manager not available' });
+    }
+    const projectId = request.params.id;
+    // Get targetDir from active session or DB
+    const agent = agentRunner.getSession(projectId);
+    const targetDir = agent?.targetDir
+      ?? agentRunner.getSessionFromDb(projectId)?.targetDir;
+
+    if (!targetDir) {
+      return reply.status(404).send({ error: 'No agent session found' });
+    }
+
+    try {
+      const info = await devServerManager.startForProject(projectId, targetDir);
+      return reply.send({
+        status: info.status,
+        port: info.port,
+        url: info.url,
+        projectType: info.projectType,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Restart failed';
+      return reply.status(500).send({ error: message });
+    }
+  });
+
+  // Preview agent files — serves files from agent's targetDir
+  app.get<{ Params: { id: string; '*': string } }>('/api/projects/:id/agent/preview/*', async (request, reply) => {
+    const projectId = request.params.id;
+    const filePath = request.params['*'];
+
+    // Get targetDir from active session or latest DB session
+    const agent = agentRunner.getSession(projectId);
+    const targetDir = agent?.targetDir
+      ?? agentRunner.getSessionFromDb(projectId)?.targetDir;
+
+    if (!targetDir) {
+      return reply.status(404).send({ error: 'No agent session found' });
+    }
+
+    // Path traversal protection
+    const requested = normalize(resolve(targetDir, filePath));
+    const rel = relative(targetDir, requested);
+    if (rel.startsWith('..') || isAbsolute(rel)) {
+      return reply.status(403).send({ error: 'Path traversal denied' });
+    }
+
+    try {
+      const fileStat = await stat(requested);
+      if (!fileStat.isFile()) {
+        return reply.status(404).send({ error: 'Not a file' });
+      }
+
+      const ext = extname(requested).toLowerCase();
+      const contentType = MIME_TYPES[ext] ?? 'application/octet-stream';
+
+      // For HTML files, inject the visual editor script before </body>
+      if (ext === '.html') {
+        let html = await readFile(requested, 'utf-8');
+        if (!html.includes('data-voltron-editor')) {
+          if (html.includes('</body>')) {
+            html = html.replace('</body>', EDITOR_SCRIPT + '\n</body>');
+          } else {
+            html += EDITOR_SCRIPT;
+          }
+        }
+        return reply
+          .header('Content-Type', contentType)
+          .header('Cache-Control', 'no-cache')
+          .send(html);
+      }
+
+      const content = await readFile(requested);
+      return reply
+        .header('Content-Type', contentType)
+        .header('Cache-Control', 'no-cache')
+        .send(content);
+    } catch {
+      return reply.status(404).send({ error: 'File not found' });
+    }
+  });
+
+  // List files in agent's targetDir
+  app.get<{ Params: { id: string } }>('/api/projects/:id/agent/files', async (request, reply) => {
+    const projectId = request.params.id;
+    const agent = agentRunner.getSession(projectId);
+    const targetDir = agent?.targetDir
+      ?? agentRunner.getSessionFromDb(projectId)?.targetDir;
+
+    if (!targetDir) {
+      return reply.status(404).send({ error: 'No agent session found' });
+    }
+
+    try {
+      const entries = await readdir(targetDir, { withFileTypes: true, recursive: true });
+      const files = entries
+        .filter((e) => e.isFile())
+        .map((e) => {
+          const fullPath = resolve(e.parentPath ?? e.path, e.name);
+          return relative(targetDir, fullPath);
+        })
+        .sort();
+      return reply.send({ targetDir, files });
+    } catch {
+      return reply.send({ targetDir, files: [] });
+    }
   });
 }

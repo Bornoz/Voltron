@@ -10,22 +10,23 @@
   },
   "dependencies": {
     "@voltron/shared": "workspace:*",
+    "clsx": "^2.1",
+    "date-fns": "^4.1",
+    "lucide-react": "^0.474",
     "react": "^19.0",
     "react-dom": "^19.0",
-    "zustand": "^5.0",
-    "lucide-react": "^0.474",
-    "clsx": "^2.1",
+    "react-router-dom": "^7.13.1",
+    "recharts": "^2.15",
     "tailwind-merge": "^3.0",
-    "date-fns": "^4.1",
-    "recharts": "^2.15"
+    "zustand": "^5.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.0",
     "@types/react": "^19.0",
     "@types/react-dom": "^19.0",
     "@vitejs/plugin-react": "^4.3",
-    "vite": "^6.1",
-    "typescript": "~5.7",
     "tailwindcss": "^4.0",
-    "@tailwindcss/vite": "^4.0"
+    "typescript": "~5.7",
+    "vite": "^6.1"
   }
 }

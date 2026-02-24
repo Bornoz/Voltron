@@ -9,8 +9,8 @@ interface SpawnDialogProps {
 }
 
 const MODELS = [
-  { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5', description: 'Hizli, ekonomik' },
-  { id: 'claude-sonnet-4-5-20250514', label: 'Sonnet 4.5', description: 'Dengeli, gucluu' },
+  { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5', descKey: 'agent.modelDescHaiku' },
+  { id: 'claude-sonnet-4-5-20250514', label: 'Sonnet 4.5', descKey: 'agent.modelDescSonnet' },
 ];
 
 export function SpawnDialog({ projectId, onSpawn, onClose }: SpawnDialogProps) {
@@ -69,7 +69,7 @@ export function SpawnDialog({ projectId, onSpawn, onClose }: SpawnDialogProps) {
                   }`}
                 >
                   <div className="font-medium">{m.label}</div>
-                  <div className="text-[10px] opacity-60 mt-0.5">{m.description}</div>
+                  <div className="text-[10px] opacity-60 mt-0.5">{t(m.descKey)}</div>
                 </button>
               ))}
             </div>

@@ -27,7 +27,7 @@ export class SimulatorWebSocket {
   constructor(url?: string) {
     this.clientId = crypto.randomUUID();
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    this.url = url ?? `${protocol}//${window.location.hostname}:8600/ws`;
+    this.url = url ?? `${protocol}//${window.location.host}/ws`;
   }
 
   get status(): ConnectionStatus {

@@ -16,6 +16,7 @@ export function useAgentStream(client: VoltronWebSocket): void {
   const addOutput = useAgentStore((s) => s.addOutput);
   const setTokenUsage = useAgentStore((s) => s.setTokenUsage);
   const setError = useAgentStore((s) => s.setError);
+  const setDevServer = useAgentStore((s) => s.setDevServer);
 
   useEffect(() => {
     const unsubs: (() => void)[] = [];
@@ -70,8 +71,19 @@ export function useAgentStream(client: VoltronWebSocket): void {
       setError(p.error);
     }));
 
+    unsubs.push(client.on('DEV_SERVER_STATUS', (msg) => {
+      const p = msg.payload as {
+        status: 'installing' | 'starting' | 'ready' | 'error' | 'stopped';
+        port: number;
+        url: string;
+        projectType?: string;
+        error?: string;
+      };
+      setDevServer(p.status === 'stopped' ? null : p);
+    }));
+
     return () => {
       for (const unsub of unsubs) unsub();
     };
-  }, [client, setSession, setStatus, setLocation, setPlan, addBreadcrumb, addOutput, setTokenUsage, setError]);
+  }, [client, setSession, setStatus, setLocation, setPlan, addBreadcrumb, addOutput, setTokenUsage, setError, setDevServer]);
 }

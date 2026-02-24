@@ -9,10 +9,10 @@ interface PromptInjectorProps {
 }
 
 const QUICK_ACTIONS = [
-  { label: 'Use Tailwind', prompt: 'Use Tailwind CSS for all styling. Do not use inline styles.' },
-  { label: 'Follow patterns', prompt: 'Follow existing project patterns and conventions strictly.' },
-  { label: 'Add TypeScript', prompt: 'Ensure all code is properly typed with TypeScript. No any types.' },
-  { label: 'Responsive', prompt: 'Make the design fully responsive (mobile-first approach).' },
+  { labelKey: 'agent.quickUseTailwind', prompt: 'Use Tailwind CSS for all styling. Do not use inline styles.' },
+  { labelKey: 'agent.quickFollowPatterns', prompt: 'Follow existing project patterns and conventions strictly.' },
+  { labelKey: 'agent.quickAddTypeScript', prompt: 'Ensure all code is properly typed with TypeScript. No any types.' },
+  { labelKey: 'agent.quickResponsive', prompt: 'Make the design fully responsive (mobile-first approach).' },
 ];
 
 export function PromptInjector({ projectId, onInject }: PromptInjectorProps) {
@@ -56,11 +56,11 @@ export function PromptInjector({ projectId, onInject }: PromptInjectorProps) {
       <div className="flex flex-wrap gap-1">
         {QUICK_ACTIONS.map((action) => (
           <button
-            key={action.label}
+            key={action.labelKey}
             onClick={() => handleQuickAction(action)}
             className="px-2 py-0.5 text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 rounded border border-gray-700 transition-colors"
           >
-            {action.label}
+            {t(action.labelKey)}
           </button>
         ))}
       </div>

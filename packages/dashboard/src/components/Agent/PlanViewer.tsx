@@ -1,7 +1,10 @@
-import { CheckCircle2, Circle, Loader2, SkipForward, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { CheckCircle2, Circle, Loader2, SkipForward, ChevronRight, AlertTriangle, FileText } from 'lucide-react';
 import { useAgentStore } from '../../stores/agentStore';
 import type { AgentPlanStepStatus } from '@voltron/shared';
 import { useTranslation } from '../../i18n';
+
+const PLAN_TIMEOUT_MS = 15_000;
 
 const STEP_ICONS: Record<AgentPlanStepStatus, typeof Circle> = {
   pending: Circle,
@@ -23,23 +26,146 @@ function getConfidenceColor(confidence: number): string {
   return 'bg-red-500/20 text-red-400 border-red-600/30';
 }
 
+/** Build a minimal "file list" plan from breadcrumbs when thinking-based plan extraction fails */
+function buildBreadcrumbPlan(breadcrumbs: { filePath: string; activity: string }[]) {
+  const fileSet = new Map<string, string>();
+  for (const bc of breadcrumbs) {
+    if (bc.filePath && !fileSet.has(bc.filePath)) {
+      fileSet.set(bc.filePath, bc.activity);
+    }
+  }
+  if (fileSet.size === 0) return null;
+
+  const steps = Array.from(fileSet.entries()).map(([filePath, activity], i) => ({
+    index: i,
+    description: `${activity}: ${filePath.split('/').pop()}`,
+    status: 'completed' as AgentPlanStepStatus,
+    filePath,
+  }));
+
+  return {
+    summary: `${fileSet.size} dosya islendi`,
+    confidence: 0.3,
+    totalSteps: steps.length,
+    currentStepIndex: steps.length - 1,
+    steps,
+  };
+}
+
 export function PlanViewer() {
   const { t } = useTranslation();
   const plan = useAgentStore((s) => s.plan);
   const status = useAgentStore((s) => s.status);
+  const breadcrumbs = useAgentStore((s) => s.breadcrumbs);
+  const [timedOut, setTimedOut] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  if (!plan) {
+  // Timeout: if plan doesn't arrive within PLAN_TIMEOUT_MS while running, show fallback
+  useEffect(() => {
+    if (plan) {
+      // Plan arrived — clear timeout
+      setTimedOut(false);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      return;
+    }
+
     if (['RUNNING', 'SPAWNING'].includes(status)) {
+      setTimedOut(false);
+      timerRef.current = setTimeout(() => setTimedOut(true), PLAN_TIMEOUT_MS);
+      return () => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+      };
+    }
+
+    // Not running — clear timer
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, [plan, status]);
+
+  // Reset timeout state when status goes to IDLE
+  useEffect(() => {
+    if (status === 'IDLE') setTimedOut(false);
+  }, [status]);
+
+  // Case 1: Plan exists — show normally
+  if (plan) {
+    return <PlanDisplay plan={plan} />;
+  }
+
+  // Case 2: Agent completed/crashed without a plan — show breadcrumb fallback or "no plan" message
+  if (['COMPLETED', 'CRASHED'].includes(status)) {
+    const fallback = buildBreadcrumbPlan(breadcrumbs);
+    if (fallback) {
       return (
-        <div className="flex items-center gap-2 px-3 py-2 text-xs text-gray-500">
-          <Loader2 className="w-3 h-3 animate-spin" />
-          <span>{t('agent.extractingPlan')}</span>
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 text-[10px] text-yellow-500/80">
+            <FileText className="w-3 h-3" />
+            <span>{t('agent.planFromBreadcrumbs')}</span>
+          </div>
+          <PlanDisplay plan={fallback} />
         </div>
       );
     }
-    return null;
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 text-xs text-gray-500">
+        <AlertTriangle className="w-3 h-3 text-yellow-600" />
+        <span>{t('agent.noPlanDetected')}</span>
+      </div>
+    );
   }
 
+  // Case 3: Running but timed out — show timeout message
+  if (['RUNNING', 'SPAWNING'].includes(status) && timedOut) {
+    const fallback = buildBreadcrumbPlan(breadcrumbs);
+    if (fallback) {
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 text-[10px] text-yellow-500/80">
+            <FileText className="w-3 h-3" />
+            <span>{t('agent.planFromBreadcrumbs')}</span>
+          </div>
+          <PlanDisplay plan={fallback} />
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 text-xs text-gray-500">
+        <AlertTriangle className="w-3 h-3 text-yellow-600" />
+        <span>{t('agent.planExtractionFailed')}</span>
+      </div>
+    );
+  }
+
+  // Case 4: Running, still waiting for plan
+  if (['RUNNING', 'SPAWNING'].includes(status)) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 text-xs text-gray-500">
+        <Loader2 className="w-3 h-3 animate-spin" />
+        <span>{t('agent.extractingPlan')}</span>
+      </div>
+    );
+  }
+
+  // Case 5: IDLE — show nothing
+  return null;
+}
+
+interface PlanDisplayProps {
+  plan: {
+    summary: string;
+    confidence: number;
+    totalSteps: number;
+    currentStepIndex: number;
+    steps: Array<{
+      index: number;
+      description: string;
+      status: AgentPlanStepStatus;
+      filePath?: string;
+    }>;
+  };
+}
+
+function PlanDisplay({ plan }: PlanDisplayProps) {
+  const { t } = useTranslation();
   const completedCount = plan.steps.filter((s) => s.status === 'completed').length;
   const progress = plan.totalSteps > 0 ? Math.round((completedCount / plan.totalSteps) * 100) : 0;
 

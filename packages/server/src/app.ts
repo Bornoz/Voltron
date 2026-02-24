@@ -18,6 +18,7 @@ import { agentRoutes } from './routes/agent.js';
 import { createWsServices, registerWsHandler } from './ws/handler.js';
 import { EventBus } from './services/event-bus.js';
 import { AgentRunner } from './services/agent-runner.js';
+import { DevServerManager } from './services/dev-server-manager.js';
 import { SnapshotPruner } from './services/snapshot-pruner.js';
 import { BehaviorScorer } from './services/behavior-scorer.js';
 import type { ServerConfig } from './config.js';
@@ -45,7 +46,8 @@ export async function buildApp(config: ServerConfig) {
 
   // Services
   const eventBus = new EventBus();
-  const agentRunner = new AgentRunner(eventBus, config.claudePath);
+  const devServerManager = new DevServerManager(eventBus);
+  const agentRunner = new AgentRunner(eventBus, config.claudePath, devServerManager);
   const wsServices = createWsServices(config, eventBus, agentRunner);
   const snapshotPruner = new SnapshotPruner();
   const behaviorScorer = new BehaviorScorer();
@@ -60,7 +62,7 @@ export async function buildApp(config: ServerConfig) {
   githubRoutes(app, config, agentRunner);
   behaviorRoutes(app, behaviorScorer);
   promptRoutes(app);
-  agentRoutes(app, agentRunner);
+  agentRoutes(app, agentRunner, devServerManager);
 
   // WebSocket
   registerWsHandler(app, config, wsServices);
@@ -104,6 +106,7 @@ export async function buildApp(config: ServerConfig) {
   app.addHook('onClose', async () => {
     snapshotPruner.stop();
     behaviorScorer.stop();
+    await devServerManager.stopAll();
   });
 
   return { app, eventBus, wsServices, agentRunner };

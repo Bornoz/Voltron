@@ -147,6 +147,7 @@ export function createWsServices(config: ServerConfig, eventBus: EventBus, agent
       'AGENT_OUTPUT',
       'AGENT_TOKEN_USAGE',
       'AGENT_ERROR',
+      'DEV_SERVER_STATUS',
     ] as const;
 
     for (const eventType of agentEvents) {

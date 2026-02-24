@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { openSync } from 'node:fs';
+import { openSync, existsSync, mkdirSync } from 'node:fs';
 import { AGENT_CONSTANTS, type AgentStatus, type AgentActivity, type AgentLocation, type AgentPlan, type AgentBreadcrumb, type AgentSpawnConfig, type PromptInjection, type SimulatorConstraint } from '@voltron/shared';
 import { AgentStreamParser, type LocationChangeEvent, type TokenUsageEvent } from './agent-stream-parser.js';
 import { extractPlan, updatePlanProgress } from './agent-plan-extractor.js';
@@ -11,6 +11,7 @@ import { AgentPlanRepository } from '../db/repositories/agent-plans.js';
 import { AgentInjectionRepository } from '../db/repositories/agent-injections.js';
 import { SimulatorConstraintRepository } from '../db/repositories/simulator-constraints.js';
 import type { EventBus } from './event-bus.js';
+import type { DevServerManager } from './dev-server-manager.js';
 
 interface RunningAgent {
   process: ChildProcess;
@@ -29,7 +30,10 @@ interface RunningAgent {
   outputTokens: number;
   startedAt: number;
   lastThinkingText: string;
+  lastTextOutput: string;
+  hasReceivedThinking: boolean;
   planDebounceTimer: ReturnType<typeof setTimeout> | null;
+  textPlanDebounceTimer: ReturnType<typeof setTimeout> | null;
   killTimer: ReturnType<typeof setTimeout> | null;
 }
 
@@ -41,7 +45,11 @@ export class AgentRunner extends EventEmitter {
   private injectionRepo = new AgentInjectionRepository();
   private constraintRepo = new SimulatorConstraintRepository();
 
-  constructor(private eventBus: EventBus, private claudeBinary: string = AGENT_CONSTANTS.CLAUDE_BINARY) {
+  constructor(
+    private eventBus: EventBus,
+    private claudeBinary: string = AGENT_CONSTANTS.CLAUDE_BINARY,
+    private devServerManager?: DevServerManager,
+  ) {
     super();
   }
 
@@ -89,12 +97,20 @@ export class AgentRunner extends EventEmitter {
       outputTokens: 0,
       startedAt: Date.now(),
       lastThinkingText: '',
+      lastTextOutput: '',
+      hasReceivedThinking: false,
       planDebounceTimer: null,
+      textPlanDebounceTimer: null,
       killTimer: null,
     };
 
     this.agents.set(projectId, agent);
     this.emitStatus(projectId, 'SPAWNING');
+
+    // Ensure targetDir exists before spawning
+    if (!existsSync(targetDir)) {
+      mkdirSync(targetDir, { recursive: true });
+    }
 
     try {
       this.spawnProcess(agent, prompt);
@@ -316,6 +332,33 @@ export class AgentRunner extends EventEmitter {
         clearTimeout(agent.killTimer);
         agent.killTimer = null;
       }
+      if (agent.planDebounceTimer) {
+        clearTimeout(agent.planDebounceTimer);
+        agent.planDebounceTimer = null;
+      }
+      if (agent.textPlanDebounceTimer) {
+        clearTimeout(agent.textPlanDebounceTimer);
+        agent.textPlanDebounceTimer = null;
+      }
+
+      // Last-chance plan extraction from text output if no plan was found
+      if (!agent.plan && agent.lastTextOutput.length >= 30) {
+        const result = extractPlan(agent.lastTextOutput);
+        if (result && result.confidence >= 0.4) {
+          agent.plan = result.plan;
+          this.planRepo.insert({
+            sessionId: agent.sessionId,
+            projectId: agent.projectId,
+            summary: result.plan.summary,
+            stepsJson: JSON.stringify(result.plan.steps),
+            currentStep: result.plan.currentStepIndex,
+            totalSteps: result.plan.totalSteps,
+            confidence: result.confidence,
+            extractedAt: Date.now(),
+          });
+          this.eventBus.emit('AGENT_PLAN_UPDATE', { projectId: agent.projectId, plan: result.plan });
+        }
+      }
 
       if (agent.status === 'INJECTING') {
         // Expected kill during injection - don't mark as completed
@@ -333,6 +376,12 @@ export class AgentRunner extends EventEmitter {
       if (code === 0 || signal === 'SIGTERM') {
         this.setStatus(agent, 'COMPLETED');
         this.sessionRepo.setCompleted(agent.sessionDbId, code);
+        // Start dev server if available
+        if (this.devServerManager) {
+          this.devServerManager.startForProject(agent.projectId, agent.targetDir).catch((err) => {
+            console.warn('[AgentRunner] Dev server start failed:', err instanceof Error ? err.message : err);
+          });
+        }
       } else {
         this.setStatus(agent, 'CRASHED');
         this.sessionRepo.setCrashed(agent.sessionDbId, `Exit code ${code}, signal ${signal}`);
@@ -396,6 +445,7 @@ export class AgentRunner extends EventEmitter {
 
     parser.on('thinking', (text: string) => {
       agent.lastThinkingText += text;
+      agent.hasReceivedThinking = true;
     });
 
     parser.on('plan_detected', (thinkingText: string) => {
@@ -428,10 +478,20 @@ export class AgentRunner extends EventEmitter {
 
     parser.on('text_output', (text: string) => {
       this.eventBus.emit('AGENT_OUTPUT', { projectId, text, type: 'text', timestamp: Date.now() });
+      // Fallback plan extraction from text output (for models without thinking blocks)
+      if (!agent.hasReceivedThinking && !agent.plan) {
+        agent.lastTextOutput += text + '\n';
+        this.tryExtractPlanFromText(agent);
+      }
     });
 
     parser.on('text_delta', (text: string) => {
       this.eventBus.emit('AGENT_OUTPUT', { projectId, text, type: 'delta', timestamp: Date.now() });
+      // Fallback plan extraction from text delta (for models without thinking blocks)
+      if (!agent.hasReceivedThinking && !agent.plan) {
+        agent.lastTextOutput += text;
+        this.tryExtractPlanFromText(agent);
+      }
     });
 
     parser.on('tool_start', (event: { toolName: string; input: Record<string, unknown>; timestamp: number }) => {
@@ -464,6 +524,41 @@ export class AgentRunner extends EventEmitter {
         });
       }
     });
+  }
+
+  /**
+   * Fallback plan extraction from text output.
+   * Used when model doesn't produce thinking blocks (e.g., Haiku).
+   * Debounced to avoid excessive extraction attempts on streaming deltas.
+   */
+  private tryExtractPlanFromText(agent: RunningAgent): void {
+    if (agent.textPlanDebounceTimer) {
+      clearTimeout(agent.textPlanDebounceTimer);
+    }
+    agent.textPlanDebounceTimer = setTimeout(() => {
+      if (agent.plan || agent.lastTextOutput.length < 30) return;
+
+      const result = extractPlan(agent.lastTextOutput);
+      if (result && result.confidence >= 0.4) {
+        agent.plan = result.plan;
+        const projectId = agent.projectId;
+
+        this.planRepo.insert({
+          sessionId: agent.sessionId,
+          projectId,
+          summary: result.plan.summary,
+          stepsJson: JSON.stringify(result.plan.steps),
+          currentStep: result.plan.currentStepIndex,
+          totalSteps: result.plan.totalSteps,
+          confidence: result.confidence,
+          extractedAt: Date.now(),
+        });
+
+        this.eventBus.emit('AGENT_PLAN_UPDATE', { projectId, plan: result.plan });
+        // Clear buffer after successful extraction
+        agent.lastTextOutput = '';
+      }
+    }, AGENT_CONSTANTS.PLAN_DEBOUNCE_MS + 500); // Slightly longer debounce for text fallback
   }
 
   private async killProcess(agent: RunningAgent): Promise<void> {

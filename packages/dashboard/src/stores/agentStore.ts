@@ -14,6 +14,14 @@ interface AgentOutputEntry {
   input?: Record<string, unknown>;
 }
 
+interface DevServerState {
+  status: 'installing' | 'starting' | 'ready' | 'error' | 'stopped';
+  port: number;
+  url: string;
+  projectType?: string;
+  error?: string;
+}
+
 interface AgentState {
   // Session
   sessionId: string | null;
@@ -41,6 +49,9 @@ interface AgentState {
   // Last error
   lastError: string | null;
 
+  // Dev Server
+  devServer: DevServerState | null;
+
   // Actions
   setSession: (sessionId: string, model: string, startedAt: number) => void;
   setStatus: (status: AgentStatus) => void;
@@ -50,6 +61,7 @@ interface AgentState {
   addOutput: (entry: AgentOutputEntry) => void;
   setTokenUsage: (usage: AgentTokenUsage) => void;
   setError: (error: string) => void;
+  setDevServer: (info: DevServerState | null) => void;
   reset: () => void;
 }
 
@@ -66,6 +78,7 @@ const initialState = {
   output: [],
   tokenUsage: { inputTokens: 0, outputTokens: 0 },
   lastError: null,
+  devServer: null,
 };
 
 export const useAgentStore = create<AgentState>((set) => ({
@@ -104,6 +117,8 @@ export const useAgentStore = create<AgentState>((set) => ({
   setTokenUsage: (tokenUsage) => set({ tokenUsage }),
 
   setError: (lastError) => set({ lastError }),
+
+  setDevServer: (devServer) => set({ devServer }),
 
   reset: () => set(initialState),
 }));
