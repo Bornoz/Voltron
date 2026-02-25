@@ -147,6 +147,7 @@ export function createWsServices(config: ServerConfig, eventBus: EventBus, agent
       'AGENT_OUTPUT',
       'AGENT_TOKEN_USAGE',
       'AGENT_ERROR',
+      'AGENT_PHASE_UPDATE',
       'DEV_SERVER_STATUS',
     ] as const;
 
@@ -179,7 +180,20 @@ export function registerWsHandler(
 ): void {
   const { broadcaster, replayer, stateMachine, riskEngine, circuitBreaker, actionRepo, snapshotRepo, projectRepo, zoneRepo, sessionRepo, deduplicator, sequenceTracker, rateLimiter, agentRunner, constraintRepo } = services;
 
-  app.get('/ws', { websocket: true }, (socket: WebSocket) => {
+  app.get('/ws', { websocket: true }, (socket: WebSocket, request) => {
+    // Origin validation
+    const origin = request.headers.origin;
+    if (origin) {
+      const allowed = config.corsOrigins.some((o) => origin === o);
+      if (!allowed) {
+        if (process.env.NODE_ENV === 'production') {
+          socket.close(4004, 'Origin not allowed');
+          return;
+        }
+        app.log.warn(`[WS] Connection from unrecognized origin: ${origin}`);
+      }
+    }
+
     let clientId: string | null = null;
     let registered = false;
     let throttleWarned = false;

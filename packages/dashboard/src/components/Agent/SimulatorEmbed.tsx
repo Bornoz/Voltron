@@ -1,11 +1,14 @@
 import { useState, useRef, useCallback, useEffect, useReducer } from 'react';
 import {
   Monitor, RefreshCw, ExternalLink, Eye, Layers,
-  Palette, Type, Sparkles, Send, Undo2, X, Save, Trash2,
-  Move, Maximize2, PenLine, AlertTriangle, PlusCircle, MessageSquare,
+  Send, Undo2, X, Save, Trash2, MapPin, Image,
+  Move, Maximize2, Palette, Type, PenLine, Sparkles,
+  AlertTriangle, PlusCircle, MessageSquare,
 } from 'lucide-react';
 import { useAgentStore } from '../../stores/agentStore';
+import type { PromptPin, ReferenceImage } from '../../stores/agentStore';
 import { useTranslation } from '../../i18n';
+import { PromptPinModal } from './PromptPinModal';
 
 /* ─── Types ────────────────────────────────────────────── */
 
@@ -20,8 +23,8 @@ interface VisualEdit {
   selector: string;
   desc: string;
   coords: { x: number; y: number; w: number; h: number };
-  from: any;
-  to: any;
+  from: Record<string, unknown>;
+  to: Record<string, unknown>;
 }
 
 interface SelectedElement {
@@ -39,6 +42,18 @@ interface AnnotationRequest {
   type: 'error' | 'add' | 'note';
   x: number;
   y: number;
+  pageX?: number;
+  pageY?: number;
+  nearestElement?: { selector: string; tag: string; text: string } | null;
+}
+
+interface PinCreateRequest {
+  x: number;
+  y: number;
+  pageX: number;
+  pageY: number;
+  nearestSelector: string;
+  nearestElementDesc: string;
 }
 
 type EmbedMode = 'preview' | 'simulator';
@@ -78,21 +93,134 @@ function getPreviewUrl(projectId: string, devServer?: DevServerInfo | null): str
   return `${base}/api/projects/${encodeURIComponent(projectId)}/agent/preview/index.html`;
 }
 
-const COLOR_PRESETS = [
-  '#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4',
-  '#3b82f6', '#8b5cf6', '#ec4899', '#ffffff', '#000000',
-  '#1e293b', '#64748b', '#f1f5f9',
-];
+/* ─── Phase Formatter ─────────────────────────────────── */
 
-const FONT_SIZES = ['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '48px'];
+function formatPhasePrompt(
+  edits: VisualEdit[],
+  pins: PromptPin[],
+  refImage: ReferenceImage | null,
+): string {
+  const now = new Date().toISOString();
 
-const SHADOW_PRESETS: { label: string; value: string }[] = [
-  { label: 'Yok', value: 'none' },
-  { label: 'Hafif', value: '0 1px 3px rgba(0,0,0,0.12)' },
-  { label: 'Orta', value: '0 4px 12px rgba(0,0,0,0.15)' },
-  { label: 'Guclu', value: '0 8px 30px rgba(0,0,0,0.25)' },
-  { label: 'Kabartma', value: '0 2px 0 rgba(255,255,255,0.2) inset, 0 -2px 0 rgba(0,0,0,0.1) inset, 0 4px 8px rgba(0,0,0,0.2)' },
-];
+  // Categorize edits
+  const styleEdits = edits.filter((e) => ['recolor', 'refont', 'effect', 'move', 'resize'].includes(e.type));
+  const contentEdits = edits.filter((e) => ['retext', 'add_here'].includes(e.type));
+  const errorEdits = edits.filter((e) => ['mark_error'].includes(e.type));
+  const noteEdits = edits.filter((e) => ['annotate'].includes(e.type));
+
+  // Build phases
+  const phases: { title: string; items: string[] }[] = [];
+  let globalIdx = 0;
+
+  if (styleEdits.length > 0) {
+    const items: string[] = [];
+    for (const edit of styleEdits) {
+      globalIdx++;
+      const lines: string[] = [];
+      lines.push(`[${globalIdx}] ${edit.type.toUpperCase()} — ${edit.selector}`);
+      lines.push(`    Koordinat: (${edit.coords.x}, ${edit.coords.y}) ${edit.coords.w}x${edit.coords.h}`);
+
+      switch (edit.type) {
+        case 'recolor':
+          lines.push(`    ${edit.to.target || 'text'}: ${edit.from.value} → ${edit.to.value}`);
+          lines.push(`    KABUL KRITERI: ${edit.selector} ${edit.from.property} === ${edit.to.value}`);
+          break;
+        case 'refont':
+          if (edit.to.fontSize !== edit.from.fontSize) lines.push(`    font-size: ${edit.from.fontSize} → ${edit.to.fontSize}`);
+          if (edit.to.fontFamily !== edit.from.fontFamily) lines.push(`    font-family: ${edit.from.fontFamily} → ${edit.to.fontFamily}`);
+          lines.push(`    KABUL KRITERI: ${edit.selector} font-size === ${edit.to.fontSize}`);
+          break;
+        case 'effect':
+          Object.keys(edit.to).forEach((k) => lines.push(`    ${k}: ${edit.to[k]}`));
+          lines.push(`    KABUL KRITERI: ${edit.selector} efekt uygulanmis`);
+          break;
+        case 'move':
+          lines.push(`    Hareket: deltaX=${edit.to.deltaX}px, deltaY=${edit.to.deltaY}px`);
+          lines.push(`    KABUL KRITERI: ${edit.selector} transform icinde translate degerleri`);
+          break;
+        case 'resize':
+          lines.push(`    Boyut: ${edit.from.width}x${edit.from.height} → ${edit.to.width}x${edit.to.height}`);
+          lines.push(`    KABUL KRITERI: ${edit.selector} width === ${edit.to.width}px`);
+          break;
+      }
+      items.push(lines.join('\n'));
+    }
+    phases.push({ title: 'Stil Degisiklikleri', items });
+  }
+
+  // Content phase (texts + adds + prompt pins)
+  const contentItems: string[] = [];
+  for (const edit of contentEdits) {
+    globalIdx++;
+    const lines: string[] = [];
+    if (edit.type === 'retext') {
+      lines.push(`[${globalIdx}] RETEXT — ${edit.selector}`);
+      lines.push(`    Koordinat: (${edit.coords.x}, ${edit.coords.y}) ${edit.coords.w}x${edit.coords.h}`);
+      lines.push(`    Eski: "${edit.from.text}"`);
+      lines.push(`    Yeni: "${edit.to.text}"`);
+      lines.push(`    KABUL KRITERI: ${edit.selector} textContent === "${edit.to.text}"`);
+    } else {
+      lines.push(`[${globalIdx}] ADD_HERE — viewport`);
+      lines.push(`    Koordinat: (${edit.to?.pageX || edit.coords.x}, ${edit.to?.pageY || edit.coords.y})`);
+      lines.push(`    Talimat: "${edit.to?.note || ''}"`);
+      lines.push(`    KABUL KRITERI: Belirtilen konumda yeni element var`);
+    }
+    contentItems.push(lines.join('\n'));
+  }
+  for (const pin of pins) {
+    globalIdx++;
+    const lines: string[] = [];
+    lines.push(`[${globalIdx}] PROMPT_PIN — Koordinat: (${Math.round(pin.pageX)}, ${Math.round(pin.pageY)})`);
+    lines.push(`    Yakin Element: ${pin.nearestSelector} (${pin.nearestElementDesc})`);
+    lines.push(`    Talimat: "${pin.prompt}"`);
+    lines.push(`    KABUL KRITERI: Talimat uygulanmis`);
+    contentItems.push(lines.join('\n'));
+  }
+  if (contentItems.length > 0) {
+    phases.push({ title: 'Icerik Eklemeleri', items: contentItems });
+  }
+
+  // Error phase
+  if (errorEdits.length > 0 || noteEdits.length > 0) {
+    const items: string[] = [];
+    for (const edit of [...errorEdits, ...noteEdits]) {
+      globalIdx++;
+      const lines: string[] = [];
+      const typeLabel = edit.type === 'mark_error' ? 'MARK_ERROR' : 'ANNOTATE';
+      lines.push(`[${globalIdx}] ${typeLabel} — Koordinat: (${edit.to?.pageX || edit.coords.x}, ${edit.to?.pageY || edit.coords.y})`);
+      if (edit.to?.note) lines.push(`    ${edit.type === 'mark_error' ? 'Hata' : 'Not'}: "${edit.to.note}"`);
+      lines.push(`    KABUL KRITERI: Belirtilen hata/not duzeltilmis`);
+      items.push(lines.join('\n'));
+    }
+    phases.push({ title: 'Hata Duzeltmeleri', items });
+  }
+
+  // Build final output
+  const totalOps = globalIdx;
+  const output: string[] = [];
+  output.push('=== VOLTRON GORSEL KOMUT SISTEMI ===');
+  output.push(`Tarih: ${now}`);
+  output.push(`Toplam Islem: ${totalOps} (${styleEdits.length} stil, ${contentItems.length} icerik, ${errorEdits.length + noteEdits.length} hata/not)`);
+  output.push(`Referans Gorsel: ${refImage ? 'var' : 'yok'}`);
+  output.push('');
+
+  phases.forEach((phase, pi) => {
+    output.push(`--- FAZ ${pi + 1}/${phases.length}: ${phase.title} ---`);
+    for (const item of phase.items) {
+      output.push(item);
+      output.push('');
+    }
+  });
+
+  output.push('=== UYGULAMA KURALLARI ===');
+  output.push('1. Her fazi sirayla uygula');
+  output.push('2. Bir faz tamamlanmadan sonrakine GECME');
+  output.push('3. Her islem sonrasi KABUL KRITERINI dogrula');
+  output.push('4. Basarisiz olursa sebebini raporla ve dur');
+  output.push('5. Selektorler ve koordinatlar kesindir');
+
+  return output.join('\n');
+}
 
 /* ─── Component ────────────────────────────────────────── */
 
@@ -101,18 +229,30 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
   const status = useAgentStore((s) => s.status);
   const location = useAgentStore((s) => s.location);
   const devServer = useAgentStore((s) => s.devServer);
+  const promptPins = useAgentStore((s) => s.promptPins);
+  const addPromptPin = useAgentStore((s) => s.addPromptPin);
+  const updatePromptPin = useAgentStore((s) => s.updatePromptPin);
+  const _removePromptPin = useAgentStore((s) => s.removePromptPin);
+  const clearPromptPins = useAgentStore((s) => s.clearPromptPins);
+  const referenceImage = useAgentStore((s) => s.referenceImage);
+  const setReferenceImage = useAgentStore((s) => s.setReferenceImage);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [iframeKey, setIframeKey] = useState(0);
   const [mode, setMode] = useState<EmbedMode>('preview');
   const [edits, dispatchEdit] = useReducer(editReducer, []);
-  const [selected, setSelected] = useState<SelectedElement | null>(null);
+  const [_selected, setSelected] = useState<SelectedElement | null>(null);
   const [editorReady, setEditorReady] = useState(false);
   const [showEditList, setShowEditList] = useState(false);
   const [annReq, setAnnReq] = useState<AnnotationRequest | null>(null);
   const [annText, setAnnText] = useState('');
   const annInputRef = useRef<HTMLInputElement>(null);
   const prevLocationRef = useRef(location);
+
+  // Prompt pin modal state
+  const [pinCreateReq, setPinCreateReq] = useState<PinCreateRequest | null>(null);
+  const [editingPinId, setEditingPinId] = useState<string | null>(null);
 
   const isActive = !['IDLE'].includes(status);
   const canInject = ['RUNNING', 'PAUSED'].includes(status);
@@ -136,6 +276,86 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
       setIframeKey((k) => k + 1);
     }
   }, [location, isPreview]);
+
+  const postToIframe = useCallback((msg: Record<string, unknown>) => {
+    iframeRef.current?.contentWindow?.postMessage(msg, '*');
+  }, []);
+
+  const removeEdit = useCallback((editId: string) => {
+    postToIframe({ type: 'VOLTRON_REMOVE_EDIT', editId });
+  }, [postToIframe]);
+
+  const clearEdits = useCallback(() => {
+    postToIframe({ type: 'VOLTRON_CLEAR_EDITS' });
+  }, [postToIframe]);
+
+  const submitAnnotation = useCallback(() => {
+    if (!annReq || !annText.trim()) return;
+    postToIframe({
+      type: 'VOLTRON_ADD_ANNOTATION',
+      x: annReq.x, y: annReq.y,
+      annotationType: annReq.type,
+      note: annText.trim(),
+    });
+    setAnnReq(null);
+    setAnnText('');
+  }, [annReq, annText, postToIframe]);
+
+  // Handle context actions from iframe
+  const handleContextAction = useCallback((payload: Record<string, unknown> | null) => {
+    if (!payload?.action) return;
+    switch (payload.action) {
+      case 'add_prompt_pin':
+      case 'prompt_pin_added':
+        setPinCreateReq({
+          x: (payload.x as number) || 0,
+          y: (payload.y as number) || 0,
+          pageX: (payload.pageX as number) || (payload.x as number) || 0,
+          pageY: (payload.pageY as number) || (payload.y as number) || 0,
+          nearestSelector: (payload.nearestSelector as string) || '',
+          nearestElementDesc: (payload.nearestElementDesc as string) || '',
+        });
+        break;
+      case 'request_reference_image':
+        fileInputRef.current?.click();
+        break;
+      case 'clear_all':
+        clearEdits();
+        clearPromptPins();
+        break;
+      case 'annotate_error':
+      case 'annotate_add':
+      case 'annotate_note': {
+        // Annotation created directly in iframe via context menu
+        const annType = (payload.action as string).replace('annotate_', '') as 'error' | 'add' | 'note';
+        setAnnReq({ x: (payload.x as number) || 0, y: (payload.y as number) || 0, type: annType });
+        setAnnText((payload.note as string) || '');
+        break;
+      }
+      case 'reference_image_uploaded':
+        // iframe handled the file upload internally — nothing extra needed
+        break;
+      case 'toggle_all_pins':
+      case 'edit_text':
+      case 'copy_selector':
+      case 'expand_shrink':
+      case 'change_color':
+      case 'change_font_size':
+      case 'add_effect':
+      case 'reference_image_set':
+        // These actions are handled entirely within the iframe editor-script.
+        // The context action notification is informational only.
+        break;
+    }
+  }, [clearEdits, clearPromptPins]);
+
+  // Send language to iframe when editor is ready
+  useEffect(() => {
+    if (editorReady) {
+      const lang = document.documentElement.getAttribute('data-voltron-lang') || 'tr';
+      postToIframe({ type: 'VOLTRON_SET_LANG', lang });
+    }
+  }, [editorReady, postToIframe]);
 
   // postMessage listener
   useEffect(() => {
@@ -162,11 +382,36 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
           setAnnText('');
           setTimeout(() => annInputRef.current?.focus(), 50);
           break;
+        case 'VOLTRON_CONTEXT_ACTION':
+          handleContextAction(e.data.payload);
+          break;
+        case 'VOLTRON_PIN_CLICKED': {
+          const pinData = e.data.payload;
+          if (pinData?.pinId) {
+            // pinId may be parent's string id or iframe's numeric pinNum
+            const pin = promptPins.find((p) => p.id === pinData.pinId || p.id === String(pinData.pinId));
+            if (pin) setEditingPinId(pin.id);
+          }
+          break;
+        }
+        case 'VOLTRON_PIN_MOVED': {
+          const moveData = e.data.payload;
+          if (moveData?.pinId) {
+            const movedPin = promptPins.find((p) => p.id === moveData.pinId || p.id === String(moveData.pinId));
+            if (movedPin) {
+              updatePromptPin(movedPin.id, {
+                x: (moveData.x as number) || movedPin.x,
+                y: (moveData.y as number) || movedPin.y,
+              });
+            }
+          }
+          break;
+        }
       }
     }
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);
-  }, []);
+  }, [promptPins, handleContextAction]);
 
   // Reset on iframe/mode change
   useEffect(() => {
@@ -176,99 +421,84 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
     setAnnReq(null);
   }, [iframeKey, mode]);
 
-  const postToIframe = useCallback((msg: any) => {
-    iframeRef.current?.contentWindow?.postMessage(msg, '*');
-  }, []);
+  // Handle reference image file selection
+  const handleRefImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setReferenceImage({ dataUrl, opacity: 0.5 });
+      postToIframe({ type: 'VOLTRON_SET_REFERENCE_IMAGE', dataUrl });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }, [setReferenceImage, postToIframe]);
 
-  const sendColor = useCallback((color: string, target: 'text' | 'bg' | 'border') => {
-    postToIframe({ type: 'VOLTRON_SET_COLOR', color, target });
-  }, [postToIframe]);
+  // Save prompt pin
+  const handleSavePin = useCallback((prompt: string) => {
+    if (editingPinId) {
+      updatePromptPin(editingPinId, prompt);
+      setEditingPinId(null);
+    } else if (pinCreateReq) {
+      const pin: PromptPin = {
+        id: `pin_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        x: pinCreateReq.x,
+        y: pinCreateReq.y,
+        pageX: pinCreateReq.pageX,
+        pageY: pinCreateReq.pageY,
+        prompt,
+        nearestSelector: pinCreateReq.nearestSelector,
+        nearestElementDesc: pinCreateReq.nearestElementDesc,
+        createdAt: Date.now(),
+      };
+      addPromptPin(pin);
+      // Tell iframe to show the pin
+      postToIframe({
+        type: 'VOLTRON_ADD_PROMPT_PIN',
+        pinId: pin.id,
+        x: pin.x,
+        y: pin.y,
+        prompt: pin.prompt,
+        number: promptPins.length + 1,
+      });
+      setPinCreateReq(null);
+    }
+  }, [editingPinId, pinCreateReq, updatePromptPin, addPromptPin, postToIframe, promptPins.length]);
 
-  const sendFontSize = useCallback((size: string) => {
-    postToIframe({ type: 'VOLTRON_SET_FONT', size });
-  }, [postToIframe]);
-
-  const sendShadow = useCallback((shadow: string) => {
-    postToIframe({ type: 'VOLTRON_APPLY_EFFECT', shadow });
-  }, [postToIframe]);
-
-  const removeEdit = useCallback((editId: string) => {
-    postToIframe({ type: 'VOLTRON_REMOVE_EDIT', editId });
-  }, [postToIframe]);
-
-  const clearEdits = useCallback(() => {
-    postToIframe({ type: 'VOLTRON_CLEAR_EDITS' });
-  }, [postToIframe]);
-
-  const submitAnnotation = useCallback(() => {
-    if (!annReq || !annText.trim()) return;
-    postToIframe({
-      type: 'VOLTRON_ADD_ANNOTATION',
-      x: annReq.x, y: annReq.y,
-      annotationType: annReq.type,
-      note: annText.trim(),
-    });
-    setAnnReq(null);
-    setAnnText('');
-  }, [annReq, annText, postToIframe]);
-
-  // SAVE & SEND
+  // SAVE & SEND — Phase-formatted
   const handleSaveAndSend = useCallback(() => {
-    if (edits.length === 0 || !onInject) return;
+    if ((edits.length === 0 && promptPins.length === 0) || !onInject) return;
 
-    const lines: string[] = [
-      '=== GORSEL DUZENLEYICI — ' + edits.length + ' DEGISIKLIK ===',
-      '',
-    ];
+    const prompt = formatPhasePrompt(edits, promptPins, referenceImage);
 
-    edits.forEach((edit, i) => {
-      lines.push('[' + (i + 1) + '] ' + edit.type.toUpperCase());
-      if (edit.selector !== 'viewport') lines.push('    Element: ' + edit.selector);
-      lines.push('    Koordinat: (' + edit.coords.x + ', ' + edit.coords.y + ') ' + edit.coords.w + 'x' + edit.coords.h);
-
-      switch (edit.type) {
-        case 'move':
-          lines.push('    Hareket: deltaX=' + edit.to.deltaX + 'px, deltaY=' + edit.to.deltaY + 'px');
-          break;
-        case 'resize':
-          lines.push('    Boyut: ' + edit.from.width + 'x' + edit.from.height + ' -> ' + edit.to.width + 'x' + edit.to.height);
-          break;
-        case 'recolor':
-          lines.push('    ' + (edit.to.target || 'text') + ': ' + edit.from.value + ' -> ' + edit.to.value);
-          break;
-        case 'refont':
-          if (edit.to.fontSize !== edit.from.fontSize) lines.push('    Font boyut: ' + edit.from.fontSize + ' -> ' + edit.to.fontSize);
-          if (edit.to.fontFamily !== edit.from.fontFamily) lines.push('    Font: ' + edit.from.fontFamily + ' -> ' + edit.to.fontFamily);
-          break;
-        case 'retext':
-          lines.push('    Eski: "' + edit.from.text + '"');
-          lines.push('    Yeni: "' + edit.to.text + '"');
-          break;
-        case 'effect':
-          Object.keys(edit.to).forEach((k) => lines.push('    ' + k + ': ' + edit.to[k]));
-          break;
-        case 'mark_error': case 'add_here': case 'annotate':
-          lines.push('    Sayfa: (' + edit.to.pageX + ', ' + edit.to.pageY + ')');
-          lines.push('    ' + (edit.type === 'mark_error' ? 'Hata' : edit.type === 'add_here' ? 'Eklenecek' : 'Not') + ': ' + edit.to.note);
-          break;
-      }
-      lines.push('');
-    });
-
-    lines.push('=== TUM DEGISIKLIKLERI index.html DOSYASINA UYGULA ===');
-    lines.push('Selektorler ve koordinatlar kesindir. Birebir uygula.');
-
-    onInject(lines.join('\n'), {
+    onInject(prompt, {
       filePath: 'index.html',
-      constraints: edits.map((e, i) => `[${i + 1}] ${e.type}: ${e.selector} @ (${e.coords.x},${e.coords.y})`),
+      constraints: [
+        ...edits.map((e, i) => `[${i + 1}] ${e.type}: ${e.selector} @ (${e.coords.x},${e.coords.y})`),
+        ...promptPins.map((p, i) => `[pin-${i + 1}] prompt @ (${Math.round(p.pageX)},${Math.round(p.pageY)})`),
+      ],
     });
     clearEdits();
-  }, [edits, onInject, clearEdits]);
+    clearPromptPins();
+  }, [edits, promptPins, referenceImage, onInject, clearEdits, clearPromptPins]);
+
+  const editingPin = editingPinId ? promptPins.find((p) => p.id === editingPinId) : null;
+  const totalChanges = edits.length + promptPins.length;
 
   return (
-    <div className="flex flex-col h-full bg-gray-950 rounded-lg border border-gray-800 overflow-hidden">
+    <div className="flex flex-col h-full bg-gray-950 rounded-lg border border-gray-800/50 shadow-lg shadow-blue-500/5 overflow-hidden">
+      {/* Hidden file input for reference image */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleRefImageSelect}
+      />
+
       {/* ─── Minimal header ─── */}
-      <div className="flex items-center gap-1.5 px-2 py-1 border-b border-gray-800 bg-gray-900/60">
+      <div className="flex items-center gap-1.5 px-2 py-1 border-b border-gray-800/50 bg-gray-900/60 backdrop-blur-sm">
         <Monitor className="w-3.5 h-3.5 text-cyan-400" />
         <span className="text-[10px] text-gray-400 uppercase tracking-wider font-medium">
           {isPreview ? t('agent.preview') : t('agent.simulator')}
@@ -303,6 +533,26 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
 
         <div className="flex-1" />
 
+        {/* Pin count badge */}
+        {promptPins.length > 0 && (
+          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-600/20 text-blue-400 border border-blue-600/40">
+            <MapPin className="w-2.5 h-2.5" />
+            {promptPins.length}
+          </span>
+        )}
+
+        {/* Reference image indicator */}
+        {referenceImage && (
+          <button
+            onClick={() => setReferenceImage(null)}
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-600/20 text-purple-400 border border-purple-600/40 hover:bg-purple-600/30 transition-colors"
+            title={t('agent.refImage.remove')}
+          >
+            <Image className="w-2.5 h-2.5" />
+          </button>
+        )}
+
+        {/* Edit count badge */}
         {edits.length > 0 && (
           <button
             onClick={() => setShowEditList(!showEditList)}
@@ -330,16 +580,6 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
           <ExternalLink className="w-3 h-3 text-gray-500 hover:text-gray-300" />
         </button>
       </div>
-
-      {/* ─── Property panel (appears when element is selected) ─── */}
-      {isPreview && selected && (
-        <PropertyPanel
-          selected={selected}
-          onColor={sendColor}
-          onFontSize={sendFontSize}
-          onShadow={sendShadow}
-        />
-      )}
 
       {/* ─── Annotation input ─── */}
       {annReq && (
@@ -406,13 +646,18 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
       </div>
 
       {/* ─── Bottom: Save & Send bar ─── */}
-      {edits.length > 0 && canInject && onInject && (
+      {totalChanges > 0 && canInject && onInject && (
         <div className="flex items-center gap-2 px-3 py-2 border-t border-orange-800/40 bg-gradient-to-r from-orange-950/40 to-gray-950">
           <span className="text-[10px] text-orange-400 font-medium">
-            {edits.length} {t('agent.pendingEdits')}
+            {edits.length > 0 && `${edits.length} ${t('agent.pendingEdits')}`}
+            {edits.length > 0 && promptPins.length > 0 && ' + '}
+            {promptPins.length > 0 && `${promptPins.length} ${t('agent.promptPin.count')}`}
           </span>
           <div className="flex-1" />
-          <button onClick={clearEdits} className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-400 hover:text-red-400 bg-gray-800 hover:bg-gray-700 rounded transition-colors">
+          <button
+            onClick={() => { clearEdits(); clearPromptPins(); }}
+            className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-400 hover:text-red-400 bg-gray-800 hover:bg-gray-700 rounded transition-colors"
+          >
             <Trash2 className="w-2.5 h-2.5" />
             {t('agent.clearAll')}
           </button>
@@ -428,107 +673,35 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
           </button>
         </div>
       )}
-    </div>
-  );
-}
 
-/* ═══════════════════════════════════════════════════════════
-   PROPERTY PANEL — appears below header when element selected
-   Compact: one row of color swatches + font sizes + effects
-   ═══════════════════════════════════════════════════════════ */
-
-interface PropertyPanelProps {
-  selected: SelectedElement;
-  onColor: (color: string, target: 'text' | 'bg' | 'border') => void;
-  onFontSize: (size: string) => void;
-  onShadow: (shadow: string) => void;
-}
-
-function PropertyPanel({ selected, onColor, onFontSize, onShadow }: PropertyPanelProps) {
-  const { t } = useTranslation();
-  const [colorTarget, setColorTarget] = useState<'text' | 'bg' | 'border'>('bg');
-  const [activeSection, setActiveSection] = useState<'color' | 'font' | 'effect' | null>(null);
-
-  return (
-    <div className="border-b border-blue-800/30 bg-gray-900/60">
-      {/* Element info + quick action buttons */}
-      <div className="flex items-center gap-2 px-2 py-1">
-        <span className="text-[9px] text-blue-400 font-mono truncate max-w-48">{selected.selector}</span>
-        <span className="text-[9px] text-gray-600">{selected.rect.width}x{selected.rect.height}</span>
-        <div className="flex-1" />
-
-        {/* Quick action toggles */}
-        <button
-          onClick={() => setActiveSection(activeSection === 'color' ? null : 'color')}
-          className={`p-1 rounded transition-colors ${activeSection === 'color' ? 'bg-pink-600/30 text-pink-400' : 'text-gray-500 hover:text-gray-200 hover:bg-gray-800'}`}
-          title={t('agent.toolColor')}
-        >
-          <Palette className="w-3 h-3" />
-        </button>
-        <button
-          onClick={() => setActiveSection(activeSection === 'font' ? null : 'font')}
-          className={`p-1 rounded transition-colors ${activeSection === 'font' ? 'bg-purple-600/30 text-purple-400' : 'text-gray-500 hover:text-gray-200 hover:bg-gray-800'}`}
-          title={t('agent.toolFont')}
-        >
-          <Type className="w-3 h-3" />
-        </button>
-        <button
-          onClick={() => setActiveSection(activeSection === 'effect' ? null : 'effect')}
-          className={`p-1 rounded transition-colors ${activeSection === 'effect' ? 'bg-yellow-600/30 text-yellow-400' : 'text-gray-500 hover:text-gray-200 hover:bg-gray-800'}`}
-          title={t('agent.toolEffect')}
-        >
-          <Sparkles className="w-3 h-3" />
-        </button>
-      </div>
-
-      {/* Expanded section */}
-      {activeSection === 'color' && (
-        <div className="px-2 pb-1.5 flex items-center gap-1.5 flex-wrap">
-          <div className="flex gap-0.5">
-            {(['text', 'bg', 'border'] as const).map((tgt) => (
-              <button
-                key={tgt}
-                onClick={() => setColorTarget(tgt)}
-                className={`px-1.5 py-0.5 text-[9px] rounded ${colorTarget === tgt ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'}`}
-              >
-                {tgt === 'text' ? t('agent.colorText') : tgt === 'bg' ? t('agent.colorBg') : t('agent.colorBorder')}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-0.5 flex-wrap">
-            {COLOR_PRESETS.map((c) => (
-              <button
-                key={c}
-                onClick={() => onColor(c, colorTarget)}
-                className="w-4.5 h-4.5 rounded-sm border border-gray-600 hover:scale-125 transition-transform"
-                style={{ backgroundColor: c, width: 18, height: 18 }}
-              />
-            ))}
-            <input type="color" onChange={(e) => onColor(e.target.value, colorTarget)} className="w-[18px] h-[18px] rounded-sm border border-gray-600 cursor-pointer bg-transparent" />
-          </div>
-        </div>
+      {/* ─── Prompt Pin Modal ─── */}
+      {pinCreateReq && (
+        <PromptPinModal
+          x={pinCreateReq.x}
+          y={pinCreateReq.y}
+          pageX={pinCreateReq.pageX}
+          pageY={pinCreateReq.pageY}
+          nearestSelector={pinCreateReq.nearestSelector}
+          nearestElementDesc={pinCreateReq.nearestElementDesc}
+          onSave={handleSavePin}
+          onCancel={() => setPinCreateReq(null)}
+        />
       )}
 
-      {activeSection === 'font' && (
-        <div className="px-2 pb-1.5 flex items-center gap-1 flex-wrap">
-          <span className="text-[9px] text-gray-500">{t('agent.fontSize')}:</span>
-          {FONT_SIZES.map((s) => (
-            <button key={s} onClick={() => onFontSize(s)} className="px-1.5 py-0.5 text-[9px] bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
-              {parseInt(s)}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {activeSection === 'effect' && (
-        <div className="px-2 pb-1.5 flex items-center gap-1 flex-wrap">
-          <span className="text-[9px] text-gray-500">{t('agent.shadow')}:</span>
-          {SHADOW_PRESETS.map((p) => (
-            <button key={p.label} onClick={() => onShadow(p.value)} className="px-1.5 py-0.5 text-[9px] bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
-              {p.label}
-            </button>
-          ))}
-        </div>
+      {/* ─── Edit Pin Modal ─── */}
+      {editingPin && (
+        <PromptPinModal
+          x={editingPin.x}
+          y={editingPin.y}
+          pageX={editingPin.pageX}
+          pageY={editingPin.pageY}
+          nearestSelector={editingPin.nearestSelector}
+          nearestElementDesc={editingPin.nearestElementDesc}
+          initialPrompt={editingPin.prompt}
+          isEdit
+          onSave={handleSavePin}
+          onCancel={() => setEditingPinId(null)}
+        />
       )}
     </div>
   );
@@ -559,8 +732,8 @@ const EDIT_COLORS: Record<string, string> = {
 function EditListSidebar({ edits, canInject, onRemove, onClear, onSaveAndSend, onClose }: EditListSidebarProps) {
   const { t } = useTranslation();
   return (
-    <div className="w-52 shrink-0 border-l border-gray-800 bg-gray-900/80 flex flex-col">
-      <div className="flex items-center gap-2 px-2 py-1.5 border-b border-gray-800">
+    <div className="w-52 shrink-0 border-l border-gray-800/50 bg-gray-900/80 backdrop-blur-sm flex flex-col">
+      <div className="flex items-center gap-2 px-2 py-1.5 border-b border-gray-800/50">
         <Save className="w-3 h-3 text-orange-400" />
         <span className="text-[10px] text-gray-300 font-medium flex-1">{t('agent.editList')} ({edits.length})</span>
         <button onClick={onClose} className="p-0.5 hover:bg-gray-800 rounded"><X className="w-3 h-3 text-gray-500" /></button>
@@ -570,7 +743,7 @@ function EditListSidebar({ edits, canInject, onRemove, onClear, onSaveAndSend, o
           const Icon = EDIT_ICONS[edit.type] || MessageSquare;
           const color = EDIT_COLORS[edit.type] || 'text-gray-400';
           return (
-            <div key={edit.id} className="flex items-start gap-1.5 px-2 py-1.5 border-b border-gray-800/50 hover:bg-gray-800/30 group">
+            <div key={edit.id} className="flex items-start gap-1.5 px-2 py-1.5 border-b border-gray-800/30 hover:bg-gray-800/30 group transition-colors">
               <span className="text-[9px] text-gray-600 mt-0.5 w-3 text-right shrink-0">{i + 1}</span>
               <Icon className={`w-3 h-3 shrink-0 mt-0.5 ${color}`} />
               <div className="flex-1 min-w-0">
@@ -584,7 +757,7 @@ function EditListSidebar({ edits, canInject, onRemove, onClear, onSaveAndSend, o
           );
         })}
       </div>
-      <div className="p-2 border-t border-gray-800 space-y-1.5">
+      <div className="p-2 border-t border-gray-800/50 space-y-1.5">
         <button onClick={onClear} className="w-full flex items-center justify-center gap-1 px-2 py-1 text-[10px] text-gray-400 bg-gray-800 hover:bg-gray-700 rounded transition-colors">
           <Trash2 className="w-2.5 h-2.5" />{t('agent.clearAll')}
         </button>

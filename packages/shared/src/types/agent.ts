@@ -122,6 +122,39 @@ export const AgentSession = z.object({
 });
 export type AgentSession = z.infer<typeof AgentSession>;
 
+// ── Phase Execution ─────────────────────────────────────
+export const PhaseEditSchema = z.object({
+  index: z.number().int(),
+  type: z.string(),
+  selector: z.string().optional(),
+  description: z.string().optional(),
+});
+export type PhaseEdit = z.infer<typeof PhaseEditSchema>;
+
+export const PhaseStatus = z.enum([
+  'pending', 'running', 'awaiting_approval', 'approved', 'rejected', 'completed',
+]);
+export type PhaseStatus = z.infer<typeof PhaseStatus>;
+
+export const PhaseSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  edits: z.array(PhaseEditSchema),
+  status: PhaseStatus,
+  result: z.string().optional(),
+});
+export type Phase = z.infer<typeof PhaseSchema>;
+
+export const PhaseExecutionStatus = z.enum(['idle', 'running', 'awaiting_approval', 'completed', 'failed']);
+export type PhaseExecutionStatus = z.infer<typeof PhaseExecutionStatus>;
+
+export const PhaseExecutionSchema = z.object({
+  phases: z.array(PhaseSchema),
+  currentPhaseIndex: z.number().int(),
+  status: PhaseExecutionStatus,
+});
+export type PhaseExecution = z.infer<typeof PhaseExecutionSchema>;
+
 // ── Simulator Constraint ────────────────────────────────
 export const SimulatorConstraint = z.object({
   type: z.enum(['style_change', 'layout_change', 'reference_image']),

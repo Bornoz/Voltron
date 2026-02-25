@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import type { VoltronWebSocket } from '../lib/ws';
-import type { AgentStatus, AgentLocation, AgentPlan, AgentBreadcrumb } from '@voltron/shared';
+import type { AgentStatus, AgentLocation, AgentPlan, AgentBreadcrumb, PhaseExecution } from '@voltron/shared';
 import { useAgentStore } from '../stores/agentStore';
 import type { AgentOutputEntry } from '../stores/agentStore';
 
@@ -17,6 +17,7 @@ export function useAgentStream(client: VoltronWebSocket): void {
   const setTokenUsage = useAgentStore((s) => s.setTokenUsage);
   const setError = useAgentStore((s) => s.setError);
   const setDevServer = useAgentStore((s) => s.setDevServer);
+  const setPhaseExecution = useAgentStore((s) => s.setPhaseExecution);
 
   useEffect(() => {
     const unsubs: (() => void)[] = [];
@@ -71,6 +72,11 @@ export function useAgentStream(client: VoltronWebSocket): void {
       setError(p.error);
     }));
 
+    unsubs.push(client.on('AGENT_PHASE_UPDATE', (msg) => {
+      const p = msg.payload as PhaseExecution;
+      setPhaseExecution(p);
+    }));
+
     unsubs.push(client.on('DEV_SERVER_STATUS', (msg) => {
       const p = msg.payload as {
         status: 'installing' | 'starting' | 'ready' | 'error' | 'stopped';
@@ -85,5 +91,5 @@ export function useAgentStream(client: VoltronWebSocket): void {
     return () => {
       for (const unsub of unsubs) unsub();
     };
-  }, [client, setSession, setStatus, setLocation, setPlan, addBreadcrumb, addOutput, setTokenUsage, setError, setDevServer]);
+  }, [client, setSession, setStatus, setLocation, setPlan, addBreadcrumb, addOutput, setTokenUsage, setError, setDevServer, setPhaseExecution]);
 }

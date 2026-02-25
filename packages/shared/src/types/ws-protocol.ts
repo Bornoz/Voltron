@@ -42,6 +42,7 @@ export const WsMessageType = z.enum([
   'AGENT_OUTPUT',
   'AGENT_TOKEN_USAGE',
   'AGENT_ERROR',
+  'AGENT_PHASE_UPDATE',
 
   // Dashboard -> Server (Agent)
   'AGENT_SPAWN',
@@ -56,6 +57,9 @@ export const WsMessageType = z.enum([
 
   // Simulator -> Server (Design Snapshot)
   'SIMULATOR_DESIGN_SNAPSHOT',
+
+  // Dev Server
+  'DEV_SERVER_STATUS',
 ]);
 export type WsMessageType = z.infer<typeof WsMessageType>;
 
