@@ -258,6 +258,13 @@ export class AgentRunner extends EventEmitter {
   }
 
   /**
+   * Get count of currently running agents.
+   */
+  getRunningCount(): number {
+    return this.agents.size;
+  }
+
+  /**
    * Shutdown all running agents.
    */
   async shutdownAll(): Promise<void> {

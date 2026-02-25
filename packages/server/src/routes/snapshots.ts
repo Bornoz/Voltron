@@ -7,6 +7,15 @@ import { ProjectRepository } from '../db/repositories/projects.js';
 const LabelBody = z.object({ label: z.string().min(1).max(500) });
 const GIT_HASH_RE = /^[0-9a-f]{40}$/;
 
+const SnapshotQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(1000).default(50),
+  offset: z.coerce.number().int().min(0).max(100_000).default(0),
+});
+
+const PruneQuery = z.object({
+  keep: z.coerce.number().int().min(1).max(10_000).default(100),
+});
+
 export async function snapshotRoutes(app: FastifyInstance): Promise<void> {
   const repo = new SnapshotRepository();
   const projectRepo = new ProjectRepository();
@@ -14,8 +23,9 @@ export async function snapshotRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { id: string }; Querystring: { limit?: string; offset?: string } }>(
     '/api/projects/:id/snapshots',
     async (request, reply) => {
-      const limit = parseInt(request.query.limit ?? '50', 10);
-      const offset = parseInt(request.query.offset ?? '0', 10);
+      const parsed = SnapshotQuery.safeParse(request.query);
+      if (!parsed.success) return reply.status(400).send({ error: 'Invalid query parameters', details: parsed.error.issues });
+      const { limit, offset } = parsed.data;
       return reply.send(repo.findByProject(request.params.id, limit, offset));
     },
   );
@@ -118,8 +128,9 @@ export async function snapshotRoutes(app: FastifyInstance): Promise<void> {
   app.delete<{ Params: { id: string }; Querystring: { keep?: string } }>(
     '/api/projects/:id/snapshots/prune',
     async (request, reply) => {
-      const keep = parseInt(request.query.keep ?? '100', 10);
-      if (keep < 1 || keep > 10000) return reply.status(400).send({ error: 'keep must be between 1 and 10000' });
+      const parsed = PruneQuery.safeParse(request.query);
+      if (!parsed.success) return reply.status(400).send({ error: 'Invalid query parameters', details: parsed.error.issues });
+      const { keep } = parsed.data;
 
       const before = repo.count(request.params.id);
       const deleted = repo.prune(request.params.id, keep);

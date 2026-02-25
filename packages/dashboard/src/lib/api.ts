@@ -16,17 +16,90 @@ import type {
 } from '@voltron/shared';
 
 const BASE = '/api';
+const DEFAULT_TIMEOUT_MS = 30_000;
+const MAX_RETRIES = 3;
+const RETRY_BASE_MS = 1_000;
+
+export class TimeoutError extends Error {
+  constructor(ms: number) {
+    super(`Request timed out after ${ms}ms`);
+    this.name = 'TimeoutError';
+  }
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({ error: response.statusText }));
-    throw new ApiError(response.status, body.error ?? 'Unknown error');
+  const method = options?.method?.toUpperCase() ?? 'GET';
+  const isRetryable = method === 'GET';
+  const maxAttempts = isRetryable ? MAX_RETRIES : 1;
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Exponential backoff on retry
+    if (attempt > 0) {
+      const delay = RETRY_BASE_MS * Math.pow(2, attempt - 1);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const token = localStorage.getItem('voltron_token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${BASE}${path}`, {
+        headers,
+        ...options,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({ error: response.statusText }));
+        const err = new ApiError(response.status, body.error ?? 'Unknown error');
+
+        // 401 → clear token and redirect to login
+        if (response.status === 401) {
+          localStorage.removeItem('voltron_token');
+          if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+            window.location.href = '/login';
+          }
+          throw err;
+        }
+
+        // Only retry on 5xx, not 4xx
+        if (response.status >= 500 && isRetryable && attempt < maxAttempts - 1) {
+          lastError = err;
+          continue;
+        }
+        throw err;
+      }
+
+      return response.json() as Promise<T>;
+    } catch (err) {
+      clearTimeout(timeoutId);
+
+      if (err instanceof ApiError) throw err;
+
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        lastError = new TimeoutError(DEFAULT_TIMEOUT_MS);
+        if (!isRetryable || attempt >= maxAttempts - 1) throw lastError;
+        continue;
+      }
+
+      // Network error — retry on GET
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (isRetryable && attempt < maxAttempts - 1) continue;
+      throw lastError;
+    }
   }
-  return response.json() as Promise<T>;
+
+  throw lastError ?? new Error('Request failed');
 }
 
 export class ApiError extends Error {

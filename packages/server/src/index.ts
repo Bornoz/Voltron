@@ -88,7 +88,28 @@ async function main() {
 
   try {
     await app.listen({ port: config.port, host: config.host });
-    app.log.info(`Voltron server running on ${config.host}:${config.port}`);
+
+    // Startup banner
+    const banner = [
+      '',
+      '  ╔══════════════════════════════════════╗',
+      '  ║     VOLTRON — AI Operation Center    ║',
+      '  ╚══════════════════════════════════════╝',
+      '',
+      `  Version   : 0.1.0`,
+      `  Port      : ${config.port}`,
+      `  Host      : ${config.host}`,
+      `  DB        : ${config.dbPath}`,
+      `  Log Level : ${config.logLevel}`,
+      `  ENV       : ${process.env.NODE_ENV ?? 'development'}`,
+      `  Secret    : ${config.interceptorSecret ? '***configured***' : '(none)'}`,
+      `  GitHub    : ${config.githubToken ? '***configured***' : '(none)'}`,
+      `  Claude    : ${config.claudePath}`,
+      '',
+    ];
+    for (const line of banner) {
+      app.log.info(line);
+    }
   } catch (err) {
     app.log.error(err);
     process.exit(1);

@@ -1,7 +1,17 @@
 type Handler<T = unknown> = (payload: T) => void | Promise<void>;
 
+export interface EventBusLogger {
+  error: (msg: string, ...args: unknown[]) => void;
+  warn: (msg: string, ...args: unknown[]) => void;
+}
+
 export class EventBus {
   private handlers = new Map<string, Set<Handler>>();
+  private logger: EventBusLogger;
+
+  constructor(logger?: EventBusLogger) {
+    this.logger = logger ?? console;
+  }
 
   on<T>(event: string, handler: Handler<T>): () => void {
     if (!this.handlers.has(event)) {
@@ -22,11 +32,11 @@ export class EventBus {
         const result = handler(payload);
         if (result instanceof Promise) {
           promises.push(result.catch((err) => {
-            console.error(`EventBus handler error for "${event}":`, err);
+            this.logger.error(`EventBus handler error for "${event}":`, err);
           }));
         }
       } catch (err) {
-        console.error(`EventBus handler error for "${event}":`, err);
+        this.logger.error(`EventBus handler error for "${event}":`, err);
       }
     }
 

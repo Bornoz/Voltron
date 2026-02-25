@@ -3,9 +3,11 @@ import websocket from '@fastify/websocket';
 import { initDb } from './db/connection.js';
 import { createSchema } from './db/schema.js';
 import { registerCors } from './plugins/cors.js';
+import { registerAuth } from './plugins/auth.js';
 import { registerErrorHandler } from './plugins/error-handler.js';
 import { registerRateLimiter } from './plugins/rate-limiter.js';
 import { healthRoutes } from './routes/health.js';
+import { authRoutes } from './routes/auth.js';
 import { projectRoutes } from './routes/projects.js';
 import { actionRoutes } from './routes/actions.js';
 import { snapshotRoutes } from './routes/snapshots.js';
@@ -30,6 +32,7 @@ export async function buildApp(config: ServerConfig) {
 
   // Fastify
   const app = Fastify({
+    bodyLimit: 1_048_576, // 1 MiB
     logger: {
       level: config.logLevel,
       transport: process.env.NODE_ENV !== 'production'
@@ -41,19 +44,23 @@ export async function buildApp(config: ServerConfig) {
   // Plugins
   await registerCors(app, config);
   await app.register(websocket);
+  registerAuth(app, config);
   registerErrorHandler(app);
   registerRateLimiter(app, { max: 200, windowMs: 60_000 });
 
   // Services
-  const eventBus = new EventBus();
+  const eventBus = new EventBus(app.log);
   const devServerManager = new DevServerManager(eventBus);
   const agentRunner = new AgentRunner(eventBus, config.claudePath, devServerManager);
   const wsServices = createWsServices(config, eventBus, agentRunner);
   const snapshotPruner = new SnapshotPruner();
   const behaviorScorer = new BehaviorScorer();
 
+  // Auth routes (before protected routes, after auth middleware)
+  authRoutes(app, config);
+
   // Routes
-  await app.register(healthRoutes);
+  await app.register((instance) => healthRoutes(instance, { broadcaster: wsServices.broadcaster, agentRunner }));
   await app.register(projectRoutes);
   await app.register(actionRoutes);
   await app.register(snapshotRoutes);

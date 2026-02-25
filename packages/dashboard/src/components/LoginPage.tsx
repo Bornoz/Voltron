@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, User, Lock, AlertCircle } from 'lucide-react';
+import { Shield, User, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { useTranslation } from '../i18n';
 import type { Language } from '../i18n';
@@ -9,19 +9,27 @@ export function LoginPage() {
   const { t, language, setLanguage } = useTranslation();
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const loading = useAuthStore((s) => s.loading);
+  const storeError = useAuthStore((s) => s.error);
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  const handleSubmit = (e: FormEvent) => {
+  const error = localError ?? storeError;
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError(false);
-    const success = login(username, password);
+    setLocalError(null);
+
+    if (!username.trim() || !password.trim()) {
+      setLocalError(t('login.invalidCredentials'));
+      return;
+    }
+
+    const success = await login(username, password);
     if (success) {
       navigate('/dashboard', { replace: true });
-    } else {
-      setError(true);
     }
   };
 
@@ -67,10 +75,11 @@ export function LoginPage() {
               <input
                 type="text"
                 value={username}
-                onChange={(e) => { setUsername(e.target.value); setError(false); }}
+                onChange={(e) => { setUsername(e.target.value); setLocalError(null); }}
                 placeholder={t('login.username')}
                 autoComplete="username"
-                className="w-full pl-10 pr-4 py-2.5 text-sm bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30 transition-colors"
+                disabled={loading}
+                className="w-full pl-10 pr-4 py-2.5 text-sm bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30 transition-colors disabled:opacity-50"
               />
             </div>
 
@@ -80,10 +89,11 @@ export function LoginPage() {
               <input
                 type="password"
                 value={password}
-                onChange={(e) => { setPassword(e.target.value); setError(false); }}
+                onChange={(e) => { setPassword(e.target.value); setLocalError(null); }}
                 placeholder={t('login.password')}
                 autoComplete="current-password"
-                className="w-full pl-10 pr-4 py-2.5 text-sm bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30 transition-colors"
+                disabled={loading}
+                className="w-full pl-10 pr-4 py-2.5 text-sm bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30 transition-colors disabled:opacity-50"
               />
             </div>
 
@@ -91,15 +101,17 @@ export function LoginPage() {
             {error && (
               <div className="flex items-center gap-2 px-3 py-2 text-xs bg-red-500/10 border border-red-500/20 rounded-lg text-red-400">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                {t('login.invalidCredentials')}
+                {error}
               </div>
             )}
 
             {/* Submit */}
             <button
               type="submit"
-              className="w-full py-2.5 text-sm font-semibold rounded-lg bg-[var(--color-accent)] text-white hover:brightness-110 active:brightness-95 transition-all"
+              disabled={loading}
+              className="w-full py-2.5 text-sm font-semibold rounded-lg bg-[var(--color-accent)] text-white hover:brightness-110 active:brightness-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {t('login.signIn')}
             </button>
           </form>

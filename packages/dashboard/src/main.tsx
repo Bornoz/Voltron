@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { router } from './router';
 import './globals.css';
 
@@ -9,4 +10,8 @@ if (!rootElement) {
 }
 
 const root = createRoot(rootElement);
-root.render(<RouterProvider router={router} />);
+root.render(
+  <ErrorBoundary>
+    <RouterProvider router={router} />
+  </ErrorBoundary>,
+);

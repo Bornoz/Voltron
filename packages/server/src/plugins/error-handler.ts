@@ -3,10 +3,18 @@ import { ZodError } from 'zod';
 
 export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error: FastifyError, _request, reply) => {
-    if (error.cause instanceof ZodError) {
+    // ZodError may arrive directly or as cause depending on Fastify version
+    const zodError =
+      error instanceof ZodError
+        ? error
+        : error.cause instanceof ZodError
+          ? (error.cause as ZodError)
+          : null;
+
+    if (zodError) {
       return reply.status(400).send({
         error: 'Validation Error',
-        details: (error.cause as ZodError).flatten(),
+        details: zodError.flatten(),
       });
     }
 

@@ -33,6 +33,7 @@ import { GPSTracker } from '../components/Agent/GPSTracker';
 import { PlanViewer } from '../components/Agent/PlanViewer';
 import { AgentWorkspace } from '../components/Agent/AgentWorkspace';
 import { SpawnDialog } from '../components/Agent/SpawnDialog';
+import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { useTranslation } from '../i18n';
 
 export function DashboardPage() {
@@ -301,46 +302,48 @@ export function DashboardPage() {
 
       {/* Tab content */}
       <div className="flex-1 overflow-hidden">
-        {centerTab === 'feed' && <ActionFeed />}
-        {centerTab === 'github' && projectId && <RepoAnalyzer projectId={projectId} />}
-        {centerTab === 'github' && !projectId && (
-          <div className="flex items-center justify-center h-full text-sm text-gray-500">
-            {t('app.selectProjectFirst')}
-          </div>
-        )}
-        {centerTab === 'snapshots' && projectId && <SnapshotBrowser projectId={projectId} />}
-        {centerTab === 'snapshots' && !projectId && (
-          <div className="flex items-center justify-center h-full text-sm text-gray-500">
-            {t('app.selectProjectFirst')}
-          </div>
-        )}
-        {centerTab === 'behavior' && projectId && <BehaviorPanel projectId={projectId} />}
-        {centerTab === 'behavior' && !projectId && (
-          <div className="flex items-center justify-center h-full text-sm text-gray-500">
-            {t('app.selectProjectFirst')}
-          </div>
-        )}
-        {centerTab === 'prompts' && projectId && <PromptManager projectId={projectId} />}
-        {centerTab === 'prompts' && !projectId && (
-          <div className="flex items-center justify-center h-full text-sm text-gray-500">
-            {t('app.selectProjectFirst')}
-          </div>
-        )}
-        {centerTab === 'agent' && projectId && (
-          <AgentWorkspace
-            projectId={projectId}
-            onSpawn={() => setShowSpawnDialog(true)}
-            onPause={handleAgentPause}
-            onResume={handleAgentResume}
-            onKill={handleAgentKill}
-            onInject={handleAgentInject}
-          />
-        )}
-        {centerTab === 'agent' && !projectId && (
-          <div className="flex items-center justify-center h-full text-sm text-gray-500">
-            {t('app.selectProjectFirst')}
-          </div>
-        )}
+        <ErrorBoundary resetKeys={[centerTab, projectId]}>
+          {centerTab === 'feed' && <ActionFeed />}
+          {centerTab === 'github' && projectId && <RepoAnalyzer projectId={projectId} />}
+          {centerTab === 'github' && !projectId && (
+            <div className="flex items-center justify-center h-full text-sm text-gray-500">
+              {t('app.selectProjectFirst')}
+            </div>
+          )}
+          {centerTab === 'snapshots' && projectId && <SnapshotBrowser projectId={projectId} />}
+          {centerTab === 'snapshots' && !projectId && (
+            <div className="flex items-center justify-center h-full text-sm text-gray-500">
+              {t('app.selectProjectFirst')}
+            </div>
+          )}
+          {centerTab === 'behavior' && projectId && <BehaviorPanel projectId={projectId} />}
+          {centerTab === 'behavior' && !projectId && (
+            <div className="flex items-center justify-center h-full text-sm text-gray-500">
+              {t('app.selectProjectFirst')}
+            </div>
+          )}
+          {centerTab === 'prompts' && projectId && <PromptManager projectId={projectId} />}
+          {centerTab === 'prompts' && !projectId && (
+            <div className="flex items-center justify-center h-full text-sm text-gray-500">
+              {t('app.selectProjectFirst')}
+            </div>
+          )}
+          {centerTab === 'agent' && projectId && (
+            <AgentWorkspace
+              projectId={projectId}
+              onSpawn={() => setShowSpawnDialog(true)}
+              onPause={handleAgentPause}
+              onResume={handleAgentResume}
+              onKill={handleAgentKill}
+              onInject={handleAgentInject}
+            />
+          )}
+          {centerTab === 'agent' && !projectId && (
+            <div className="flex items-center justify-center h-full text-sm text-gray-500">
+              {t('app.selectProjectFirst')}
+            </div>
+          )}
+        </ErrorBoundary>
       </div>
     </div>
   );

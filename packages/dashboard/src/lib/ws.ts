@@ -5,6 +5,7 @@ export type WsCallback = (message: WsMessage) => void;
 
 const WS_RECONNECT_BASE = 2000;
 const WS_RECONNECT_MAX = 30000;
+const WS_MAX_QUEUE_SIZE = 500;
 
 export class VoltronWebSocket {
   private ws: WebSocket | null = null;
@@ -168,6 +169,9 @@ export class VoltronWebSocket {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(data);
     } else {
+      if (this.messageQueue.length >= WS_MAX_QUEUE_SIZE) {
+        this.messageQueue.shift(); // drop oldest
+      }
       this.messageQueue.push(data);
     }
   }
@@ -183,6 +187,7 @@ export class VoltronWebSocket {
       this.ws.close();
       this.ws = null;
     }
+    this.messageQueue = [];
     this.setStatus('disconnected');
   }
 }
