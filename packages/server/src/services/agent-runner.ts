@@ -8,9 +8,13 @@ import { extractPlan, updatePlanProgress } from './agent-plan-extractor.js';
 import { AgentSessionRepository } from '../db/repositories/agent-sessions.js';
 import { AgentBreadcrumbRepository } from '../db/repositories/agent-breadcrumbs.js';
 import { AgentPlanRepository } from '../db/repositories/agent-plans.js';
+import { AgentCheckpointRepository } from '../db/repositories/agent-checkpoints.js';
 import { AgentInjectionRepository } from '../db/repositories/agent-injections.js';
 import { SimulatorConstraintRepository } from '../db/repositories/simulator-constraints.js';
+import { ProjectRulesRepository } from '../db/repositories/project-rules.js';
+import { ProjectMemoryRepository } from '../db/repositories/project-memory.js';
 import type { EventBus } from './event-bus.js';
+import { FileUploadRepository } from '../db/repositories/file-uploads.js';
 import type { DevServerManager } from './dev-server-manager.js';
 
 interface RunningAgent {
@@ -35,6 +39,19 @@ interface RunningAgent {
   planDebounceTimer: ReturnType<typeof setTimeout> | null;
   textPlanDebounceTimer: ReturnType<typeof setTimeout> | null;
   killTimer: ReturnType<typeof setTimeout> | null;
+  // Soft pause
+  paused: boolean;
+  pausedEventQueue: Array<{ event: string; payload: unknown }>;
+  // Breakpoints (Phase 4)
+  breakpoints: Set<string>;
+  // Injection queue (Phase 4)
+  injectionQueue: Array<{ id: string; injection: PromptInjection; queuedAt: number }>;
+  lastToolInput: Record<string, unknown> | null;
+  // Live preview: debounce dev server start
+  _devServerDebounce: ReturnType<typeof setTimeout> | null;
+  // Session end tracking for completion detection
+  _sessionEnded: boolean;
+  _sessionEndError: boolean;
 }
 
 export class AgentRunner extends EventEmitter {
@@ -44,6 +61,10 @@ export class AgentRunner extends EventEmitter {
   private planRepo = new AgentPlanRepository();
   private injectionRepo = new AgentInjectionRepository();
   private constraintRepo = new SimulatorConstraintRepository();
+  private checkpointRepo = new AgentCheckpointRepository();
+  private rulesRepo = new ProjectRulesRepository();
+  private memoryRepo = new ProjectMemoryRepository();
+  private uploadRepo = new FileUploadRepository();
 
   constructor(
     private eventBus: EventBus,
@@ -102,9 +123,18 @@ export class AgentRunner extends EventEmitter {
       planDebounceTimer: null,
       textPlanDebounceTimer: null,
       killTimer: null,
+      paused: false,
+      pausedEventQueue: [],
+      breakpoints: new Set(),
+      injectionQueue: [],
+      lastToolInput: null,
+      _devServerDebounce: null,
+      _sessionEnded: false,
+      _sessionEndError: false,
     };
 
     this.agents.set(projectId, agent);
+    console.log(`[AgentRunner] Spawning agent for project=${projectId}, model=${agent.model}, targetDir=${targetDir}`);
     this.emitStatus(projectId, 'SPAWNING');
 
     // Ensure targetDir exists before spawning
@@ -112,8 +142,11 @@ export class AgentRunner extends EventEmitter {
       mkdirSync(targetDir, { recursive: true });
     }
 
+    // Enrich prompt with project rules + pinned memory
+    const enrichedSpawnPrompt = this.buildSpawnPrompt(projectId, prompt);
+
     try {
-      this.spawnProcess(agent, prompt);
+      this.spawnProcess(agent, enrichedSpawnPrompt);
     } catch (err) {
       this.setStatus(agent, 'CRASHED');
       this.sessionRepo.setCrashed(sessionDbRow.id, err instanceof Error ? err.message : 'Spawn failed');
@@ -125,29 +158,154 @@ export class AgentRunner extends EventEmitter {
   }
 
   /**
-   * Pause the agent (SIGTSTP).
+   * Soft pause: process keeps running but EventBus emissions are queued.
+   * This avoids SIGTSTP which kills the stream.
    */
   pause(projectId: string): void {
     const agent = this.getRunningAgent(projectId);
     if (agent.status !== 'RUNNING') {
       throw new Error(`Cannot pause agent in status ${agent.status}`);
     }
-    agent.process.kill('SIGTSTP');
+    agent.paused = true;
+    agent.pausedEventQueue = [];
     this.setStatus(agent, 'PAUSED');
     this.sessionRepo.setPaused(agent.sessionDbId);
   }
 
   /**
-   * Resume a paused agent (SIGCONT).
+   * Resume: flush queued events and continue.
    */
   resume(projectId: string): void {
     const agent = this.getRunningAgent(projectId);
     if (agent.status !== 'PAUSED') {
       throw new Error(`Cannot resume agent in status ${agent.status}`);
     }
-    agent.process.kill('SIGCONT');
+    agent.paused = false;
     this.setStatus(agent, 'RUNNING');
     this.sessionRepo.updateStatus(agent.sessionDbId, 'RUNNING');
+
+    // Flush queued events
+    const queued = agent.pausedEventQueue.splice(0);
+    for (const { event, payload } of queued) {
+      this.eventBus.emit(event, payload);
+    }
+  }
+
+  /**
+   * Hard pause: save checkpoint to DB, then SIGTERM the process.
+   * Can be resumed from checkpoint with full context.
+   */
+  async hardPause(projectId: string): Promise<string> {
+    const agent = this.getRunningAgent(projectId);
+    if (!['RUNNING', 'PAUSED'].includes(agent.status)) {
+      throw new Error(`Cannot hard pause agent in status ${agent.status}`);
+    }
+
+    // Save checkpoint
+    const checkpointId = this.checkpointRepo.insert({
+      sessionId: agent.sessionId,
+      projectId,
+      breadcrumbsJson: JSON.stringify(agent.breadcrumbs.slice(-50)),
+      planJson: agent.plan ? JSON.stringify(agent.plan) : null,
+      locationJson: agent.location ? JSON.stringify(agent.location) : null,
+      tokenUsageJson: JSON.stringify({ inputTokens: agent.inputTokens, outputTokens: agent.outputTokens }),
+      createdAt: Date.now(),
+    });
+
+    this.setStatus(agent, 'PAUSED');
+    await this.killProcess(agent);
+    this.sessionRepo.setPaused(agent.sessionDbId);
+
+    this.eventBus.emit('AGENT_CHECKPOINT_SAVED', { projectId, checkpointId, timestamp: Date.now() });
+    return checkpointId;
+  }
+
+  /**
+   * Resume from checkpoint: respawn agent with checkpoint context.
+   */
+  async resumeFromCheckpoint(projectId: string): Promise<void> {
+    const agent = this.getRunningAgent(projectId);
+    if (agent.status !== 'PAUSED') {
+      throw new Error(`Cannot resume from checkpoint in status ${agent.status}`);
+    }
+
+    const checkpoint = this.checkpointRepo.findLatestBySession(agent.sessionId);
+    const contextParts: string[] = ['[Resuming from checkpoint]'];
+
+    if (checkpoint) {
+      try {
+        const breadcrumbs = JSON.parse(checkpoint.breadcrumbsJson) as Array<{ filePath: string; activity: string }>;
+        const files = [...new Set(breadcrumbs.map((b) => b.filePath))].slice(-10);
+        contextParts.push(`[Recent files: ${files.join(', ')}]`);
+      } catch { /* ignore */ }
+
+      if (checkpoint.planJson) {
+        try {
+          const plan = JSON.parse(checkpoint.planJson);
+          contextParts.push(`[Active plan: ${plan.summary}]`);
+        } catch { /* ignore */ }
+      }
+
+      if (checkpoint.locationJson) {
+        try {
+          const loc = JSON.parse(checkpoint.locationJson);
+          contextParts.push(`[Last location: ${loc.filePath} (${loc.activity})]`);
+        } catch { /* ignore */ }
+      }
+    }
+
+    contextParts.push('Continue where you left off.');
+    const enrichedPrompt = contextParts.join('\n');
+
+    this.setStatus(agent, 'RUNNING');
+    this.sessionRepo.updateStatus(agent.sessionDbId, 'RUNNING');
+    this.spawnProcess(agent, enrichedPrompt, true);
+  }
+
+  /**
+   * Redirect agent to focus on a specific file.
+   */
+  async redirectToFile(projectId: string, filePath: string, instruction?: string): Promise<void> {
+    const agent = this.getRunningAgent(projectId);
+    const prompt = instruction
+      ? `Focus on this file: ${filePath}\n\n${instruction}`
+      : `Focus on this file and continue working: ${filePath}`;
+
+    const injection: PromptInjection = {
+      prompt,
+      context: { filePath },
+      urgency: 'normal',
+    };
+
+    await this.injectPrompt(projectId, injection);
+    this.eventBus.emit('AGENT_REDIRECTED', { projectId, filePath, timestamp: Date.now() });
+  }
+
+  /**
+   * Set a breakpoint on a file path.
+   */
+  setBreakpoint(projectId: string, filePath: string): void {
+    const agent = this.getRunningAgent(projectId);
+    agent.breakpoints.add(filePath);
+    this.eventBus.emit('AGENT_BREAKPOINT_SET', { projectId, filePath, timestamp: Date.now() });
+  }
+
+  /**
+   * Remove a breakpoint from a file path.
+   */
+  removeBreakpoint(projectId: string, filePath: string): void {
+    const agent = this.getRunningAgent(projectId);
+    agent.breakpoints.delete(filePath);
+    this.eventBus.emit('AGENT_BREAKPOINT_REMOVED', { projectId, filePath, timestamp: Date.now() });
+  }
+
+  /**
+   * Get all breakpoints for a project.
+   */
+  getBreakpoints(projectId: string): string[] {
+    const agent = this.agents.get(projectId);
+    if (!agent) return [];
+    return [...agent.breakpoints];
   }
 
   /**
@@ -312,6 +470,7 @@ export class AgentRunner extends EventEmitter {
     });
 
     agent.process = proc;
+    console.log(`[AgentRunner] Process spawned: pid=${proc.pid}, binary=${this.claudeBinary}, isContinue=${isContinue} (project=${agent.projectId})`);
     this.sessionRepo.updatePid(agent.sessionDbId, proc.pid ?? null);
     this.setStatus(agent, 'RUNNING');
     this.sessionRepo.updateStatus(agent.sessionDbId, 'RUNNING');
@@ -326,6 +485,7 @@ export class AgentRunner extends EventEmitter {
 
     proc.stderr?.on('data', (data: Buffer) => {
       const text = data.toString();
+      console.error(`[AgentRunner] STDERR (project=${agent.projectId}): ${text.substring(0, 200)}`);
       this.eventBus.emit('AGENT_ERROR', {
         projectId: agent.projectId,
         error: text,
@@ -334,6 +494,7 @@ export class AgentRunner extends EventEmitter {
     });
 
     proc.on('exit', (code, signal) => {
+      console.log(`[AgentRunner] Process exited: code=${code}, signal=${signal}, status=${agent.status} (project=${agent.projectId})`);
       agent.parser.flush();
       if (agent.killTimer) {
         clearTimeout(agent.killTimer);
@@ -350,7 +511,9 @@ export class AgentRunner extends EventEmitter {
 
       // Last-chance plan extraction from text output if no plan was found
       if (!agent.plan && agent.lastTextOutput.length >= 30) {
+        console.log(`[AgentRunner] Last-chance plan extraction from text output, length=${agent.lastTextOutput.length} (project=${agent.projectId})`);
         const result = extractPlan(agent.lastTextOutput);
+        console.log(`[AgentRunner] Last-chance result: ${result ? `confidence=${result.confidence}, steps=${result.plan.steps.length}` : 'null'}`);
         if (result && result.confidence >= 0.4) {
           agent.plan = result.plan;
           this.planRepo.insert({
@@ -380,7 +543,10 @@ export class AgentRunner extends EventEmitter {
         return;
       }
 
-      if (code === 0 || signal === 'SIGTERM') {
+      // Determine completion: session_end without error, exit code 0, or SIGTERM all count as success
+      const isSuccess = code === 0 || signal === 'SIGTERM' || (agent._sessionEnded && !agent._sessionEndError);
+
+      if (isSuccess) {
         this.setStatus(agent, 'COMPLETED');
         this.sessionRepo.setCompleted(agent.sessionDbId, code);
         // Start dev server if available
@@ -407,6 +573,15 @@ export class AgentRunner extends EventEmitter {
     const parser = agent.parser;
     const projectId = agent.projectId;
 
+    /** Emit or queue if agent is soft-paused */
+    const emitOrQueue = (event: string, payload: unknown): void => {
+      if (agent.paused) {
+        agent.pausedEventQueue.push({ event, payload });
+      } else {
+        this.eventBus.emit(event, payload);
+      }
+    };
+
     parser.on('location_change', (loc: LocationChangeEvent) => {
       const location: AgentLocation = {
         filePath: loc.filePath,
@@ -417,19 +592,45 @@ export class AgentRunner extends EventEmitter {
       };
       agent.location = location;
 
-      // Add breadcrumb
+      // Extract snippet/diff from last tool input
+      const toolInput = agent.lastToolInput;
+      let contentSnippet: string | undefined;
+      let editDiff: string | undefined;
+
+      if (toolInput && loc.toolName) {
+        if (loc.toolName === 'Read' && typeof toolInput.file_path === 'string') {
+          contentSnippet = `Read: ${toolInput.file_path}`;
+          if (toolInput.offset) contentSnippet += ` (line ${toolInput.offset})`;
+        } else if (loc.toolName === 'Write' && typeof toolInput.content === 'string') {
+          contentSnippet = (toolInput.content as string).slice(0, 200);
+        } else if (loc.toolName === 'Edit') {
+          const oldStr = typeof toolInput.old_string === 'string' ? toolInput.old_string : '';
+          const newStr = typeof toolInput.new_string === 'string' ? toolInput.new_string : '';
+          editDiff = `- ${oldStr.slice(0, 240)}\n+ ${newStr.slice(0, 240)}`.slice(0, 500);
+        } else if (loc.toolName === 'Bash' && typeof toolInput.command === 'string') {
+          contentSnippet = `$ ${(toolInput.command as string).slice(0, 190)}`;
+        } else if (loc.toolName === 'Grep' && typeof toolInput.pattern === 'string') {
+          contentSnippet = `grep: ${toolInput.pattern}`;
+        }
+      }
+
+      // Add breadcrumb with enriched data
       const crumb: AgentBreadcrumb = {
         filePath: loc.filePath,
         activity: loc.activity,
         timestamp: loc.timestamp,
         toolName: loc.toolName,
+        lineRange: loc.lineRange,
+        contentSnippet,
+        editDiff,
+        toolInput: toolInput ?? undefined,
       };
       agent.breadcrumbs.push(crumb);
       if (agent.breadcrumbs.length > AGENT_CONSTANTS.MAX_BREADCRUMBS) {
         agent.breadcrumbs.shift();
       }
 
-      // Persist breadcrumb
+      // Persist breadcrumb with extended fields
       this.breadcrumbRepo.insert({
         sessionId: agent.sessionId,
         projectId,
@@ -437,22 +638,43 @@ export class AgentRunner extends EventEmitter {
         activity: loc.activity,
         toolName: loc.toolName ?? null,
         durationMs: null,
+        lineStart: loc.lineRange?.start ?? null,
+        lineEnd: loc.lineRange?.end ?? null,
+        contentSnippet: contentSnippet ?? null,
+        editDiff: editDiff ?? null,
         timestamp: loc.timestamp,
       });
+
+      // Auto-start dev server when agent writes trigger files
+      if (this.devServerManager && loc.activity === 'WRITING') {
+        const triggerFiles = ['package.json', 'vite.config.ts', 'vite.config.js',
+          'next.config.js', 'next.config.ts', 'tsconfig.json'];
+        const fileName = loc.filePath.split('/').pop() ?? '';
+        if (triggerFiles.includes(fileName)) {
+          this.tryStartDevServer(agent);
+        }
+      }
 
       // Update plan progress if we have a plan
       if (agent.plan) {
         agent.plan = updatePlanProgress(agent.plan, loc.filePath);
-        this.eventBus.emit('AGENT_PLAN_UPDATE', { projectId, plan: agent.plan });
+        emitOrQueue('AGENT_PLAN_UPDATE', { projectId, plan: agent.plan });
       }
 
-      this.eventBus.emit('AGENT_LOCATION_UPDATE', { projectId, location });
-      this.eventBus.emit('AGENT_BREADCRUMB', { projectId, breadcrumb: crumb });
+      // Check breakpoints
+      if (agent.breakpoints.has(loc.filePath)) {
+        this.pause(projectId);
+        emitOrQueue('AGENT_BREAKPOINT_HIT', { projectId, filePath: loc.filePath, timestamp: Date.now() });
+      }
+
+      emitOrQueue('AGENT_LOCATION_UPDATE', { projectId, location });
+      emitOrQueue('AGENT_BREADCRUMB', { projectId, breadcrumb: crumb });
     });
 
     parser.on('thinking', (text: string) => {
       agent.lastThinkingText += text;
       agent.hasReceivedThinking = true;
+      console.log(`[AgentRunner] Thinking received, total length=${agent.lastThinkingText.length} (project=${projectId})`);
     });
 
     parser.on('plan_detected', (thinkingText: string) => {
@@ -461,9 +683,12 @@ export class AgentRunner extends EventEmitter {
         clearTimeout(agent.planDebounceTimer);
       }
       agent.planDebounceTimer = setTimeout(() => {
+        console.log(`[AgentRunner] Plan extraction attempt from thinking, length=${agent.lastThinkingText.length} (project=${projectId})`);
         const result = extractPlan(agent.lastThinkingText);
+        console.log(`[AgentRunner] Plan extraction result: ${result ? `confidence=${result.confidence}, steps=${result.plan.steps.length}` : 'null'} (project=${projectId})`);
         if (result && result.confidence >= 0.4) {
           agent.plan = result.plan;
+          console.log(`[AgentRunner] Plan accepted: "${result.plan.summary}" with ${result.plan.steps.length} steps (project=${projectId})`);
 
           // Persist plan
           this.planRepo.insert({
@@ -477,14 +702,15 @@ export class AgentRunner extends EventEmitter {
             extractedAt: Date.now(),
           });
 
-          this.eventBus.emit('AGENT_PLAN_UPDATE', { projectId, plan: result.plan });
+          emitOrQueue('AGENT_PLAN_UPDATE', { projectId, plan: result.plan });
         }
         agent.lastThinkingText = '';
       }, AGENT_CONSTANTS.PLAN_DEBOUNCE_MS);
     });
 
     parser.on('text_output', (text: string) => {
-      this.eventBus.emit('AGENT_OUTPUT', { projectId, text, type: 'text', timestamp: Date.now() });
+      console.log(`[AgentRunner] Text output: ${text.substring(0, 120)} (project=${projectId})`);
+      emitOrQueue('AGENT_OUTPUT', { projectId, text, type: 'text', timestamp: Date.now() });
       // Fallback plan extraction from text output (for models without thinking blocks)
       if (!agent.hasReceivedThinking && !agent.plan) {
         agent.lastTextOutput += text + '\n';
@@ -493,7 +719,7 @@ export class AgentRunner extends EventEmitter {
     });
 
     parser.on('text_delta', (text: string) => {
-      this.eventBus.emit('AGENT_OUTPUT', { projectId, text, type: 'delta', timestamp: Date.now() });
+      emitOrQueue('AGENT_OUTPUT', { projectId, text, type: 'delta', timestamp: Date.now() });
       // Fallback plan extraction from text delta (for models without thinking blocks)
       if (!agent.hasReceivedThinking && !agent.plan) {
         agent.lastTextOutput += text;
@@ -502,7 +728,10 @@ export class AgentRunner extends EventEmitter {
     });
 
     parser.on('tool_start', (event: { toolName: string; input: Record<string, unknown>; timestamp: number }) => {
-      this.eventBus.emit('AGENT_OUTPUT', {
+      // Store last tool input for breadcrumb enrichment
+      agent.lastToolInput = event.input;
+      console.log(`[AgentRunner] Tool: ${event.toolName} (project=${projectId})`);
+      emitOrQueue('AGENT_OUTPUT', {
         projectId,
         text: `Tool: ${event.toolName}`,
         type: 'tool',
@@ -515,7 +744,7 @@ export class AgentRunner extends EventEmitter {
       agent.inputTokens = usage.inputTokens;
       agent.outputTokens = usage.outputTokens;
       this.sessionRepo.updateTokens(agent.sessionDbId, usage.inputTokens, usage.outputTokens);
-      this.eventBus.emit('AGENT_TOKEN_USAGE', {
+      emitOrQueue('AGENT_TOKEN_USAGE', {
         projectId,
         inputTokens: usage.inputTokens,
         outputTokens: usage.outputTokens,
@@ -524,12 +753,15 @@ export class AgentRunner extends EventEmitter {
 
     parser.on('session_end', (info: { isError: boolean; result?: string; sessionId?: string }) => {
       if (info.isError) {
-        this.eventBus.emit('AGENT_ERROR', {
+        emitOrQueue('AGENT_ERROR', {
           projectId,
           error: info.result ?? 'Agent session ended with error',
           timestamp: Date.now(),
         });
       }
+      // Mark that parser received session_end for proc exit handler
+      agent._sessionEnded = true;
+      agent._sessionEndError = info.isError;
     });
   }
 
@@ -568,6 +800,22 @@ export class AgentRunner extends EventEmitter {
     }, AGENT_CONSTANTS.PLAN_DEBOUNCE_MS + 500); // Slightly longer debounce for text fallback
   }
 
+  /**
+   * Debounced dev server start — waits 3s after last trigger file write.
+   */
+  private tryStartDevServer(agent: RunningAgent): void {
+    if (!this.devServerManager) return;
+    const info = this.devServerManager.getInfo(agent.projectId);
+    if (info && ['installing', 'starting', 'ready'].includes(info.status)) return;
+
+    if (agent._devServerDebounce) clearTimeout(agent._devServerDebounce);
+    agent._devServerDebounce = setTimeout(() => {
+      this.devServerManager!.startForProject(agent.projectId, agent.targetDir).catch((err) => {
+        console.warn('[AgentRunner] Dev server auto-start failed:', err instanceof Error ? err.message : err);
+      });
+    }, 3000);
+  }
+
   private async killProcess(agent: RunningAgent): Promise<void> {
     return new Promise<void>((resolve) => {
       if (!agent.process || agent.process.exitCode !== null) {
@@ -597,8 +845,76 @@ export class AgentRunner extends EventEmitter {
     });
   }
 
+  /**
+   * Build enriched prompt for initial spawn: rules + pinned memory + user prompt.
+   */
+  private buildSpawnPrompt(projectId: string, prompt: string): string {
+    const parts: string[] = [];
+
+    // Project rules
+    const rules = this.rulesRepo.getByProject(projectId);
+    if (rules?.content && rules.isActive) {
+      parts.push(`[PROJECT RULES — Always follow these instructions]\n${rules.content}\n[/PROJECT RULES]`);
+    }
+
+    // Pinned memory
+    const memories = this.memoryRepo.findPinned(projectId);
+    if (memories.length > 0) {
+      const memLines = memories.map((m) => `- [${m.category}] ${m.title}: ${m.content}`);
+      parts.push(`[PROJECT MEMORY — Key facts about this project]\n${memLines.join('\n')}\n[/PROJECT MEMORY]`);
+    }
+
+    parts.push(prompt);
+    return parts.join('\n\n');
+  }
+
   private buildEnrichedPrompt(agent: RunningAgent, injection: PromptInjection, projectId: string): string {
     const parts: string[] = [];
+
+    // Project rules — repeat in every injection
+    const rules = this.rulesRepo.getByProject(projectId);
+    if (rules?.content && rules.isActive) {
+      parts.push(`[PROJECT RULES — Always follow these instructions]\n${rules.content}\n[/PROJECT RULES]`);
+    }
+
+    // Pinned memory
+    const memories = this.memoryRepo.findPinned(projectId);
+    if (memories.length > 0) {
+      const memLines = memories.map((m) => `- [${m.category}] ${m.title}: ${m.content}`);
+      parts.push(`[PROJECT MEMORY]\n${memLines.join('\n')}\n[/PROJECT MEMORY]`);
+    }
+
+    // SESSION MEMORY — Last 10 breadcrumbs
+    if (agent.breadcrumbs.length > 0) {
+      const recent = agent.breadcrumbs.slice(-10);
+      parts.push('[SESSION MEMORY - Recent Activity:');
+      for (const bc of recent) {
+        const line = bc.lineRange ? `:${bc.lineRange.start}-${bc.lineRange.end}` : '';
+        const tool = bc.toolName ? ` (${bc.toolName})` : '';
+        const snippet = bc.contentSnippet ? ` — ${bc.contentSnippet.slice(0, 80)}` : '';
+        parts.push(`  ${bc.activity} ${bc.filePath}${line}${tool}${snippet}`);
+      }
+      parts.push(']');
+    }
+
+    // Plan state + progress
+    if (agent.plan) {
+      const completed = agent.plan.steps.filter((s) => s.status === 'completed').length;
+      parts.push(`[PLAN PROGRESS: ${completed}/${agent.plan.totalSteps} steps completed — "${agent.plan.summary}"]`);
+      const activeStep = agent.plan.steps.find((s) => s.status === 'active');
+      if (activeStep) {
+        parts.push(`[CURRENT STEP: ${activeStep.description}]`);
+      }
+    }
+
+    // Files touched summary
+    const touchedFiles = [...new Set(agent.breadcrumbs.map((b) => b.filePath))];
+    if (touchedFiles.length > 0) {
+      parts.push(`[FILES TOUCHED (${touchedFiles.length}): ${touchedFiles.slice(-15).join(', ')}]`);
+    }
+
+    // Token budget
+    parts.push(`[TOKEN USAGE: input=${agent.inputTokens}, output=${agent.outputTokens}]`);
 
     // Context info
     if (injection.context?.filePath) {
@@ -631,6 +947,16 @@ export class AgentRunner extends EventEmitter {
       parts.push(`[Additional Constraints: ${injection.context.constraints.join(', ')}]`);
     }
 
+    // Attached files
+    const uploads = this.uploadRepo.findByProject(projectId);
+    if (uploads.length > 0) {
+      parts.push('[ATTACHED FILES');
+      for (const u of uploads) {
+        parts.push(`  - ${u.filename}: ${u.url} (${u.mimeType})`);
+      }
+      parts.push(']');
+    }
+
     // The actual prompt
     parts.push(injection.prompt);
 
@@ -638,7 +964,9 @@ export class AgentRunner extends EventEmitter {
   }
 
   private setStatus(agent: RunningAgent, status: AgentStatus): void {
+    const prev = agent.status;
     agent.status = status;
+    console.log(`[AgentRunner] Status: ${prev} -> ${status} (project=${agent.projectId})`);
     this.emitStatus(agent.projectId, status);
   }
 

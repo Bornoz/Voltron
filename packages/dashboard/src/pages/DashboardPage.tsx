@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, AlertCircle, GitBranch, GitCommit, Brain, FileText, Bot, LogOut } from 'lucide-react';
 import type { ProjectConfig } from '@voltron/shared';
@@ -11,14 +11,11 @@ import { useEventStore } from '../stores/eventStore';
 import { useNotificationStore } from '../stores/notificationStore';
 import { useAgentStore } from '../stores/agentStore';
 import { useAgentStream } from '../hooks/useAgentStream';
+import { useAgentHydration } from '../hooks/useAgentHydration';
 import { useFileTreeStore } from '../stores/fileTreeStore';
 import { useAuthStore } from '../stores/authStore';
 import { MainLayout } from '../components/Layout/MainLayout';
 import { ActionFeed } from '../components/ActionFeed/ActionFeed';
-import { RepoAnalyzer } from '../components/GitHubReport/RepoAnalyzer';
-import { SnapshotBrowser } from '../components/Snapshots/SnapshotBrowser';
-import { BehaviorPanel } from '../components/BehaviorScore/BehaviorPanel';
-import { PromptManager } from '../components/PromptVersioning/PromptManager';
 import { InterceptorStatus } from '../components/InterceptorStatus/InterceptorStatus';
 import { ExecutionControls } from '../components/ControlPanel/ExecutionControls';
 import { RiskGauge } from '../components/ControlPanel/RiskGauge';
@@ -31,10 +28,16 @@ import { Spinner } from '../components/common/Spinner';
 import { AgentControlBar } from '../components/Agent/AgentControlBar';
 import { GPSTracker } from '../components/Agent/GPSTracker';
 import { PlanViewer } from '../components/Agent/PlanViewer';
-import { AgentWorkspace } from '../components/Agent/AgentWorkspace';
-import { SpawnDialog } from '../components/Agent/SpawnDialog';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { useTranslation } from '../i18n';
+
+// Lazy-loaded heavy tab components for chunk splitting
+const RepoAnalyzer = lazy(() => import('../components/GitHubReport/RepoAnalyzer').then(m => ({ default: m.RepoAnalyzer })));
+const SnapshotBrowser = lazy(() => import('../components/Snapshots/SnapshotBrowser').then(m => ({ default: m.SnapshotBrowser })));
+const BehaviorPanel = lazy(() => import('../components/BehaviorScore/BehaviorPanel').then(m => ({ default: m.BehaviorPanel })));
+const PromptManager = lazy(() => import('../components/PromptVersioning/PromptManager').then(m => ({ default: m.PromptManager })));
+const AgentWorkspace = lazy(() => import('../components/Agent/AgentWorkspace').then(m => ({ default: m.AgentWorkspace })));
+const SpawnDialog = lazy(() => import('../components/Agent/SpawnDialog').then(m => ({ default: m.SpawnDialog })));
 
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -46,6 +49,7 @@ export function DashboardPage() {
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   const [centerTab, setCenterTab] = useState<'feed' | 'github' | 'snapshots' | 'behavior' | 'prompts' | 'agent'>('feed');
   const [showSpawnDialog, setShowSpawnDialog] = useState(false);
+  const [spawnDefaultConfig, setSpawnDefaultConfig] = useState<{ model?: string; prompt?: string; targetDir?: string } | undefined>();
 
   const projectId = selectedProject?.id ?? null;
 
@@ -53,6 +57,7 @@ export function DashboardPage() {
   const { status, client } = useWebSocket(projectId);
   useEventStream(client);
   useAgentStream(client);
+  useAgentHydration(projectId);
   useKeyboard(projectId);
 
   const logout = useAuthStore((s) => s.logout);
@@ -231,8 +236,11 @@ export function DashboardPage() {
         </div>
 
         {/* Center tabs */}
-        <div className="flex items-center gap-1 ml-auto">
+        <div className="flex items-center gap-1 ml-auto" role="tablist" aria-label="Dashboard tabs">
           <button
+            id="tab-feed"
+            role="tab"
+            aria-selected={centerTab === 'feed'}
             onClick={() => setCenterTab('feed')}
             className={`px-2 py-1 text-[10px] rounded transition-colors ${
               centerTab === 'feed' ? 'bg-blue-900/50 text-blue-400' : 'text-gray-500 hover:text-gray-300'
@@ -241,6 +249,9 @@ export function DashboardPage() {
             {t('app.actionFeed')}
           </button>
           <button
+            id="tab-github"
+            role="tab"
+            aria-selected={centerTab === 'github'}
             onClick={() => setCenterTab('github')}
             className={`px-2 py-1 text-[10px] rounded transition-colors flex items-center gap-1 ${
               centerTab === 'github' ? 'bg-blue-900/50 text-blue-400' : 'text-gray-500 hover:text-gray-300'
@@ -250,6 +261,9 @@ export function DashboardPage() {
             {t('app.github')}
           </button>
           <button
+            id="tab-snapshots"
+            role="tab"
+            aria-selected={centerTab === 'snapshots'}
             onClick={() => setCenterTab('snapshots')}
             className={`px-2 py-1 text-[10px] rounded transition-colors flex items-center gap-1 ${
               centerTab === 'snapshots' ? 'bg-blue-900/50 text-blue-400' : 'text-gray-500 hover:text-gray-300'
@@ -259,6 +273,9 @@ export function DashboardPage() {
             {t('app.snapshots')}
           </button>
           <button
+            id="tab-behavior"
+            role="tab"
+            aria-selected={centerTab === 'behavior'}
             onClick={() => setCenterTab('behavior')}
             className={`px-2 py-1 text-[10px] rounded transition-colors flex items-center gap-1 ${
               centerTab === 'behavior' ? 'bg-purple-900/50 text-purple-400' : 'text-gray-500 hover:text-gray-300'
@@ -268,6 +285,9 @@ export function DashboardPage() {
             {t('app.behavior')}
           </button>
           <button
+            id="tab-prompts"
+            role="tab"
+            aria-selected={centerTab === 'prompts'}
             onClick={() => setCenterTab('prompts')}
             className={`px-2 py-1 text-[10px] rounded transition-colors flex items-center gap-1 ${
               centerTab === 'prompts' ? 'bg-indigo-900/50 text-indigo-400' : 'text-gray-500 hover:text-gray-300'
@@ -277,6 +297,9 @@ export function DashboardPage() {
             {t('app.prompts')}
           </button>
           <button
+            id="tab-agent"
+            role="tab"
+            aria-selected={centerTab === 'agent'}
             onClick={() => setCenterTab('agent')}
             className={`px-2 py-1 text-[10px] rounded transition-colors flex items-center gap-1 ${
               centerTab === 'agent' ? 'bg-green-900/50 text-green-400' : 'text-gray-500 hover:text-gray-300'
@@ -301,48 +324,53 @@ export function DashboardPage() {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden" role="tabpanel" aria-labelledby={`tab-${centerTab}`}>
         <ErrorBoundary resetKeys={[centerTab, projectId]}>
-          {centerTab === 'feed' && <ActionFeed />}
-          {centerTab === 'github' && projectId && <RepoAnalyzer projectId={projectId} />}
-          {centerTab === 'github' && !projectId && (
-            <div className="flex items-center justify-center h-full text-sm text-gray-500">
-              {t('app.selectProjectFirst')}
-            </div>
-          )}
-          {centerTab === 'snapshots' && projectId && <SnapshotBrowser projectId={projectId} />}
-          {centerTab === 'snapshots' && !projectId && (
-            <div className="flex items-center justify-center h-full text-sm text-gray-500">
-              {t('app.selectProjectFirst')}
-            </div>
-          )}
-          {centerTab === 'behavior' && projectId && <BehaviorPanel projectId={projectId} />}
-          {centerTab === 'behavior' && !projectId && (
-            <div className="flex items-center justify-center h-full text-sm text-gray-500">
-              {t('app.selectProjectFirst')}
-            </div>
-          )}
-          {centerTab === 'prompts' && projectId && <PromptManager projectId={projectId} />}
-          {centerTab === 'prompts' && !projectId && (
-            <div className="flex items-center justify-center h-full text-sm text-gray-500">
-              {t('app.selectProjectFirst')}
-            </div>
-          )}
-          {centerTab === 'agent' && projectId && (
-            <AgentWorkspace
-              projectId={projectId}
-              onSpawn={() => setShowSpawnDialog(true)}
-              onPause={handleAgentPause}
-              onResume={handleAgentResume}
-              onKill={handleAgentKill}
-              onInject={handleAgentInject}
-            />
-          )}
-          {centerTab === 'agent' && !projectId && (
-            <div className="flex items-center justify-center h-full text-sm text-gray-500">
-              {t('app.selectProjectFirst')}
-            </div>
-          )}
+          <Suspense fallback={<div className="flex items-center justify-center h-full"><Spinner size="md" /></div>}>
+            {centerTab === 'feed' && <ActionFeed />}
+            {centerTab === 'github' && projectId && <RepoAnalyzer projectId={projectId} />}
+            {centerTab === 'github' && !projectId && (
+              <div className="flex items-center justify-center h-full text-sm text-gray-500">
+                {t('app.selectProjectFirst')}
+              </div>
+            )}
+            {centerTab === 'snapshots' && projectId && <SnapshotBrowser projectId={projectId} />}
+            {centerTab === 'snapshots' && !projectId && (
+              <div className="flex items-center justify-center h-full text-sm text-gray-500">
+                {t('app.selectProjectFirst')}
+              </div>
+            )}
+            {centerTab === 'behavior' && projectId && <BehaviorPanel projectId={projectId} />}
+            {centerTab === 'behavior' && !projectId && (
+              <div className="flex items-center justify-center h-full text-sm text-gray-500">
+                {t('app.selectProjectFirst')}
+              </div>
+            )}
+            {centerTab === 'prompts' && projectId && <PromptManager projectId={projectId} />}
+            {centerTab === 'prompts' && !projectId && (
+              <div className="flex items-center justify-center h-full text-sm text-gray-500">
+                {t('app.selectProjectFirst')}
+              </div>
+            )}
+            {centerTab === 'agent' && projectId && (
+              <AgentWorkspace
+                projectId={projectId}
+                onSpawn={(config?: { model?: string; prompt?: string; targetDir?: string }) => {
+                  setSpawnDefaultConfig(config);
+                  setShowSpawnDialog(true);
+                }}
+                onPause={handleAgentPause}
+                onResume={handleAgentResume}
+                onKill={handleAgentKill}
+                onInject={handleAgentInject}
+              />
+            )}
+            {centerTab === 'agent' && !projectId && (
+              <div className="flex items-center justify-center h-full text-sm text-gray-500">
+                {t('app.selectProjectFirst')}
+              </div>
+            )}
+          </Suspense>
         </ErrorBoundary>
       </div>
     </div>
@@ -355,7 +383,7 @@ export function DashboardPage() {
       {projectId && centerTab !== 'agent' && (
         <div className="space-y-2 p-2 border-b border-gray-800">
           <AgentControlBar
-            onSpawn={() => setShowSpawnDialog(true)}
+            onSpawn={() => { setSpawnDefaultConfig(undefined); setShowSpawnDialog(true); }}
             onPause={handleAgentPause}
             onResume={handleAgentResume}
             onKill={handleAgentKill}
@@ -399,11 +427,14 @@ export function DashboardPage() {
 
       {/* Spawn Dialog */}
       {showSpawnDialog && projectId && (
-        <SpawnDialog
-          projectId={projectId}
-          onSpawn={handleAgentSpawn}
-          onClose={() => setShowSpawnDialog(false)}
-        />
+        <Suspense fallback={null}>
+          <SpawnDialog
+            projectId={projectId}
+            defaultConfig={spawnDefaultConfig}
+            onSpawn={handleAgentSpawn}
+            onClose={() => { setShowSpawnDialog(false); setSpawnDefaultConfig(undefined); }}
+          />
+        </Suspense>
       )}
 
       {/* Notification toasts */}

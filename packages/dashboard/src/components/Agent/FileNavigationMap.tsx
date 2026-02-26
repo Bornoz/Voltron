@@ -411,29 +411,29 @@ export function FileNavigationMap({ onAgentAction, onFileAction }: FileNavigatio
   //  ZOOM & PAN HANDLERS
   // ═══════════════════════════════════════════════════════
 
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
+  // Use ref-based wheel handler for { passive: false } — React synthetic events are passive
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
       e.preventDefault();
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-
+      const rect = el.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
-
       setTransform((prev) => {
         const direction = e.deltaY < 0 ? 1 : -1;
         const newScale = clamp(prev.scale + direction * ZOOM_STEP, MIN_ZOOM, MAX_ZOOM);
         const ratio = newScale / prev.scale;
-
         return {
           scale: newScale,
           translateX: mx - (mx - prev.translateX) * ratio,
           translateY: my - (my - prev.translateY) * ratio,
         };
       });
-    },
-    [],
-  );
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, []);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -639,11 +639,26 @@ export function FileNavigationMap({ onAgentAction, onFileAction }: FileNavigatio
             {t('agent.fileMap')}
           </span>
         </div>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <MapIcon className="w-8 h-8 text-gray-700 mx-auto mb-2" />
-            <p className="text-[11px] text-gray-600">
+        <div className="flex-1 flex items-center justify-center relative overflow-hidden">
+          {/* Animated background grid */}
+          <div className="absolute inset-0 opacity-[0.03]" style={{
+            backgroundImage: 'radial-gradient(circle, #3b82f6 1px, transparent 1px)',
+            backgroundSize: '24px 24px',
+          }} />
+          {/* Pulsing center ring */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-32 h-32 rounded-full border border-gray-800/30 animate-ping" style={{ animationDuration: '3s' }} />
+            <div className="absolute w-20 h-20 rounded-full border border-gray-800/20 animate-ping" style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
+          </div>
+          <div className="text-center relative z-10">
+            <div className="w-14 h-14 mx-auto mb-3 rounded-xl bg-gradient-to-br from-gray-800/60 to-gray-900/60 border border-gray-700/30 flex items-center justify-center shadow-lg shadow-black/20">
+              <MapIcon className="w-6 h-6 text-gray-600" />
+            </div>
+            <p className="text-[11px] text-gray-500 font-medium">
               {isActive ? t('agent.noNavigation') : t('agent.startAgent')}
+            </p>
+            <p className="text-[9px] text-gray-600 mt-1">
+              {isActive ? 'Agent dosya islemleri basladiginda harita canlanir' : 'GPS navigasyon haritasi'}
             </p>
           </div>
         </div>
@@ -743,7 +758,6 @@ export function FileNavigationMap({ onAgentAction, onFileAction }: FileNavigatio
         ref={containerRef}
         className="flex-1 relative overflow-hidden"
         style={{ cursor: isPanning ? 'grabbing' : 'grab' }}
-        onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}

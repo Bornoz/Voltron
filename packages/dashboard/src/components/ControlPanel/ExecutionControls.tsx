@@ -91,7 +91,7 @@ export function ExecutionControls({ projectId }: ExecutionControlsProps) {
       </div>
 
       {/* Control Buttons */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4" role="group" aria-label={t('executionControls.title')}>
         <Button
           variant="danger"
           size="sm"
@@ -99,6 +99,7 @@ export function ExecutionControls({ projectId }: ExecutionControlsProps) {
           onClick={stop}
           disabled={executionState === 'STOPPED' || executionState === 'IDLE'}
           className="flex-1"
+          aria-label={t('executionControls.stop')}
         >
           {t('executionControls.stop')}
         </Button>
@@ -109,6 +110,7 @@ export function ExecutionControls({ projectId }: ExecutionControlsProps) {
           onClick={continue_}
           disabled={executionState !== 'STOPPED'}
           className="flex-1"
+          aria-label={t('executionControls.continue')}
         >
           {t('executionControls.continue')}
         </Button>
@@ -118,6 +120,7 @@ export function ExecutionControls({ projectId }: ExecutionControlsProps) {
           icon={<RotateCcw className="w-4 h-4" />}
           onClick={handleReset}
           className={clsx('flex-1', showResetConfirm && 'border-red-600 text-red-400')}
+          aria-label={showResetConfirm ? t('executionControls.confirm') : t('executionControls.reset')}
         >
           {showResetConfirm ? t('executionControls.confirm') : t('executionControls.reset')}
         </Button>

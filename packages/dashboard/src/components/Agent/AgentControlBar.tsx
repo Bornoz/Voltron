@@ -84,6 +84,7 @@ export function AgentControlBar({ onSpawn, onPause, onResume, onKill }: AgentCon
         {status === 'IDLE' || status === 'COMPLETED' || status === 'CRASHED' ? (
           <button
             onClick={onSpawn}
+            aria-label={t('agent.spawn')}
             className="flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[10px] font-medium transition-colors"
           >
             <Zap className="w-3 h-3" />
@@ -96,6 +97,7 @@ export function AgentControlBar({ onSpawn, onPause, onResume, onKill }: AgentCon
                 onClick={onPause}
                 className="p-1 hover:bg-gray-800 rounded transition-colors"
                 title={t('agent.pause')}
+                aria-label={t('agent.pause')}
               >
                 <Pause className="w-3.5 h-3.5 text-yellow-400" />
               </button>
@@ -105,6 +107,7 @@ export function AgentControlBar({ onSpawn, onPause, onResume, onKill }: AgentCon
                 onClick={onResume}
                 className="p-1 hover:bg-gray-800 rounded transition-colors"
                 title={t('agent.resume')}
+                aria-label={t('agent.resume')}
               >
                 <Play className="w-3.5 h-3.5 text-green-400" />
               </button>
@@ -114,6 +117,7 @@ export function AgentControlBar({ onSpawn, onPause, onResume, onKill }: AgentCon
                 onClick={onKill}
                 className="p-1 hover:bg-gray-800 rounded transition-colors"
                 title={t('agent.kill')}
+                aria-label={t('agent.kill')}
               >
                 <Square className="w-3.5 h-3.5 text-red-400" />
               </button>
@@ -144,7 +148,7 @@ export function AgentControlBar({ onSpawn, onPause, onResume, onKill }: AgentCon
           {/* Model */}
           {model && (
             <span className="text-[9px] text-gray-600 bg-gray-800 px-1.5 py-0.5 rounded">
-              {model.includes('haiku') ? 'Haiku' : model.includes('sonnet') ? 'Sonnet' : model}
+              {model.includes('haiku') ? 'Haiku' : model.includes('sonnet') ? 'Sonnet' : model.includes('opus') ? 'Opus' : model}
             </span>
           )}
         </>

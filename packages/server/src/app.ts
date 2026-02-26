@@ -1,5 +1,9 @@
+import { resolve, join } from 'node:path';
+import { existsSync } from 'node:fs';
 import Fastify from 'fastify';
+import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
+import multipart from '@fastify/multipart';
 import { initDb } from './db/connection.js';
 import { createSchema } from './db/schema.js';
 import { registerCors } from './plugins/cors.js';
@@ -17,6 +21,8 @@ import { githubRoutes } from './routes/github.js';
 import { behaviorRoutes } from './routes/behavior.js';
 import { promptRoutes } from './routes/prompts.js';
 import { agentRoutes } from './routes/agent.js';
+import { projectSettingsRoutes } from './routes/project-settings.js';
+import { uploadRoutes } from './routes/uploads.js';
 import { createWsServices, registerWsHandler } from './ws/handler.js';
 import { EventBus } from './services/event-bus.js';
 import { AgentRunner } from './services/agent-runner.js';
@@ -44,6 +50,7 @@ export async function buildApp(config: ServerConfig) {
   // Plugins
   await registerCors(app, config);
   await app.register(websocket);
+  await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024 } });
   registerAuth(app, config);
   registerErrorHandler(app);
   registerRateLimiter(app, { max: 200, windowMs: 60_000 });
@@ -70,6 +77,27 @@ export async function buildApp(config: ServerConfig) {
   behaviorRoutes(app, behaviorScorer);
   promptRoutes(app);
   agentRoutes(app, agentRunner, devServerManager);
+  projectSettingsRoutes(app);
+  uploadRoutes(app);
+
+  // Serve dashboard static files in production
+  const dashboardDist = resolve(import.meta.dirname, '../../dashboard/dist');
+  if (existsSync(dashboardDist)) {
+    await app.register(fastifyStatic, {
+      root: dashboardDist,
+      prefix: '/',
+      decorateReply: false,
+      wildcard: false,
+    });
+
+    // SPA fallback: serve index.html for all non-API, non-WS routes
+    app.setNotFoundHandler((request, reply) => {
+      if (request.url.startsWith('/api/') || request.url.startsWith('/ws')) {
+        return reply.status(404).send({ error: 'Not found' });
+      }
+      return reply.sendFile('index.html', dashboardDist);
+    });
+  }
 
   // WebSocket
   registerWsHandler(app, config, wsServices);

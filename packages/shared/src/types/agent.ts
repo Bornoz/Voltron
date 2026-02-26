@@ -67,8 +67,39 @@ export const AgentBreadcrumb = z.object({
   timestamp: z.number(),
   durationMs: z.number().int().optional(),
   toolName: z.string().optional(),
+  lineRange: z.object({ start: z.number().int(), end: z.number().int() }).optional(),
+  contentSnippet: z.string().max(200).optional(),
+  editDiff: z.string().max(500).optional(),
+  toolInput: z.record(z.unknown()).optional(),
 });
 export type AgentBreadcrumb = z.infer<typeof AgentBreadcrumb>;
+
+// ── File Tree ──────────────────────────────────────────
+export const FileTreeNode: z.ZodType<FileTreeNodeType> = z.lazy(() =>
+  z.object({
+    name: z.string(),
+    path: z.string(),
+    type: z.enum(['file', 'directory']),
+    size: z.number().optional(),
+    lastModified: z.number().optional(),
+    extension: z.string().optional(),
+    children: z.array(FileTreeNode).optional(),
+    agentVisits: z.number().int().optional(),
+    lastActivity: AgentActivity.optional(),
+  }),
+);
+
+export interface FileTreeNodeType {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  size?: number;
+  lastModified?: number;
+  extension?: string;
+  children?: FileTreeNodeType[];
+  agentVisits?: number;
+  lastActivity?: z.infer<typeof AgentActivity>;
+}
 
 // ── Prompt Injection ────────────────────────────────────
 export const PromptInjection = z.object({
@@ -86,6 +117,15 @@ export const PromptInjection = z.object({
   urgency: z.enum(['low', 'normal', 'high']).default('normal'),
 });
 export type PromptInjection = z.infer<typeof PromptInjection>;
+
+// ── Injection Queue Entry ──────────────────────────────
+export const InjectionQueueEntry = z.object({
+  id: z.string().uuid(),
+  injection: PromptInjection,
+  queuedAt: z.number(),
+  status: z.enum(['queued', 'applying', 'applied', 'failed']),
+});
+export type InjectionQueueEntry = z.infer<typeof InjectionQueueEntry>;
 
 // ── Agent Spawn Config ──────────────────────────────────
 export const AgentSpawnConfig = z.object({

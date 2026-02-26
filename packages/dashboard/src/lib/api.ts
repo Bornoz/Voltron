@@ -599,6 +599,47 @@ export function getAgentInjections(projectId: string): Promise<Record<string, un
   return request<Record<string, unknown>[]>(`/projects/${projectId}/agent/injections`);
 }
 
+export function agentHardPause(projectId: string): Promise<{ status: string; checkpointId: string }> {
+  return request<{ status: string; checkpointId: string }>(`/projects/${projectId}/agent/hard-pause`, { method: 'POST' });
+}
+
+export function agentResumeCheckpoint(projectId: string): Promise<{ status: string }> {
+  return request<{ status: string }>(`/projects/${projectId}/agent/resume-checkpoint`, { method: 'POST' });
+}
+
+export function agentRedirect(
+  projectId: string,
+  filePath: string,
+  instruction?: string,
+): Promise<{ status: string }> {
+  return request<{ status: string }>(`/projects/${projectId}/agent/redirect`, {
+    method: 'POST',
+    body: JSON.stringify({ filePath, instruction }),
+  });
+}
+
+export function agentSetBreakpoint(projectId: string, filePath: string): Promise<{ status: string }> {
+  return request<{ status: string }>(`/projects/${projectId}/agent/breakpoint`, {
+    method: 'POST',
+    body: JSON.stringify({ filePath }),
+  });
+}
+
+export function agentRemoveBreakpoint(projectId: string, filePath: string): Promise<{ status: string }> {
+  return request<{ status: string }>(`/projects/${projectId}/agent/breakpoint`, {
+    method: 'DELETE',
+    body: JSON.stringify({ filePath }),
+  });
+}
+
+export function getAgentBreakpoints(projectId: string): Promise<string[]> {
+  return request<string[]>(`/projects/${projectId}/agent/breakpoints`);
+}
+
+export function getAgentFileTree(projectId: string): Promise<Record<string, unknown>> {
+  return request<Record<string, unknown>>(`/projects/${projectId}/agent/filetree`);
+}
+
 export function githubSearchAndAdapt(
   projectId: string,
   config: { query: string; framework?: string; targetDir: string; model?: string },
@@ -607,6 +648,124 @@ export function githubSearchAndAdapt(
     method: 'POST',
     body: JSON.stringify(config),
   });
+}
+
+// ── Project Rules ───────────────────────────────────────
+
+export interface ProjectRules {
+  id?: string;
+  projectId?: string;
+  content: string;
+  isActive: boolean;
+  updatedAt?: number;
+  createdAt?: number;
+}
+
+export function getProjectRules(projectId: string): Promise<ProjectRules> {
+  return request<ProjectRules>(`/projects/${projectId}/rules`);
+}
+
+export function updateProjectRules(projectId: string, content: string): Promise<ProjectRules> {
+  return request<ProjectRules>(`/projects/${projectId}/rules`, {
+    method: 'PUT',
+    body: JSON.stringify({ content }),
+  });
+}
+
+export function toggleProjectRules(projectId: string): Promise<{ isActive: boolean }> {
+  return request<{ isActive: boolean }>(`/projects/${projectId}/rules/toggle`, { method: 'POST' });
+}
+
+// ── Project Memory ──────────────────────────────────────
+
+export interface MemoryEntry {
+  id: string;
+  projectId: string;
+  category: string;
+  title: string;
+  content: string;
+  pinned: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export function getProjectMemories(projectId: string, category?: string): Promise<MemoryEntry[]> {
+  const params = new URLSearchParams();
+  if (category) params.set('category', category);
+  const qs = params.toString();
+  return request<MemoryEntry[]>(`/projects/${projectId}/memory${qs ? `?${qs}` : ''}`);
+}
+
+export function createProjectMemory(
+  projectId: string,
+  entry: { category: string; title: string; content: string },
+): Promise<MemoryEntry> {
+  return request<MemoryEntry>(`/projects/${projectId}/memory`, {
+    method: 'POST',
+    body: JSON.stringify(entry),
+  });
+}
+
+export function updateProjectMemory(
+  projectId: string,
+  memId: string,
+  data: Partial<{ title: string; content: string; category: string; pinned: boolean }>,
+): Promise<MemoryEntry> {
+  return request<MemoryEntry>(`/projects/${projectId}/memory/${memId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteProjectMemory(projectId: string, memId: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/projects/${projectId}/memory/${memId}`, { method: 'DELETE' });
+}
+
+export function toggleMemoryPin(projectId: string, memId: string): Promise<{ pinned: boolean }> {
+  return request<{ pinned: boolean }>(`/projects/${projectId}/memory/${memId}/pin`, { method: 'POST' });
+}
+
+// ── Session History (typed) ─────────────────────────────
+
+export interface AgentSessionInfo {
+  id: string;
+  sessionId: string;
+  status: string;
+  model: string;
+  prompt: string;
+  targetDir: string;
+  pid: number | null;
+  exitCode: number | null;
+  inputTokens: number;
+  outputTokens: number;
+  injectionCount: number;
+  lastError: string | null;
+  startedAt: number;
+  pausedAt: number | null;
+  completedAt: number | null;
+}
+
+export function getAgentSessionsTyped(projectId: string): Promise<AgentSessionInfo[]> {
+  return request<AgentSessionInfo[]>(`/projects/${projectId}/agent/sessions`);
+}
+
+export interface SessionExportData {
+  meta: {
+    projectId: string;
+    sessionId: string;
+    model: string | null;
+    status: string;
+    startedAt: number | null;
+    exportedAt: number;
+  };
+  files: { written: string[]; read: string[] };
+  plan: Record<string, unknown> | null;
+  breadcrumbs: Record<string, unknown>[];
+  injections: Record<string, unknown>[];
+}
+
+export function getSessionExport(projectId: string, sessionId: string): Promise<SessionExportData> {
+  return request<SessionExportData>(`/projects/${projectId}/agent/session/${sessionId}/export`);
 }
 
 export function getPromptDiff(
@@ -618,4 +777,45 @@ export function getPromptDiff(
   return request<{ from: PromptVersion; to: PromptVersion; changes: string[] }>(
     `/projects/${projectId}/prompts/diff?${params}`,
   );
+}
+
+/* ─── File Uploads ─── */
+
+export interface UploadResult {
+  id: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  uploadedAt: number;
+}
+
+export async function uploadFile(projectId: string, file: File): Promise<UploadResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const token = localStorage.getItem('voltron_token');
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const resp = await fetch(`/api/projects/${projectId}/uploads`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ error: 'Upload failed' }));
+    throw new Error((err as Record<string, string>).error ?? 'Upload failed');
+  }
+
+  return resp.json() as Promise<UploadResult>;
+}
+
+export function getUploads(projectId: string): Promise<UploadResult[]> {
+  return request<UploadResult[]>(`/projects/${projectId}/uploads`);
+}
+
+export function deleteUpload(id: string): Promise<void> {
+  return request<void>(`/uploads/${id}`, { method: 'DELETE' });
 }

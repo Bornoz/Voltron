@@ -4,7 +4,7 @@ import { useAgentStore } from '../../stores/agentStore';
 import type { AgentPlanStepStatus } from '@voltron/shared';
 import { useTranslation } from '../../i18n';
 
-const PLAN_TIMEOUT_MS = 15_000;
+const PLAN_TIMEOUT_MS = 8_000;
 
 const STEP_ICONS: Record<AgentPlanStepStatus, typeof Circle> = {
   pending: Circle,
@@ -138,9 +138,36 @@ export function PlanViewer() {
   // Case 4: Running, still waiting for plan
   if (['RUNNING', 'SPAWNING'].includes(status)) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 text-xs text-gray-500">
-        <Loader2 className="w-3 h-3 animate-spin" />
-        <span>{t('agent.extractingPlan')}</span>
+      <div className="space-y-2 px-1">
+        {/* Animated extraction indicator */}
+        <div className="flex items-center gap-2.5">
+          <div className="relative">
+            <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
+            <div className="absolute inset-0 w-4 h-4 rounded-full bg-blue-400/20 animate-ping" style={{ animationDuration: '2s' }} />
+          </div>
+          <div className="flex-1">
+            <span className="text-xs text-blue-300 font-medium">{t('agent.extractingPlan')}</span>
+            <div className="mt-1 h-1 bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-blue-600 via-blue-400 to-blue-600 rounded-full"
+                style={{
+                  width: '60%',
+                  animation: 'planShimmer 2s ease-in-out infinite',
+                }}
+              />
+            </div>
+          </div>
+        </div>
+        {/* Skeleton plan steps */}
+        <div className="space-y-1.5 opacity-40">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-2 px-2 py-1">
+              <div className="w-3.5 h-3.5 rounded-full bg-gray-700 animate-pulse" style={{ animationDelay: `${i * 200}ms` }} />
+              <div className="flex-1 h-2.5 bg-gray-800 rounded animate-pulse" style={{ animationDelay: `${i * 200}ms`, width: `${85 - i * 15}%` }} />
+            </div>
+          ))}
+        </div>
+        <style>{`@keyframes planShimmer { 0%,100% { width:30%; margin-left:0 } 50% { width:70%; margin-left:15% } }`}</style>
       </div>
     );
   }

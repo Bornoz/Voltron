@@ -43,6 +43,9 @@ export const WsMessageType = z.enum([
   'AGENT_TOKEN_USAGE',
   'AGENT_ERROR',
   'AGENT_PHASE_UPDATE',
+  'AGENT_BREAKPOINT_HIT',
+  'AGENT_INJECTION_QUEUED',
+  'AGENT_INJECTION_APPLIED',
 
   // Dashboard -> Server (Agent)
   'AGENT_SPAWN',

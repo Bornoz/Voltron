@@ -418,10 +418,67 @@ export const en: TranslationKeys = {
     installing: 'Installing dependencies...',
     modelDescHaiku: 'Fast, economical',
     modelDescSonnet: 'Balanced, powerful',
+    modelDescOpus: 'Maximum capability',
     quickUseTailwind: 'Use Tailwind',
     quickFollowPatterns: 'Follow Patterns',
     quickAddTypeScript: 'Add TypeScript',
     quickResponsive: 'Responsive',
+
+    // Rules
+    rules: {
+      title: 'Project Rules',
+      placeholder: 'Write your project rules here...\n- Always use Tailwind\n- TypeScript strict mode\n- File names in kebab-case',
+      active: 'Active',
+      inactive: 'Inactive',
+      toggle: 'Toggle Rules',
+      saved: 'Saved',
+      saving: 'Saving...',
+      autoSaveHint: 'Auto-saves as you type',
+      noRules: 'No rules defined',
+      rulesWillBePrepended: 'Project rules will be prepended to prompt',
+    },
+
+    // Memory
+    memory: {
+      title: 'Project Memory',
+      add: 'Add',
+      edit: 'Edit',
+      delete: 'Delete',
+      pin: 'Pin',
+      unpin: 'Unpin',
+      pinned: 'Pinned',
+      category: 'Category',
+      search: 'Search...',
+      noMemories: 'No memories yet',
+      addNew: 'Add New Memory',
+      categoryArchitecture: 'Architecture',
+      categoryConventions: 'Conventions',
+      categoryBugs: 'Known Bugs',
+      categoryPatterns: 'Patterns',
+      categoryGeneral: 'General',
+      saveMemory: 'Save',
+      cancelMemory: 'Cancel',
+      pinnedWillBeIncluded: 'pinned memories will be included in context',
+      titlePlaceholder: 'Title...',
+      contentPlaceholder: 'Content...',
+    },
+
+    // Session History
+    history: {
+      title: 'Session History',
+      noSessions: 'No sessions yet',
+      rerun: 'Re-run',
+      viewDetails: 'Details',
+      copyPrompt: 'Copy Prompt',
+      spawnWithSame: 'Spawn with Same Config',
+      filesCount: 'files',
+      tokensUsed: 'tokens',
+      duration: 'Duration',
+      ago: 'ago',
+      completed: 'Completed',
+      crashed: 'Crashed',
+      empty: 'Empty',
+    },
 
     // Context Menu
     contextMenu: {
@@ -493,6 +550,80 @@ export const en: TranslationKeys = {
     },
 
     // GPS Controls
+    // Layout
+    layout: {
+      gpsFocus: 'GPS Focus',
+      editorFocus: 'Editor Focus',
+      balanced: 'Balanced',
+      showLeft: 'Show Left Panel',
+      hideLeft: 'Hide Left Panel',
+      showRight: 'Show Right Panel',
+      hideRight: 'Hide Right Panel',
+      doubleClickReset: 'Double-click to reset',
+    },
+
+    // Toast Notifications
+    toast: {
+      agentStarted: 'Agent started',
+      agentCompleted: 'Agent completed successfully',
+      agentCrashed: 'Agent crashed',
+      agentPaused: 'Agent paused',
+      agentResumed: 'Agent resumed',
+      injectionApplied: 'Injection applied',
+    },
+
+    // Timeline
+    timeline: {
+      title: 'Activity Timeline',
+      empty: 'No activity yet',
+    },
+
+    // Session Export
+    sessionExport: {
+      title: 'Session Export',
+      downloadJson: 'Download JSON Report',
+      copySummary: 'Copy Summary',
+      copy: 'Copy',
+      copied: 'Copied!',
+      noSession: 'No active session',
+    },
+
+    // Window Manager
+    windowManager: {
+      panelMenu: 'Panel Menu',
+      resetLayout: 'Reset Layout',
+      presetIde: 'IDE Style',
+      presetGps: 'GPS Focus',
+      presetMonitor: 'Monitor',
+      minimize: 'Minimize',
+      maximize: 'Maximize',
+      restore: 'Restore',
+      close: 'Close',
+      bringToFront: 'Bring to Front',
+      panelVisualEditor: 'Visual Editor',
+      panelGpsNavigator: 'GPS Navigator',
+      panelAgentTracker: 'Agent Tracker',
+      panelPhaseViewer: 'Phase Viewer',
+      panelPromptInjector: 'Prompt Injector',
+      panelActivityTimeline: 'Activity Timeline',
+      panelAgentOutput: 'Agent Output',
+      panelRulesEditor: 'Rules Editor',
+      panelMemoryManager: 'Memory Manager',
+      panelSessionHistory: 'Session History',
+    },
+
+    // Keyboard Shortcuts
+    shortcuts: {
+      title: 'Keyboard Shortcuts',
+      gpsFullscreen: 'Ctrl+Shift+G: GPS Fullscreen',
+      editorFullscreen: 'Ctrl+Shift+E: Editor Fullscreen',
+      promptFocus: 'Ctrl+Shift+P: Focus Prompt',
+      togglePause: 'Space: Pause/Resume',
+      toggleBreakpoint: 'Ctrl+Shift+B: Toggle Breakpoint',
+      toggleOutput: 'Ctrl+Shift+O: Toggle Output',
+      escape: 'Escape: Exit Fullscreen',
+    },
+
     gps: {
       pauseAgent: 'Pause',
       stopAgent: 'Stop',
@@ -515,6 +646,46 @@ export const en: TranslationKeys = {
       zoomIn: 'Zoom In',
       zoomOut: 'Zoom Out',
       resetView: 'Reset View',
+      stats: 'Statistics',
+      timeline: 'Timeline',
+      live: 'LIVE',
+      replay: 'Replay',
+      redirect: 'Redirect Agent Here',
+      setBreakpoint: 'Set Breakpoint',
+      removeBreakpoint: 'Remove Breakpoint',
+      copyPath: 'Copy Path',
+      previewFile: 'Preview File',
+      activity: 'Activity',
+      noPreview: 'Preview not available',
+      topFiles: 'Top Files',
+      fullscreen: 'Fullscreen',
+      exitFullscreen: 'Exit Fullscreen',
+      visitCount: 'visits',
+      avgPerFile: 'Avg/file',
+      filesVisited: 'Files Visited',
+      totalVisits: 'Total Visits',
+      breakpointHit: 'Breakpoint Hit',
+      injectionQueued: 'Injection Queued',
+      conflictWarning: 'Conflict Warning',
+      agentRedirected: 'Agent Redirected',
+    },
+
+    // Chat
+    chat: {
+      title: 'AI Chat',
+      messages: 'messages',
+      placeholder: 'Type a message...',
+      empty: 'No messages yet. Agent responses will appear here.',
+      attachFile: 'Attach File',
+      send: 'Send',
+    },
+
+    // File Upload
+    upload: {
+      title: 'File Upload',
+      dragDrop: 'Drag & drop files',
+      maxSize: 'Max 10MB',
+      uploading: 'Uploading...',
     },
 
     status: {

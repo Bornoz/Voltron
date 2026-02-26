@@ -208,17 +208,34 @@ CREATE TABLE IF NOT EXISTS agent_prompt_injections (
 CREATE INDEX IF NOT EXISTS idx_agent_injections_session ON agent_prompt_injections(session_id);
 
 CREATE TABLE IF NOT EXISTS agent_breadcrumbs (
-    id            TEXT PRIMARY KEY,
-    session_id    TEXT NOT NULL,
-    project_id    TEXT NOT NULL REFERENCES projects(id),
-    file_path     TEXT NOT NULL,
-    activity      TEXT NOT NULL,
-    tool_name     TEXT,
-    duration_ms   INTEGER,
-    timestamp     INTEGER NOT NULL
+    id              TEXT PRIMARY KEY,
+    session_id      TEXT NOT NULL,
+    project_id      TEXT NOT NULL REFERENCES projects(id),
+    file_path       TEXT NOT NULL,
+    activity        TEXT NOT NULL,
+    tool_name       TEXT,
+    duration_ms     INTEGER,
+    line_start      INTEGER,
+    line_end        INTEGER,
+    content_snippet TEXT,
+    edit_diff       TEXT,
+    timestamp       INTEGER NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_agent_breadcrumbs_session ON agent_breadcrumbs(session_id, timestamp);
+
+CREATE TABLE IF NOT EXISTS agent_checkpoints (
+    id                TEXT PRIMARY KEY,
+    session_id        TEXT NOT NULL,
+    project_id        TEXT NOT NULL REFERENCES projects(id),
+    breadcrumbs_json  TEXT NOT NULL,
+    plan_json         TEXT,
+    location_json     TEXT,
+    token_usage_json  TEXT,
+    created_at        INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_checkpoints_session ON agent_checkpoints(session_id);
 
 CREATE TABLE IF NOT EXISTS agent_plans (
     id              TEXT PRIMARY KEY,
@@ -261,6 +278,40 @@ CREATE TABLE IF NOT EXISTS replay_journal (
     created_at            INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS idx_replay_journal_client ON replay_journal(client_id);
+
+CREATE TABLE IF NOT EXISTS project_rules (
+    id          TEXT PRIMARY KEY,
+    project_id  TEXT NOT NULL REFERENCES projects(id),
+    content     TEXT NOT NULL DEFAULT '',
+    is_active   INTEGER NOT NULL DEFAULT 1,
+    updated_at  INTEGER NOT NULL,
+    created_at  INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_project_rules_project ON project_rules(project_id);
+
+CREATE TABLE IF NOT EXISTS file_uploads (
+    id              TEXT PRIMARY KEY,
+    project_id      TEXT NOT NULL REFERENCES projects(id),
+    filename        TEXT NOT NULL,
+    mime_type       TEXT NOT NULL,
+    size            INTEGER NOT NULL,
+    storage_path    TEXT NOT NULL,
+    url             TEXT NOT NULL,
+    uploaded_at     INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_file_uploads_project ON file_uploads(project_id, uploaded_at DESC);
+
+CREATE TABLE IF NOT EXISTS project_memory (
+    id          TEXT PRIMARY KEY,
+    project_id  TEXT NOT NULL REFERENCES projects(id),
+    category    TEXT NOT NULL DEFAULT 'general',
+    title       TEXT NOT NULL,
+    content     TEXT NOT NULL,
+    pinned      INTEGER NOT NULL DEFAULT 0,
+    created_at  INTEGER NOT NULL,
+    updated_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_project_memory_project ON project_memory(project_id, pinned DESC, updated_at DESC);
 `;
 
 const TRIGGERS_SQL = `
@@ -284,7 +335,49 @@ CREATE TRIGGER IF NOT EXISTS prevent_system_zone_delete
     END;
 `;
 
+/**
+ * Run migrations to add columns/tables that may be missing from older DB versions.
+ * Each migration is idempotent (uses IF NOT EXISTS / checks for column existence).
+ */
+function runMigrations(db: Database.Database): void {
+  // Helper: check if a column exists in a table
+  const hasColumn = (table: string, column: string): boolean => {
+    const info = db.pragma(`table_info(${table})`) as Array<{ name: string }>;
+    return info.some((col) => col.name === column);
+  };
+
+  // Phase 1: Add new columns to agent_breadcrumbs
+  if (!hasColumn('agent_breadcrumbs', 'line_start')) {
+    db.exec('ALTER TABLE agent_breadcrumbs ADD COLUMN line_start INTEGER');
+  }
+  if (!hasColumn('agent_breadcrumbs', 'line_end')) {
+    db.exec('ALTER TABLE agent_breadcrumbs ADD COLUMN line_end INTEGER');
+  }
+  if (!hasColumn('agent_breadcrumbs', 'content_snippet')) {
+    db.exec('ALTER TABLE agent_breadcrumbs ADD COLUMN content_snippet TEXT');
+  }
+  if (!hasColumn('agent_breadcrumbs', 'edit_diff')) {
+    db.exec('ALTER TABLE agent_breadcrumbs ADD COLUMN edit_diff TEXT');
+  }
+
+  // Phase 4: agent_checkpoints table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS agent_checkpoints (
+      id                TEXT PRIMARY KEY,
+      session_id        TEXT NOT NULL,
+      project_id        TEXT NOT NULL REFERENCES projects(id),
+      breadcrumbs_json  TEXT NOT NULL,
+      plan_json         TEXT,
+      location_json     TEXT,
+      token_usage_json  TEXT,
+      created_at        INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_agent_checkpoints_session ON agent_checkpoints(session_id);
+  `);
+}
+
 export function createSchema(db: Database.Database): void {
   db.exec(SCHEMA_SQL);
   db.exec(TRIGGERS_SQL);
+  runMigrations(db);
 }

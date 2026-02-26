@@ -112,6 +112,72 @@ export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner, devS
     }
   });
 
+  // Hard pause (checkpoint + kill)
+  app.post<{ Params: { id: string } }>('/api/projects/:id/agent/hard-pause', async (request, reply) => {
+    try {
+      const checkpointId = await agentRunner.hardPause(request.params.id);
+      return reply.send({ status: 'PAUSED', checkpointId });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Hard pause failed';
+      return reply.status(400).send({ error: message });
+    }
+  });
+
+  // Resume from checkpoint
+  app.post<{ Params: { id: string } }>('/api/projects/:id/agent/resume-checkpoint', async (request, reply) => {
+    try {
+      await agentRunner.resumeFromCheckpoint(request.params.id);
+      return reply.send({ status: 'RUNNING' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Resume failed';
+      return reply.status(400).send({ error: message });
+    }
+  });
+
+  // Redirect agent to file
+  app.post<{ Params: { id: string } }>('/api/projects/:id/agent/redirect', async (request, reply) => {
+    const body = z.object({
+      filePath: z.string().min(1),
+      instruction: z.string().optional(),
+    }).parse(request.body);
+    try {
+      await agentRunner.redirectToFile(request.params.id, body.filePath, body.instruction);
+      return reply.send({ status: 'REDIRECTING' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Redirect failed';
+      return reply.status(400).send({ error: message });
+    }
+  });
+
+  // Set breakpoint
+  app.post<{ Params: { id: string } }>('/api/projects/:id/agent/breakpoint', async (request, reply) => {
+    const body = z.object({ filePath: z.string().min(1) }).parse(request.body);
+    try {
+      agentRunner.setBreakpoint(request.params.id, body.filePath);
+      return reply.send({ status: 'OK' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Set breakpoint failed';
+      return reply.status(400).send({ error: message });
+    }
+  });
+
+  // Remove breakpoint
+  app.delete<{ Params: { id: string } }>('/api/projects/:id/agent/breakpoint', async (request, reply) => {
+    const body = z.object({ filePath: z.string().min(1) }).parse(request.body);
+    try {
+      agentRunner.removeBreakpoint(request.params.id, body.filePath);
+      return reply.send({ status: 'OK' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Remove breakpoint failed';
+      return reply.status(400).send({ error: message });
+    }
+  });
+
+  // Get breakpoints
+  app.get<{ Params: { id: string } }>('/api/projects/:id/agent/breakpoints', async (request, reply) => {
+    return reply.send(agentRunner.getBreakpoints(request.params.id));
+  });
+
   // Inject prompt
   app.post<{ Params: { id: string } }>('/api/projects/:id/agent/inject', async (request, reply) => {
     const body = InjectBody.parse(request.body);
@@ -226,7 +292,7 @@ export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner, devS
     }
   });
 
-  // Preview agent files — serves files from agent's targetDir
+  // Preview agent files — serves files from agent's targetDir or proxies through dev server
   app.get<{ Params: { id: string; '*': string } }>('/api/projects/:id/agent/preview/*', async (request, reply) => {
     const projectId = request.params.id;
     const filePath = request.params['*'];
@@ -238,6 +304,34 @@ export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner, devS
 
     if (!targetDir) {
       return reply.status(404).send({ error: 'No agent session found' });
+    }
+
+    // Try dev server proxy first (renders React/Vue/etc instead of raw source)
+    const devInfo = devServerManager?.getInfo(projectId);
+    if (devInfo?.status === 'ready' && devInfo.url) {
+      try {
+        const proxyUrl = `${devInfo.url}/${filePath}`;
+        const resp = await fetch(proxyUrl);
+        if (resp.ok) {
+          let body = await resp.text();
+          const ct = resp.headers.get('content-type') ?? 'text/html';
+          // Inject editor script into HTML responses
+          if (ct.includes('html') && !body.includes('data-voltron-editor')) {
+            if (body.includes('</body>')) {
+              body = body.replace('</body>', EDITOR_SCRIPT + '\n</body>');
+            } else {
+              body += EDITOR_SCRIPT;
+            }
+          }
+          return reply
+            .header('Content-Type', ct)
+            .header('Cache-Control', 'no-cache')
+            .send(body);
+        }
+        // Dev server returned non-OK — fall through to static file serving
+      } catch {
+        // Dev server unreachable — fall through to static file serving
+      }
     }
 
     // Path traversal protection
@@ -280,6 +374,115 @@ export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner, devS
     } catch {
       return reply.status(404).send({ error: 'File not found' });
     }
+  });
+
+  // Hierarchical file tree with breadcrumb cross-reference
+  app.get<{ Params: { id: string } }>('/api/projects/:id/agent/filetree', async (request, reply) => {
+    const projectId = request.params.id;
+    const agent = agentRunner.getSession(projectId);
+    const targetDir = agent?.targetDir
+      ?? agentRunner.getSessionFromDb(projectId)?.targetDir;
+
+    if (!targetDir) {
+      return reply.status(404).send({ error: 'No agent session found' });
+    }
+
+    try {
+      const entries = await readdir(targetDir, { withFileTypes: true, recursive: true });
+      // Build visit counts from breadcrumbs
+      const breadcrumbs = agentRunner.getBreadcrumbs(projectId);
+      const visitMap = new Map<string, number>();
+      const lastActivityMap = new Map<string, string>();
+      for (const bc of breadcrumbs) {
+        const rel = bc.filePath?.startsWith('/') ? relative(targetDir, bc.filePath) : bc.filePath;
+        visitMap.set(rel, (visitMap.get(rel) ?? 0) + 1);
+        if (!lastActivityMap.has(rel)) {
+          lastActivityMap.set(rel, typeof bc === 'object' && 'activity' in bc ? (bc as Record<string, unknown>).activity as string : 'IDLE');
+        }
+      }
+
+      // Build tree structure
+      interface TreeNode {
+        name: string; path: string; type: 'file' | 'directory';
+        size?: number; extension?: string;
+        children?: TreeNode[];
+        agentVisits?: number; lastActivity?: string;
+      }
+
+      const root: TreeNode = { name: '.', path: '', type: 'directory', children: [] };
+      const dirMap = new Map<string, TreeNode>();
+      dirMap.set('', root);
+
+      const ensureDir = (dirPath: string): TreeNode => {
+        if (dirMap.has(dirPath)) return dirMap.get(dirPath)!;
+        const parts = dirPath.split('/');
+        const parentPath = parts.slice(0, -1).join('/');
+        const parent = ensureDir(parentPath);
+        const node: TreeNode = { name: parts[parts.length - 1], path: dirPath, type: 'directory', children: [] };
+        parent.children!.push(node);
+        dirMap.set(dirPath, node);
+        return node;
+      };
+
+      for (const entry of entries) {
+        if (!entry.isFile()) continue;
+        const fullPath = resolve(entry.parentPath ?? entry.path, entry.name);
+        const rel = relative(targetDir, fullPath);
+        const dir = rel.includes('/') ? rel.substring(0, rel.lastIndexOf('/')) : '';
+        const parent = ensureDir(dir);
+        const ext = extname(entry.name);
+        const visits = visitMap.get(rel);
+        const activity = lastActivityMap.get(rel);
+        parent.children!.push({
+          name: entry.name,
+          path: rel,
+          type: 'file',
+          extension: ext || undefined,
+          agentVisits: visits,
+          lastActivity: activity,
+        });
+      }
+
+      return reply.send(root);
+    } catch {
+      return reply.send({ name: '.', path: '', type: 'directory', children: [] });
+    }
+  });
+
+  // Export session data
+  app.get<{ Params: { id: string; sessionId: string } }>('/api/projects/:id/agent/session/:sessionId/export', async (request, reply) => {
+    const { id: projectId, sessionId } = request.params;
+    const session = agentRunner.getSession(projectId);
+    const breadcrumbs = agentRunner.getBreadcrumbs(projectId);
+    const plan = agentRunner.getPlan(projectId);
+    const injections = agentRunner.getInjections(projectId);
+
+    // Derive file stats
+    const filesWritten = new Set<string>();
+    const filesRead = new Set<string>();
+    for (const bc of breadcrumbs) {
+      if (!bc.filePath) continue;
+      if (bc.activity === 'WRITING') filesWritten.add(bc.filePath);
+      else if (bc.activity === 'READING') filesRead.add(bc.filePath);
+    }
+
+    return reply.send({
+      meta: {
+        projectId,
+        sessionId,
+        model: session?.model ?? null,
+        status: session?.status ?? 'UNKNOWN',
+        startedAt: session?.startedAt ?? null,
+        exportedAt: Date.now(),
+      },
+      files: {
+        written: Array.from(filesWritten),
+        read: Array.from(filesRead),
+      },
+      plan: plan ?? null,
+      breadcrumbs,
+      injections,
+    });
   });
 
   // List files in agent's targetDir

@@ -1,23 +1,38 @@
-import { useState } from 'react';
-import { Bot, X, Zap } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Bot, X, Zap, ClipboardList, Brain } from 'lucide-react';
 import { useTranslation } from '../../i18n';
+import { useSettingsStore } from '../../stores/settingsStore';
 
 interface SpawnDialogProps {
   projectId: string;
+  defaultConfig?: { model?: string; prompt?: string; targetDir?: string };
   onSpawn: (config: { model: string; prompt: string; targetDir: string }) => void;
   onClose: () => void;
 }
 
 const MODELS = [
   { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5', descKey: 'agent.modelDescHaiku' },
-  { id: 'claude-sonnet-4-5-20250514', label: 'Sonnet 4.5', descKey: 'agent.modelDescSonnet' },
+  { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6', descKey: 'agent.modelDescSonnet' },
+  { id: 'claude-opus-4-6', label: 'Opus 4.6', descKey: 'agent.modelDescOpus' },
 ];
 
-export function SpawnDialog({ projectId, onSpawn, onClose }: SpawnDialogProps) {
+export function SpawnDialog({ projectId, defaultConfig, onSpawn, onClose }: SpawnDialogProps) {
   const { t } = useTranslation();
-  const [prompt, setPrompt] = useState('');
-  const [model, setModel] = useState(MODELS[0].id);
-  const [targetDir, setTargetDir] = useState('/tmp/voltron-project');
+  const [prompt, setPrompt] = useState(defaultConfig?.prompt ?? '');
+  const [model, setModel] = useState(defaultConfig?.model ?? MODELS[0].id);
+  const [targetDir, setTargetDir] = useState(defaultConfig?.targetDir ?? '/tmp/voltron-project');
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Rules & memory preview
+  const { rules, rulesActive, memories, loadRules, loadMemories } = useSettingsStore();
+  const pinnedCount = memories.filter((m) => m.pinned).length;
+  const rulesLineCount = rules ? rules.split('\n').filter((l) => l.trim()).length : 0;
+  const hasActiveRules = rulesActive && rulesLineCount > 0;
+
+  useEffect(() => {
+    loadRules(projectId);
+    loadMemories(projectId);
+  }, [projectId, loadRules, loadMemories]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,9 +40,33 @@ export function SpawnDialog({ projectId, onSpawn, onClose }: SpawnDialogProps) {
     onSpawn({ model, prompt: prompt.trim(), targetDir });
   };
 
+  // Focus trap
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') { onClose(); return; }
+    if (e.key !== 'Tab' || !dialogRef.current) return;
+    const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }, [onClose]);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
-      <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-lg mx-4" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 z-[200000] flex items-center justify-center" onClick={onClose} role="dialog" aria-modal="true" aria-label={t('agent.spawnAgent')}>
+      <div ref={dialogRef} className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-lg mx-4" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
           <div className="flex items-center gap-2">
@@ -40,6 +79,24 @@ export function SpawnDialog({ projectId, onSpawn, onClose }: SpawnDialogProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          {/* Rules/Memory banner */}
+          {(hasActiveRules || pinnedCount > 0) && (
+            <div className="flex flex-col gap-1">
+              {hasActiveRules && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-900/20 border border-emerald-900/30 rounded-lg text-[10px] text-emerald-400">
+                  <ClipboardList className="w-3 h-3 flex-shrink-0" />
+                  <span>{t('agent.rules.rulesWillBePrepended')} ({rulesLineCount} lines)</span>
+                </div>
+              )}
+              {pinnedCount > 0 && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-900/20 border border-blue-900/30 rounded-lg text-[10px] text-blue-400">
+                  <Brain className="w-3 h-3 flex-shrink-0" />
+                  <span>{pinnedCount} {t('agent.memory.pinnedWillBeIncluded')}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Prompt */}
           <div>
             <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">{t('agent.prompt')}</label>

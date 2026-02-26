@@ -63,6 +63,8 @@ export class AgentStreamParser extends EventEmitter {
     }
     if (this.accumulatedThinking) {
       this.emit('thinking', this.accumulatedThinking);
+      this.emit('plan_detected', this.accumulatedThinking);
+      console.log('[StreamParser] flush: plan_detected emitted, thinking length:', this.accumulatedThinking.length);
       this.accumulatedThinking = '';
     }
   }
@@ -81,19 +83,23 @@ export class AgentStreamParser extends EventEmitter {
       case 'assistant': {
         // Assistant message with content blocks (thinking, text, tool_use)
         const message = event.message as { content?: Array<{ type: string; text?: string; thinking?: string; name?: string; id?: string; input?: Record<string, unknown> }>; usage?: { input_tokens?: number; output_tokens?: number } } | undefined;
+        let hasThinking = false;
         if (message?.content) {
           for (const block of message.content) {
             if (block.type === 'thinking' && block.thinking) {
               this.accumulatedThinking += block.thinking + '\n';
-              this.emit('thinking_block', block.thinking);
+              hasThinking = true;
+              console.log('[StreamParser] thinking block received, length:', block.thinking.length);
             } else if (block.type === 'text' && block.text) {
               this.emit('text_output', block.text);
+              console.log('[StreamParser] text output:', block.text.substring(0, 100));
             } else if (block.type === 'tool_use' && block.name) {
               // Tool use embedded in assistant message (stream-json format)
               const toolName = block.name;
               const input = block.input ?? {};
               const now = Date.now();
 
+              console.log('[StreamParser] tool_use:', toolName);
               this.emit('tool_start', { toolName, input, timestamp: now } as ToolEvent);
 
               // Extract file path and activity
@@ -114,6 +120,14 @@ export class AgentStreamParser extends EventEmitter {
               }
             }
           }
+        }
+        // FIX: Emit thinking + plan_detected from assistant message thinking blocks
+        // Previously only emitted at content_block_stop which doesn't fire in this format
+        if (hasThinking && this.accumulatedThinking) {
+          this.emit('thinking', this.accumulatedThinking);
+          this.emit('plan_detected', this.accumulatedThinking);
+          console.log('[StreamParser] plan_detected emitted from assistant message, thinking length:', this.accumulatedThinking.length);
+          this.accumulatedThinking = '';
         }
         // Token usage from assistant message
         if (message?.usage) {

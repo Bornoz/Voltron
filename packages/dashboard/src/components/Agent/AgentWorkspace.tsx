@@ -1,33 +1,26 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import {
-  ChevronUp, ChevronDown, CheckCircle2, XCircle, FileText, Clock, Cpu,
-  Maximize2, Minimize2,
+  CheckCircle2, XCircle, FileText, Clock, Cpu,
 } from 'lucide-react';
 import { useAgentStore } from '../../stores/agentStore';
+import { useWindowStore } from '../../stores/windowStore';
 import { useTranslation } from '../../i18n';
 import { AgentControlBar } from './AgentControlBar';
-import { SimulatorEmbed } from './SimulatorEmbed';
-import { FileNavigationMap } from './FileNavigationMap';
-import { PlanViewer } from './PlanViewer';
-import { PhaseTracker } from './PhaseTracker';
-import { GPSTracker } from './GPSTracker';
-import { PromptInjector } from './PromptInjector';
-import { AgentOutput } from './AgentOutput';
+import { AgentToasts } from './AgentToasts';
+import { SessionExport } from './SessionExport';
+import { InlineChatPopup } from './InlineChatPopup';
+import { WindowManager } from './layout/WindowManager';
+import { PanelMenu } from './layout/PanelMenu';
+import { useAgentKeyboard } from '../../hooks/useAgentKeyboard';
 
 interface AgentWorkspaceProps {
   projectId: string;
-  onSpawn: () => void;
+  onSpawn: (config?: { model?: string; prompt?: string; targetDir?: string }) => void;
   onPause: () => void;
   onResume: () => void;
   onKill: () => void;
   onInject: (prompt: string, context?: { filePath?: string; constraints?: string[] }) => void;
 }
-
-const MIN_LEFT_PCT = 25;
-const MAX_LEFT_PCT = 85;
-const DEFAULT_LEFT_PCT = 60;
-
-type FullscreenTarget = 'simulator' | 'map' | null;
 
 function formatDuration(ms: number): string {
   const seconds = Math.floor(ms / 1000);
@@ -57,15 +50,10 @@ export function AgentWorkspace({
   const tokenUsage = useAgentStore((s) => s.tokenUsage);
   const breadcrumbs = useAgentStore((s) => s.breadcrumbs);
   const phaseExecution = useAgentStore((s) => s.phaseExecution);
-  const [leftPct, setLeftPct] = useState(DEFAULT_LEFT_PCT);
-  const [showOutput, setShowOutput] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [fullscreen, setFullscreen] = useState<FullscreenTarget>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const promptRef = useRef<HTMLTextAreaElement>(null);
 
   const isActive = !['IDLE', 'COMPLETED', 'CRASHED'].includes(status);
   const isFinished = status === 'COMPLETED' || status === 'CRASHED';
-  const hasPhases = phaseExecution.status !== 'idle' && phaseExecution.phases.length > 0;
 
   // Compute file count from breadcrumbs
   const fileStats = useMemo(() => {
@@ -84,6 +72,10 @@ export function AgentWorkspace({
     return Date.now() - startedAt;
   }, [startedAt, status]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const toggleVisibility = useWindowStore((s) => s.toggleVisibility);
+  const cyclePanel = useWindowStore((s) => s.cyclePanel);
+  const toggleMaximize = useWindowStore((s) => s.toggleMaximize);
+
   /* -- Agent actions from GPS/Map components -- */
   const handleAgentAction = useCallback((action: string, data?: Record<string, unknown>) => {
     switch (action) {
@@ -100,64 +92,62 @@ export function AgentWorkspace({
         }
         break;
       case 'viewOutput':
-        setShowOutput(true);
+        toggleVisibility('agent-output');
+        break;
+      case 'redirectToFile':
+        if (data?.filePath) {
+          const fp = String(data.filePath);
+          onInject(`Focus on this file and continue working: ${fp}`, { filePath: fp });
+        }
+        break;
+      case 'spawnWithConfig':
+        onSpawn(data as { model?: string; prompt?: string; targetDir?: string });
         break;
     }
-  }, [onPause, onKill, onInject]);
+  }, [onPause, onKill, onInject, onSpawn, toggleVisibility]);
 
-  const handleFileAction = useCallback((action: string, _filePath: string) => {
-    switch (action) {
-      case 'viewContent':
-      case 'viewHistory':
-        // Could open a modal or scroll to output — for now emit inject
-        break;
-    }
-  }, []);
+  /* -- Keyboard shortcuts -- */
+  useAgentKeyboard({
+    onAction: useCallback((action) => {
+      switch (action) {
+        case 'gps-fullscreen':
+          toggleMaximize('gps-navigator');
+          break;
+        case 'editor-fullscreen':
+          toggleMaximize('visual-editor');
+          break;
+        case 'prompt-focus':
+          promptRef.current?.focus();
+          break;
+        case 'toggle-pause':
+          if (status === 'RUNNING') onPause();
+          else if (status === 'PAUSED') onResume();
+          break;
+        case 'escape-fullscreen':
+          // No-op — handled by individual panels
+          break;
+        case 'toggle-output':
+          toggleVisibility('agent-output');
+          break;
+        case 'cycle-panel':
+          cyclePanel();
+          break;
+        case 'toggle-panel-menu':
+          // Handled by PanelMenu component
+          break;
+      }
+    }, [status, onPause, onResume, toggleMaximize, toggleVisibility, cyclePanel]),
+    enabled: isActive || isFinished,
+  });
 
-  /* -- Fullscreen escape key -- */
-  useEffect(() => {
-    if (!fullscreen) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setFullscreen(null);
-    };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [fullscreen]);
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Toast notifications */}
+      <AgentToasts />
 
-  /* -- Drag resize -- */
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const pct = ((e.clientX - rect.left) / rect.width) * 100;
-      setLeftPct(Math.max(MIN_LEFT_PCT, Math.min(MAX_LEFT_PCT, pct)));
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging]);
-
-  /* ═══ Fullscreen overlay ═══ */
-  if (fullscreen) {
-    return (
-      <div className="fixed inset-0 z-50 bg-gray-950 flex flex-col">
-        {/* Fullscreen header */}
-        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-800/50 bg-gray-900/60 backdrop-blur-sm shrink-0">
+      {/* Top: AgentControlBar + PanelMenu + SessionExport */}
+      <div className="relative z-[100001] px-2 py-1.5 border-b border-gray-800/50 bg-gray-900/30 backdrop-blur-sm shrink-0">
+        <div className="flex items-center gap-2">
           <AgentControlBar
             onSpawn={onSpawn}
             onPause={onPause}
@@ -165,41 +155,11 @@ export function AgentWorkspace({
             onKill={onKill}
           />
           <div className="flex-1" />
-          <button
-            onClick={() => setFullscreen(null)}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700/50 rounded-lg transition-all"
-          >
-            <Minimize2 className="w-3 h-3" />
-            ESC
-          </button>
-        </div>
-
-        {/* Fullscreen content */}
-        <div className="flex-1 overflow-hidden p-2">
-          {fullscreen === 'simulator' && (
-            <SimulatorEmbed projectId={projectId} onInject={onInject} />
-          )}
-          {fullscreen === 'map' && (
-            <FileNavigationMap
-              onAgentAction={handleAgentAction}
-              onFileAction={handleFileAction}
-            />
+          <PanelMenu />
+          {(isActive || isFinished) && (
+            <SessionExport projectId={projectId} />
           )}
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col h-full overflow-hidden">
-      {/* Top: AgentControlBar */}
-      <div className="px-2 py-1.5 border-b border-gray-800/50 bg-gray-900/30 backdrop-blur-sm shrink-0">
-        <AgentControlBar
-          onSpawn={onSpawn}
-          onPause={onPause}
-          onResume={onResume}
-          onKill={onKill}
-        />
       </div>
 
       {/* Completion/Crash banner */}
@@ -212,118 +172,17 @@ export function AgentWorkspace({
         />
       )}
 
-      {/* Main split area */}
-      <div
-        ref={containerRef}
-        className="flex-1 flex overflow-hidden relative"
-        style={{ cursor: isDragging ? 'col-resize' : undefined }}
-      >
-        {/* Left: SimulatorEmbed */}
-        <div className="h-full overflow-hidden p-1.5 relative group/sim" style={{ width: `${leftPct}%` }}>
-          <SimulatorEmbed projectId={projectId} onInject={onInject} />
-          {/* Fullscreen toggle — appears on hover */}
-          <button
-            onClick={() => setFullscreen('simulator')}
-            className="absolute top-3 right-3 p-1.5 bg-gray-900/80 backdrop-blur-sm border border-gray-700/50 rounded-lg opacity-0 group-hover/sim:opacity-100 hover:bg-gray-800 transition-all z-10 shadow-lg"
-            title="Tam Ekran"
-          >
-            <Maximize2 className="w-3.5 h-3.5 text-gray-400 hover:text-white" />
-          </button>
-        </div>
+      {/* Floating Window Manager */}
+      <WindowManager
+        projectId={projectId}
+        onInject={onInject}
+        onAgentAction={handleAgentAction}
+      />
 
-        {/* Vertical divider / drag handle */}
-        <div
-          onMouseDown={handleMouseDown}
-          className={`w-1.5 flex-shrink-0 cursor-col-resize group transition-colors ${
-            isDragging ? 'bg-blue-500/40' : 'bg-gray-800/50 hover:bg-blue-500/30'
-          }`}
-        >
-          <div className="w-full h-full flex items-center justify-center">
-            <div className={`w-0.5 h-8 rounded-full transition-colors ${
-              isDragging ? 'bg-blue-400' : 'bg-gray-600 group-hover:bg-blue-400'
-            }`} />
-          </div>
-        </div>
-
-        {/* Right panel: GPS Map + Phase/Plan + Prompt Injector */}
-        <div
-          className="h-full overflow-hidden flex flex-col gap-1.5 p-1.5"
-          style={{ width: `${100 - leftPct}%` }}
-        >
-          {/* File Navigation Map (~40% height) */}
-          <div className="flex-[40] min-h-0 overflow-hidden relative group/map">
-            <FileNavigationMap
-              onAgentAction={handleAgentAction}
-              onFileAction={handleFileAction}
-            />
-            {/* Fullscreen toggle — appears on hover */}
-            <button
-              onClick={() => setFullscreen('map')}
-              className="absolute top-3 right-3 p-1.5 bg-gray-900/80 backdrop-blur-sm border border-gray-700/50 rounded-lg opacity-0 group-hover/map:opacity-100 hover:bg-gray-800 transition-all z-10 shadow-lg"
-              title="Tam Ekran"
-            >
-              <Maximize2 className="w-3.5 h-3.5 text-gray-400 hover:text-white" />
-            </button>
-          </div>
-
-          {/* GPS Tracker (compact breadcrumb) */}
-          {isActive && (
-            <div className="shrink-0 bg-gray-950/80 backdrop-blur-sm rounded-lg border border-gray-800/50 shadow-lg shadow-blue-500/5 p-2 overflow-auto max-h-36">
-              <GPSTracker
-                onFileClick={(path) => handleFileAction('viewContent', path)}
-                onAgentAction={handleAgentAction}
-              />
-            </div>
-          )}
-
-          {/* Phase Tracker or Plan Viewer (~30% height) */}
-          <div className="flex-[30] min-h-0 overflow-auto">
-            {hasPhases ? (
-              <PhaseTracker />
-            ) : (
-              <div className="h-full bg-gray-950/80 backdrop-blur-sm rounded-lg border border-gray-800/50 shadow-lg shadow-blue-500/5 p-2">
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 font-medium">
-                  {t('agent.plan')}
-                </div>
-                <PlanViewer />
-              </div>
-            )}
-          </div>
-
-          {/* Prompt Injector (~25% height) */}
-          {isActive && (
-            <div className="flex-[25] min-h-0 overflow-auto bg-gray-950/80 backdrop-blur-sm rounded-lg border border-gray-800/50 shadow-lg shadow-blue-500/5 p-2">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 font-medium">
-                {t('agent.promptInjector')}
-              </div>
-              <PromptInjector projectId={projectId} onInject={onInject} />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Bottom: Collapsible output drawer */}
-      <div className="border-t border-gray-800/50 shrink-0">
-        <button
-          onClick={() => setShowOutput(!showOutput)}
-          className="flex items-center gap-2 w-full px-3 py-1.5 text-[10px] text-gray-500 hover:text-gray-300 hover:bg-gray-900/50 transition-colors"
-        >
-          {showOutput ? (
-            <ChevronDown className="w-3 h-3" />
-          ) : (
-            <ChevronUp className="w-3 h-3" />
-          )}
-          <span className="uppercase tracking-wider font-medium">
-            {showOutput ? t('agent.hideOutput') : t('agent.showOutput')}
-          </span>
-        </button>
-
-        {showOutput && (
-          <div className="h-64 overflow-hidden border-t border-gray-800/50">
-            <AgentOutput />
-          </div>
-        )}
-      </div>
+      {/* Inline Chat Popup */}
+      {(isActive || isFinished) && (
+        <InlineChatPopup projectId={projectId} onInject={onInject} />
+      )}
     </div>
   );
 }
@@ -410,3 +269,4 @@ function CompletionBanner({ status, duration, tokenUsage, fileStats }: Completio
     </div>
   );
 }
+

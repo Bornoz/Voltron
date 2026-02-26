@@ -35,8 +35,10 @@ export default defineConfig({
       },
       output: {
         manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-recharts': ['recharts'],
           'vendor-utils': ['date-fns', 'zustand', 'clsx', 'tailwind-merge'],
+          'vendor-icons': ['lucide-react'],
         },
       },
     },

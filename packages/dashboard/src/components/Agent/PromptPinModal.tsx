@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { MapPin, X } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 
@@ -26,9 +26,34 @@ export function PromptPinModal({
   const [prompt, setPrompt] = useState(initialPrompt);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     setTimeout(() => textareaRef.current?.focus(), 50);
   }, []);
+
+  // Focus trap
+  const handleFocusTrap = useCallback((e: KeyboardEvent) => {
+    if (e.key !== 'Tab' || !dialogRef.current) return;
+    const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleFocusTrap);
+    return () => document.removeEventListener('keydown', handleFocusTrap);
+  }, [handleFocusTrap]);
 
   const handleSave = () => {
     if (!prompt.trim()) return;
@@ -46,8 +71,9 @@ export function PromptPinModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onCancel}>
+    <div className="fixed inset-0 z-[200000] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onCancel} role="dialog" aria-modal="true" aria-label={isEdit ? t('agent.promptPin.editTitle') : t('agent.promptPin.title')}>
       <div
+        ref={dialogRef}
         className="w-[420px] bg-gray-950/95 border border-gray-700/60 rounded-xl shadow-2xl shadow-blue-500/10 backdrop-blur-md"
         onClick={(e) => e.stopPropagation()}
       >

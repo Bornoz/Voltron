@@ -9,6 +9,10 @@ import { useAgentStore } from '../../stores/agentStore';
 import type { PromptPin, ReferenceImage } from '../../stores/agentStore';
 import { useTranslation } from '../../i18n';
 import { PromptPinModal } from './PromptPinModal';
+import { EditorToolbar, type EditorTool } from './editor/EditorToolbar';
+import { ComponentTree } from './editor/ComponentTree';
+import { DiffViewer } from './editor/DiffViewer';
+import type { ViewportPreset } from './editor/ViewportSelector';
 
 /* ─── Types ────────────────────────────────────────────── */
 
@@ -58,10 +62,71 @@ interface PinCreateRequest {
 
 type EmbedMode = 'preview' | 'simulator';
 
-/* ─── Edit Reducer ─────────────────────────────────────── */
+/* ─── Undoable Edit Reducer ───────────────────────────── */
 
-type EditAction = { type: 'ADD'; edit: VisualEdit } | { type: 'REMOVE'; editId: string } | { type: 'CLEAR' };
-function editReducer(state: VisualEdit[], action: EditAction): VisualEdit[] {
+interface UndoableState {
+  past: VisualEdit[][];
+  present: VisualEdit[];
+  future: VisualEdit[][];
+}
+
+type EditAction =
+  | { type: 'ADD'; edit: VisualEdit }
+  | { type: 'REMOVE'; editId: string }
+  | { type: 'CLEAR' }
+  | { type: 'UNDO' }
+  | { type: 'REDO' }
+  | { type: 'RESTORE'; edits: VisualEdit[] };
+
+const initialUndoableState: UndoableState = { past: [], present: [], future: [] };
+
+function undoableEditReducer(state: UndoableState, action: EditAction): UndoableState {
+  switch (action.type) {
+    case 'ADD':
+      return {
+        past: [...state.past, state.present],
+        present: [...state.present, action.edit],
+        future: [],
+      };
+    case 'REMOVE':
+      return {
+        past: [...state.past, state.present],
+        present: state.present.filter((e) => e.id !== action.editId),
+        future: [],
+      };
+    case 'CLEAR':
+      return {
+        past: [...state.past, state.present],
+        present: [],
+        future: [],
+      };
+    case 'UNDO': {
+      if (state.past.length === 0) return state;
+      const prev = state.past[state.past.length - 1];
+      return {
+        past: state.past.slice(0, -1),
+        present: prev,
+        future: [state.present, ...state.future],
+      };
+    }
+    case 'REDO': {
+      if (state.future.length === 0) return state;
+      const next = state.future[0];
+      return {
+        past: [...state.past, state.present],
+        present: next,
+        future: state.future.slice(1),
+      };
+    }
+    case 'RESTORE':
+      return { past: [], present: action.edits, future: [] };
+    default:
+      return state;
+  }
+}
+
+// Backwards compat helper — extract present from undoable state
+function editReducer(state: VisualEdit[], action: Exclude<EditAction, { type: 'UNDO' | 'REDO' | 'RESTORE' }>): VisualEdit[] {
   switch (action.type) {
     case 'ADD': return [...state, action.edit];
     case 'REMOVE': return state.filter((e) => e.id !== action.editId);
@@ -84,10 +149,9 @@ interface DevServerInfo {
   url: string;
 }
 
-function getPreviewUrl(projectId: string, devServer?: DevServerInfo | null): string {
-  if (devServer?.status === 'ready' && devServer.url) {
-    return devServer.url;
-  }
+function getPreviewUrl(projectId: string, _devServer?: DevServerInfo | null): string {
+  // Always route through Voltron server proxy to ensure editor script injection
+  // Server will proxy to dev server when available, falling back to static files
   const isDev = window.location.port === '6400' || window.location.hostname === 'localhost';
   const base = isDev ? 'http://localhost:8600' : '';
   return `${base}/api/projects/${encodeURIComponent(projectId)}/agent/preview/index.html`;
@@ -241,10 +305,17 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [iframeKey, setIframeKey] = useState(0);
   const [mode, setMode] = useState<EmbedMode>('preview');
-  const [edits, dispatchEdit] = useReducer(editReducer, []);
+  const [editState, dispatchEdit] = useReducer(undoableEditReducer, initialUndoableState);
+  const edits = editState.present;
+  const canUndo = editState.past.length > 0;
+  const canRedo = editState.future.length > 0;
   const [_selected, setSelected] = useState<SelectedElement | null>(null);
   const [editorReady, setEditorReady] = useState(false);
   const [showEditList, setShowEditList] = useState(false);
+  const [showComponentTree, setShowComponentTree] = useState(false);
+  const [showDiffView, setShowDiffView] = useState(false);
+  const [viewportPreset, setViewportPreset] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [editorTool, setEditorTool] = useState<'select' | 'move' | 'resize'>('select');
   const [annReq, setAnnReq] = useState<AnnotationRequest | null>(null);
   const [annText, setAnnText] = useState('');
   const annInputRef = useRef<HTMLInputElement>(null);
@@ -258,6 +329,42 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
   const canInject = ['RUNNING', 'PAUSED'].includes(status);
   const isPreview = mode === 'preview';
   const currentUrl = isPreview ? getPreviewUrl(projectId, devServer) : getSimulatorUrl(projectId);
+  const viewportWidth = viewportPreset === 'desktop' ? '100%' : viewportPreset === 'tablet' ? '768px' : '375px';
+
+  // Keyboard shortcuts: Ctrl+Z / Ctrl+Y for undo/redo
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        dispatchEdit({ type: 'UNDO' });
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        dispatchEdit({ type: 'REDO' });
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
+
+  // Persist edits to localStorage
+  useEffect(() => {
+    if (edits.length > 0) {
+      localStorage.setItem(`voltron_visual_edits_${projectId}`, JSON.stringify(edits));
+    }
+  }, [edits, projectId]);
+
+  // Restore edits from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`voltron_visual_edits_${projectId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved) as VisualEdit[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          dispatchEdit({ type: 'RESTORE', edits: parsed });
+        }
+      }
+    } catch { /* ignore */ }
+  }, [projectId]);
 
   // Auto-refresh when dev server becomes ready
   const prevDevServerStatus = useRef(devServer?.status);
@@ -325,13 +432,9 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
         break;
       case 'annotate_error':
       case 'annotate_add':
-      case 'annotate_note': {
-        // Annotation created directly in iframe via context menu
-        const annType = (payload.action as string).replace('annotate_', '') as 'error' | 'add' | 'note';
-        setAnnReq({ x: (payload.x as number) || 0, y: (payload.y as number) || 0, type: annType });
-        setAnnText((payload.note as string) || '');
+      case 'annotate_note':
+        // Annotation already created in iframe via context menu prompt() — no parent action needed
         break;
-      }
       case 'reference_image_uploaded':
         // iframe handled the file upload internally — nothing extra needed
         break;
@@ -611,18 +714,40 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
         </div>
       )}
 
+      {/* ─── Editor Toolbar ─── */}
+      {isPreview && editorReady && (
+        <EditorToolbar
+          activeTool={editorTool}
+          onToolChange={setEditorTool}
+          viewport={viewportPreset}
+          onViewportChange={setViewportPreset}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={() => dispatchEdit({ type: 'UNDO' })}
+          onRedo={() => dispatchEdit({ type: 'REDO' })}
+          onToggleTree={() => setShowComponentTree(!showComponentTree)}
+          onToggleDiff={() => setShowDiffView(!showDiffView)}
+          onSave={handleSaveAndSend}
+          editCount={edits.length}
+          treeVisible={showComponentTree}
+          diffVisible={showDiffView}
+        />
+      )}
+
       {/* ─── Main: iframe + edit list ─── */}
-      <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 min-w-0">
+      <div className="flex-1 flex overflow-hidden relative">
+        <div className="flex-1 min-w-0 flex items-center justify-center overflow-auto" style={{ background: viewportPreset !== 'desktop' ? '#1a1a2e' : undefined }}>
           {isActive ? (
-            <iframe
-              key={`${mode}-${iframeKey}`}
-              ref={iframeRef}
-              src={currentUrl}
-              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-              className="w-full h-full border-0 bg-white"
-              title={isPreview ? 'Agent Preview' : 'Simulator Preview'}
-            />
+            <div style={{ width: viewportWidth, height: '100%', position: 'relative' }} className={viewportPreset !== 'desktop' ? 'mx-auto shadow-xl rounded-lg overflow-hidden border border-slate-700/30' : ''}>
+              <iframe
+                key={`${mode}-${iframeKey}`}
+                ref={iframeRef}
+                src={currentUrl}
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                className="w-full h-full border-0 bg-white"
+                title={isPreview ? 'Agent Preview' : 'Simulator Preview'}
+              />
+            </div>
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <div className="text-center">
@@ -631,6 +756,23 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
               </div>
             </div>
           )}
+
+          {/* Component Tree overlay */}
+          <ComponentTree
+            iframeRef={iframeRef}
+            visible={showComponentTree}
+            onClose={() => setShowComponentTree(false)}
+            onSelect={(selector) => {
+              iframeRef.current?.contentWindow?.postMessage({ type: 'VOLTRON_SELECT_ELEMENT', selector }, '*');
+            }}
+          />
+
+          {/* Diff View overlay */}
+          <DiffViewer
+            edits={edits}
+            visible={showDiffView}
+            onClose={() => setShowDiffView(false)}
+          />
         </div>
 
         {showEditList && edits.length > 0 && (

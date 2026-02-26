@@ -416,10 +416,67 @@ export const tr = {
     installing: 'Paketler kuruluyor...',
     modelDescHaiku: 'Hizli, ekonomik',
     modelDescSonnet: 'Dengeli, guclu',
+    modelDescOpus: 'Maksimum yetenek',
     quickUseTailwind: 'Tailwind Kullan',
     quickFollowPatterns: 'Desenleri Takip Et',
     quickAddTypeScript: 'TypeScript Ekle',
     quickResponsive: 'Responsive Yap',
+
+    // Rules
+    rules: {
+      title: 'Proje Kurallari',
+      placeholder: 'Proje kurallarinizi buraya yazin...\n- Her zaman Tailwind kullan\n- TypeScript strict mode\n- Dosya adlari kebab-case',
+      active: 'Aktif',
+      inactive: 'Devre Disi',
+      toggle: 'Kurallari Degistir',
+      saved: 'Kaydedildi',
+      saving: 'Kaydediliyor...',
+      autoSaveHint: 'Yazarken otomatik kaydeder',
+      noRules: 'Kural tanimlanmamis',
+      rulesWillBePrepended: 'Proje kurallari prompt\'a otomatik eklenir',
+    },
+
+    // Memory
+    memory: {
+      title: 'Proje Hafizasi',
+      add: 'Ekle',
+      edit: 'Duzenle',
+      delete: 'Sil',
+      pin: 'Sabitle',
+      unpin: 'Sabitlemeyi Kaldir',
+      pinned: 'Sabitlenmis',
+      category: 'Kategori',
+      search: 'Ara...',
+      noMemories: 'Henuz hafiza yok',
+      addNew: 'Yeni Hafiza Ekle',
+      categoryArchitecture: 'Mimari',
+      categoryConventions: 'Kurallar',
+      categoryBugs: 'Bilinen Hatalar',
+      categoryPatterns: 'Desenler',
+      categoryGeneral: 'Genel',
+      saveMemory: 'Kaydet',
+      cancelMemory: 'Iptal',
+      pinnedWillBeIncluded: 'sabitlenmis hafiza context\'e dahil edilecek',
+      titlePlaceholder: 'Baslik...',
+      contentPlaceholder: 'Icerik...',
+    },
+
+    // Session History
+    history: {
+      title: 'Oturum Gecmisi',
+      noSessions: 'Henuz oturum yok',
+      rerun: 'Tekrar Calistir',
+      viewDetails: 'Detaylar',
+      copyPrompt: 'Prompt Kopyala',
+      spawnWithSame: 'Ayni Yapilandirma ile Baslat',
+      filesCount: 'dosya',
+      tokensUsed: 'token',
+      duration: 'Sure',
+      ago: 'once',
+      completed: 'Tamamlandi',
+      crashed: 'Coktu',
+      empty: 'Bos',
+    },
 
     // Context Menu
     contextMenu: {
@@ -491,6 +548,80 @@ export const tr = {
     },
 
     // GPS Controls
+    // Layout
+    layout: {
+      gpsFocus: 'GPS Odak',
+      editorFocus: 'Editor Odak',
+      balanced: 'Dengeli',
+      showLeft: 'Sol Paneli Goster',
+      hideLeft: 'Sol Paneli Gizle',
+      showRight: 'Sag Paneli Goster',
+      hideRight: 'Sag Paneli Gizle',
+      doubleClickReset: 'Sifirlamak icin cift tikla',
+    },
+
+    // Toast Bildirimleri
+    toast: {
+      agentStarted: 'Agent baslatildi',
+      agentCompleted: 'Agent basariyla tamamlandi',
+      agentCrashed: 'Agent coktu',
+      agentPaused: 'Agent duraklatildi',
+      agentResumed: 'Agent devam ediyor',
+      injectionApplied: 'Enjeksiyon uygulandi',
+    },
+
+    // Timeline
+    timeline: {
+      title: 'Aktivite Zaman Cizelgesi',
+      empty: 'Henuz aktivite yok',
+    },
+
+    // Oturum Disa Aktarim
+    sessionExport: {
+      title: 'Oturum Disa Aktarimi',
+      downloadJson: 'JSON Rapor Indir',
+      copySummary: 'Ozeti Kopyala',
+      copy: 'Kopyala',
+      copied: 'Kopyalandi!',
+      noSession: 'Aktif oturum yok',
+    },
+
+    // Window Manager
+    windowManager: {
+      panelMenu: 'Panel Menu',
+      resetLayout: 'Duzeni Sifirla',
+      presetIde: 'IDE Stili',
+      presetGps: 'GPS Odak',
+      presetMonitor: 'Monitor',
+      minimize: 'Kucult',
+      maximize: 'Tam Ekran',
+      restore: 'Geri Yukle',
+      close: 'Kapat',
+      bringToFront: 'One Getir',
+      panelVisualEditor: 'Gorsel Editor',
+      panelGpsNavigator: 'GPS Navigator',
+      panelAgentTracker: 'Agent Takip',
+      panelPhaseViewer: 'Faz Gorunumu',
+      panelPromptInjector: 'Prompt Enjeksiyon',
+      panelActivityTimeline: 'Aktivite Zaman Cizelgesi',
+      panelAgentOutput: 'Agent Ciktisi',
+      panelRulesEditor: 'Kural Editoru',
+      panelMemoryManager: 'Hafiza Yoneticisi',
+      panelSessionHistory: 'Oturum Gecmisi',
+    },
+
+    // Klavye Kisayollari
+    shortcuts: {
+      title: 'Klavye Kisayollari',
+      gpsFullscreen: 'Ctrl+Shift+G: GPS Tam Ekran',
+      editorFullscreen: 'Ctrl+Shift+E: Editor Tam Ekran',
+      promptFocus: 'Ctrl+Shift+P: Prompt Odakla',
+      togglePause: 'Bosluk: Duraklat/Devam',
+      toggleBreakpoint: 'Ctrl+Shift+B: Breakpoint Degistir',
+      toggleOutput: 'Ctrl+Shift+O: Ciktiyi Ac/Kapat',
+      escape: 'Escape: Tam Ekrandan Cik',
+    },
+
     gps: {
       pauseAgent: 'Duraklat',
       stopAgent: 'Durdur',
@@ -513,6 +644,46 @@ export const tr = {
       zoomIn: 'Yakinlastir',
       zoomOut: 'Uzaklastir',
       resetView: 'Gorunumu Sifirla',
+      stats: 'Istatistikler',
+      timeline: 'Zaman Cizelgesi',
+      live: 'CANLI',
+      replay: 'Tekrar Oynat',
+      redirect: 'Agent\'i Buraya Yonlendir',
+      setBreakpoint: 'Breakpoint Koy',
+      removeBreakpoint: 'Breakpoint Kaldir',
+      copyPath: 'Yolu Kopyala',
+      previewFile: 'Dosya Onizleme',
+      activity: 'Aktivite',
+      noPreview: 'Onizleme mevcut degil',
+      topFiles: 'En Cok Ziyaret',
+      fullscreen: 'Tam Ekran',
+      exitFullscreen: 'Tam Ekrandan Cik',
+      visitCount: 'ziyaret',
+      avgPerFile: 'Ort/dosya',
+      filesVisited: 'Ziyaret Edilen',
+      totalVisits: 'Toplam Ziyaret',
+      breakpointHit: 'Breakpoint Tetiklendi',
+      injectionQueued: 'Enjeksiyon Kuyrukta',
+      conflictWarning: 'Cakisma Uyarisi',
+      agentRedirected: 'Agent Yonlendirildi',
+    },
+
+    // Chat
+    chat: {
+      title: 'AI Sohbet',
+      messages: 'mesaj',
+      placeholder: 'Mesaj yaz...',
+      empty: 'Henuz mesaj yok. Agent calistirinca yanitlar burada gorunecek.',
+      attachFile: 'Dosya Ekle',
+      send: 'Gonder',
+    },
+
+    // File Upload
+    upload: {
+      title: 'Dosya Yukleme',
+      dragDrop: 'Dosyalari surukle & birak',
+      maxSize: 'Maks 10MB',
+      uploading: 'Yukleniyor...',
     },
 
     status: {

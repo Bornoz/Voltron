@@ -85,6 +85,12 @@ interface AgentState {
   // Reference Image
   referenceImage: ReferenceImage | null;
 
+  // Breakpoints
+  breakpoints: Set<string>;
+
+  // Injection Queue
+  injectionQueue: Array<{ id: string; prompt: string; queuedAt: number; status: string }>;
+
   // Actions
   setSession: (sessionId: string, model: string, startedAt: number) => void;
   setStatus: (status: AgentStatus) => void;
@@ -112,6 +118,27 @@ interface AgentState {
   setReferenceImage: (img: ReferenceImage | null) => void;
   setReferenceOpacity: (opacity: number) => void;
 
+  // Breakpoint Actions
+  addBreakpoint: (filePath: string) => void;
+  removeBreakpoint: (filePath: string) => void;
+
+  // Injection Queue Actions
+  addToInjectionQueue: (entry: { id: string; prompt: string; queuedAt: number; status: string }) => void;
+  updateInjectionQueueEntry: (id: string, status: string) => void;
+
+  // Hydration Actions (load historical data from API)
+  hydrate: (data: {
+    sessionId?: string | null;
+    status?: AgentStatus;
+    model?: string | null;
+    startedAt?: number | null;
+    breadcrumbs?: AgentBreadcrumb[];
+    plan?: AgentPlan | null;
+    tokenUsage?: AgentTokenUsage;
+    injections?: Array<{ id: string; prompt: string; queuedAt: number; status: string }>;
+    output?: AgentOutputEntry[];
+  }) => void;
+
   reset: () => void;
 }
 
@@ -138,6 +165,8 @@ const initialState = {
   phaseExecution: initialPhaseExecution,
   promptPins: [] as PromptPin[],
   referenceImage: null as ReferenceImage | null,
+  breakpoints: new Set<string>(),
+  injectionQueue: [] as Array<{ id: string; prompt: string; queuedAt: number; status: string }>,
 };
 
 export const useAgentStore = create<AgentState>((set) => ({
@@ -161,7 +190,27 @@ export const useAgentStore = create<AgentState>((set) => ({
       activity: location.activity,
     }),
 
-  setPlan: (plan) => set({ plan }),
+  setPlan: (plan) =>
+    set((state) => {
+      // Auto-generate phases from plan steps so PhaseTracker renders
+      if (plan?.steps && plan.steps.length > 0) {
+        const phases = plan.steps.map((step: { description: string }, i: number) => ({
+          id: `phase_${i}_${Date.now()}`,
+          title: step.description,
+          edits: [] as PhaseEdit[],
+          status: (i === 0 ? 'running' : 'pending') as Phase['status'],
+        }));
+        return {
+          plan,
+          phaseExecution: {
+            phases,
+            currentPhaseIndex: 0,
+            status: 'running' as const,
+          },
+        };
+      }
+      return { plan };
+    }),
 
   addBreadcrumb: (crumb) =>
     set((state) => ({
@@ -243,6 +292,75 @@ export const useAgentStore = create<AgentState>((set) => ({
     set((state) => {
       if (!state.referenceImage) return {};
       return { referenceImage: { ...state.referenceImage, opacity } };
+    }),
+
+  // Breakpoints
+  addBreakpoint: (filePath) =>
+    set((state) => {
+      const next = new Set(state.breakpoints);
+      next.add(filePath);
+      return { breakpoints: next };
+    }),
+
+  removeBreakpoint: (filePath) =>
+    set((state) => {
+      const next = new Set(state.breakpoints);
+      next.delete(filePath);
+      return { breakpoints: next };
+    }),
+
+  // Injection Queue
+  addToInjectionQueue: (entry) =>
+    set((state) => ({
+      injectionQueue: [...state.injectionQueue, entry],
+    })),
+
+  updateInjectionQueueEntry: (id, status) =>
+    set((state) => ({
+      injectionQueue: state.injectionQueue.map((e) =>
+        e.id === id ? { ...e, status } : e,
+      ),
+    })),
+
+  // Hydration: bulk-load historical data from API
+  hydrate: (data) =>
+    set((state) => {
+      const updates: Partial<AgentState> = {};
+      if (data.sessionId !== undefined) updates.sessionId = data.sessionId;
+      if (data.status !== undefined) updates.status = data.status;
+      if (data.model !== undefined) updates.model = data.model;
+      if (data.startedAt !== undefined) updates.startedAt = data.startedAt;
+      if (data.breadcrumbs && data.breadcrumbs.length > 0) {
+        updates.breadcrumbs = data.breadcrumbs;
+        // Derive current file and activity from last breadcrumb
+        const last = data.breadcrumbs[data.breadcrumbs.length - 1];
+        if (last) {
+          updates.currentFile = last.filePath;
+          updates.activity = last.activity;
+        }
+      }
+      if (data.plan) {
+        updates.plan = data.plan;
+        // Auto-generate phases from plan
+        if (data.plan.steps && data.plan.steps.length > 0) {
+          const phases = data.plan.steps.map((step: { description: string; status?: string }, i: number) => ({
+            id: `phase_${i}_hydrated`,
+            title: step.description,
+            edits: [] as PhaseEdit[],
+            status: (step.status === 'completed' ? 'completed' : step.status === 'active' ? 'running' : 'pending') as Phase['status'],
+          }));
+          const currentIdx = phases.findIndex((p: Phase) => p.status === 'running');
+          updates.phaseExecution = {
+            phases,
+            currentPhaseIndex: currentIdx >= 0 ? currentIdx : 0,
+            status: data.plan.steps.some((s: { status?: string }) => s.status === 'active') ? 'running' : 'idle',
+          };
+        }
+      }
+      if (data.tokenUsage) updates.tokenUsage = data.tokenUsage;
+      if (data.injections && data.injections.length > 0) updates.injectionQueue = data.injections;
+      if (data.output && data.output.length > 0) updates.output = data.output;
+      return updates;
     }),
 
   reset: () => set(initialState),

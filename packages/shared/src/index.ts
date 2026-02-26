@@ -17,11 +17,12 @@ export {
 export {
   AgentStatus, AgentActivity, AgentLocation,
   AgentPlanStepStatus, AgentPlanStep, AgentPlan,
-  AgentBreadcrumb, PromptInjection, AgentSpawnConfig,
-  AgentSession, SimulatorConstraint,
+  AgentBreadcrumb, PromptInjection, InjectionQueueEntry,
+  AgentSpawnConfig, AgentSession, SimulatorConstraint,
+  FileTreeNode,
   PhaseEditSchema, PhaseStatus, PhaseSchema, PhaseExecutionStatus, PhaseExecutionSchema,
 } from './types/agent.js';
-export type { PhaseEdit, Phase, PhaseExecution } from './types/agent.js';
+export type { PhaseEdit, Phase, PhaseExecution, FileTreeNodeType } from './types/agent.js';
 
 // Constants
 export { RISK_COLORS, RISK_THRESHOLDS } from './constants/risk-levels.js';
