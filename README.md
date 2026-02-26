@@ -296,6 +296,90 @@ pnpm clean        # Remove all dist/ directories
 
 ---
 
+## Usage Guide
+
+After installation, open the dashboard at `http://localhost:8600` and log in with your credentials.
+
+### 1. Login
+
+Enter admin username and password (default: `admin` / `voltron2026`). The session persists via HTTP-only token.
+
+### 2. Dashboard Overview
+
+The main dashboard consists of several panels:
+
+| Panel | Description |
+|-------|-------------|
+| **Execution Controls** | Start/stop/resume agent, view current state (IDLE/RUNNING/STOPPED/ERROR) |
+| **Risk Gauge** | Real-time risk level indicator with event rate monitoring |
+| **Action Feed** | Live stream of all intercepted file operations with risk classification |
+| **Agent Workspace** | Central workspace for agent management, preview, and interaction |
+
+### 3. Spawning an AI Agent
+
+1. Click the **"Spawn Agent"** button in the control bar
+2. In the dialog, configure:
+   - **Project directory**: The target directory for the agent to work in
+   - **Prompt**: Initial instructions for the agent
+   - **Model**: Select AI model (Haiku 4.5, Sonnet 4.6, or Opus 4.6)
+3. Click **"Spawn"** to launch the agent
+4. The agent status changes from IDLE → SPAWNING → RUNNING
+
+### 4. Monitoring Agent Activity
+
+While the agent runs, you can observe:
+
+- **GPS Navigation Map**: Visual map showing which files the agent is reading/writing, with zoom, pan, heatmap, and minimap
+- **Activity Timeline**: Chronological list of all agent actions (file reads, writes, tool usage)
+- **Plan Viewer**: Extracted plan with step-by-step progress indicators
+- **Agent Output**: Raw text output from the agent in real-time
+
+### 5. Interacting with a Running Agent
+
+- **Prompt Injection**: Send new instructions to the agent mid-session via the prompt input or pin modal
+- **AI Chat**: Use the inline chat popup (bottom-right) to have a conversation with the agent
+- **File Attachments**: Attach images, PDFs, or code files to your prompts for context
+
+### 6. Visual Editor (Live Preview)
+
+When the agent creates a web project:
+
+1. Voltron automatically starts a dev server (Vite/Next.js) with HMR
+2. The **Live Preview** panel shows the rendered UI (not source code)
+3. **Click** any element to select it — see exact coordinates, dimensions, and styles
+4. **Right-click** for the context menu with 30+ options:
+   - **CSS**: Colors, fonts, padding, margin, border, opacity, gradients
+   - **Layout**: Display, flex direction, justify, align, gap
+   - **Element**: Delete, duplicate, wrap in div, unwrap, toggle visibility
+   - **Inspector**: Copy HTML, copy styles, view computed properties
+5. **Drag** to reposition elements, resize, recolor
+6. All visual edits are automatically injected as instructions to the agent
+
+### 7. Session Management
+
+- **Session History**: View past agent sessions with timestamps and status
+- **Memory Manager**: Manage project-specific memory files
+- **Rules Editor**: Configure project rules and constraints
+- **Session Export**: Export session data for analysis
+
+### 8. Execution Controls
+
+| Action | Description |
+|--------|-------------|
+| **Stop** | Pause the agent (can be resumed) |
+| **Resume** | Continue a stopped agent |
+| **Kill** | Terminate the agent process immediately |
+| **Emergency Stop** | Circuit breaker — stops agent when event rate exceeds 50/sec |
+
+### 9. Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+Enter` | Send prompt |
+| `Escape` | Close modals/popups |
+
+---
+
 ## Documentation
 
 Comprehensive documentation is available in the [`docs/`](docs/) directory:
