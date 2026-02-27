@@ -763,7 +763,7 @@ export const DesignContextMenu = memo(function DesignContextMenu({
         className="flex flex-col rounded-2xl overflow-hidden"
         style={{
           width: 320,
-          maxHeight: '80vh',
+          maxHeight: 'calc(100vh - 32px)',
           background: 'rgba(8,12,24,0.97)',
           border: '1px solid rgba(255,255,255,0.1)',
           backdropFilter: 'blur(24px)',
@@ -906,7 +906,7 @@ export const DesignContextMenu = memo(function DesignContextMenu({
           className="ml-3 rounded-2xl animate-fade-in-up self-start overflow-hidden flex flex-col"
           style={{
             width: 260,
-            maxHeight: '80vh',
+            maxHeight: 'calc(100vh - 32px)',
             background: 'rgba(8,12,24,0.97)',
             border: '1px solid rgba(255,255,255,0.1)',
             backdropFilter: 'blur(24px)',

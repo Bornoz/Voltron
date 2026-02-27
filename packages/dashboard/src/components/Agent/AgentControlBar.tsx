@@ -84,7 +84,7 @@ export function AgentControlBar({ onSpawn, onPause, onResume, onKill }: AgentCon
         </span>
       </div>
 
-      <div className="w-px h-4 bg-white/[0.06]" />
+      <div className="w-px h-4" style={{ background: 'var(--glass-border)' }} />
 
       {/* Control buttons */}
       <div className="flex items-center gap-1">
@@ -102,7 +102,8 @@ export function AgentControlBar({ onSpawn, onPause, onResume, onKill }: AgentCon
             {status === 'RUNNING' && (
               <button
                 onClick={onPause}
-                className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors"
+                className="p-1.5 rounded-md transition-colors"
+                style={{ color: 'var(--color-text-muted)' }}
                 title={t('agent.pause')}
                 aria-label={t('agent.pause')}
               >
@@ -112,7 +113,8 @@ export function AgentControlBar({ onSpawn, onPause, onResume, onKill }: AgentCon
             {status === 'PAUSED' && (
               <button
                 onClick={onResume}
-                className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors"
+                className="p-1.5 rounded-md transition-colors"
+                style={{ color: 'var(--color-text-muted)' }}
                 title={t('agent.resume')}
                 aria-label={t('agent.resume')}
               >
@@ -122,7 +124,8 @@ export function AgentControlBar({ onSpawn, onPause, onResume, onKill }: AgentCon
             {isActive && (
               <button
                 onClick={onKill}
-                className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors"
+                className="p-1.5 rounded-md transition-colors"
+                style={{ color: 'var(--color-text-muted)' }}
                 title={t('agent.kill')}
                 aria-label={t('agent.kill')}
               >
@@ -136,18 +139,18 @@ export function AgentControlBar({ onSpawn, onPause, onResume, onKill }: AgentCon
       {/* Info badges */}
       {isActive && (
         <>
-          <div className="w-px h-4 bg-white/[0.06]" />
+          <div className="w-px h-4" style={{ background: 'var(--glass-border)' }} />
 
           {/* Elapsed */}
-          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.04]">
-            <Clock className="w-3 h-3 text-gray-500" />
-            <span className="text-xs text-gray-400 font-mono">{elapsed}</span>
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md" style={{ background: 'var(--color-bg-tertiary)', border: '1px solid var(--glass-border)' }}>
+            <Clock className="w-3 h-3" style={{ color: 'var(--color-text-muted)' }} />
+            <span className="text-xs font-mono" style={{ color: 'var(--color-text-secondary)' }}>{elapsed}</span>
           </div>
 
           {/* Tokens */}
-          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.04]">
-            <Cpu className="w-3 h-3 text-gray-500" />
-            <span className="text-xs text-gray-400 font-mono">
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md" style={{ background: 'var(--color-bg-tertiary)', border: '1px solid var(--glass-border)' }}>
+            <Cpu className="w-3 h-3" style={{ color: 'var(--color-text-muted)' }} />
+            <span className="text-xs font-mono" style={{ color: 'var(--color-text-secondary)' }}>
               {formatTokens(tokenUsage.inputTokens + tokenUsage.outputTokens)}
             </span>
           </div>

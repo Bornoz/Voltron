@@ -6,7 +6,7 @@ const variantStyles = {
   primary: 'bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white border-blue-500/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]',
   danger: 'bg-gradient-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white border-red-500/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]',
   success: 'bg-gradient-to-b from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white border-green-500/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]',
-  ghost: 'bg-white/[0.03] hover:bg-white/[0.06] text-gray-300 border-white/[0.06]',
+  ghost: 'bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] border-[var(--glass-border)]',
 };
 
 const sizeStyles = {

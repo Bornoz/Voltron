@@ -493,7 +493,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
             : 'absolute top-0 right-0 h-full z-20'
         }`}
         style={maximized ? {
-          inset: '48px 48px 48px 48px',
+          inset: '8px 8px 8px 8px',
           background: 'rgba(8,12,24,0.98)',
           border: '1px solid rgba(255,255,255,0.08)',
           borderRadius: 20,

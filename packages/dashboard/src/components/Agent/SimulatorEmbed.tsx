@@ -149,12 +149,22 @@ interface DevServerInfo {
   url: string;
 }
 
-function getPreviewUrl(projectId: string, _devServer?: DevServerInfo | null): string {
-  // Always route through Voltron server proxy to ensure editor script injection
+function getPreviewUrl(projectId: string, _devServer?: DevServerInfo | null, currentFile?: string | null): string {
+  // Route through Voltron server proxy to ensure editor script injection
   // Server will proxy to dev server when available, falling back to static files
   const isDev = window.location.port === '6400' || window.location.hostname === 'localhost';
   const base = isDev ? 'http://localhost:8600' : '';
-  return `${base}/api/projects/${encodeURIComponent(projectId)}/agent/preview/index.html`;
+
+  // Use agent's current HTML file if available, otherwise fall back to index.html
+  let previewFile = 'index.html';
+  if (currentFile) {
+    const ext = currentFile.split('.').pop()?.toLowerCase();
+    if (ext === 'html' || ext === 'htm') {
+      previewFile = currentFile;
+    }
+  }
+
+  return `${base}/api/projects/${encodeURIComponent(projectId)}/agent/preview/${encodeURIComponent(previewFile)}`;
 }
 
 /* ─── Phase Formatter ─────────────────────────────────── */
@@ -328,7 +338,7 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
   const isActive = !['IDLE'].includes(status);
   const canInject = ['RUNNING', 'PAUSED', 'COMPLETED', 'CRASHED'].includes(status);
   const isPreview = mode === 'preview';
-  const currentUrl = isPreview ? getPreviewUrl(projectId, devServer) : getSimulatorUrl(projectId);
+  const currentUrl = isPreview ? getPreviewUrl(projectId, devServer, location?.filePath) : getSimulatorUrl(projectId);
   const viewportWidth = viewportPreset === 'desktop' ? '100%' : viewportPreset === 'tablet' ? '768px' : '375px';
 
   // Keyboard shortcuts: Ctrl+Z / Ctrl+Y for undo/redo
@@ -580,8 +590,10 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
 
     const prompt = formatPhasePrompt(edits, promptPins, referenceImage);
 
+    const ext = location?.filePath?.split('.').pop()?.toLowerCase();
+    const activeFile = (ext === 'html' || ext === 'htm') ? location?.filePath ?? 'index.html' : 'index.html';
     onInject(prompt, {
-      filePath: 'index.html',
+      filePath: activeFile,
       constraints: [
         ...edits.map((e, i) => `[${i + 1}] ${e.type}: ${e.selector} @ (${e.coords.x},${e.coords.y})`),
         ...promptPins.map((p, i) => `[pin-${i + 1}] prompt @ (${Math.round(p.pageX)},${Math.round(p.pageY)})`),
@@ -595,7 +607,7 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
   const totalChanges = edits.length + promptPins.length;
 
   return (
-    <div className="flex flex-col h-full bg-gray-950 rounded-lg border border-gray-800/50 shadow-lg shadow-blue-500/5 overflow-hidden">
+    <div className="flex flex-col h-full rounded-lg overflow-hidden" style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--glass-border)', boxShadow: 'var(--shadow-card)' }}>
       {/* Hidden file input for reference image */}
       <input
         ref={fileInputRef}
@@ -606,14 +618,14 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
       />
 
       {/* ─── Minimal header ─── */}
-      <div className="flex items-center gap-1.5 px-2 py-1 border-b border-gray-800/50 bg-gray-900/60 backdrop-blur-sm">
+      <div className="flex items-center gap-1.5 px-2 py-1" style={{ borderBottom: '1px solid var(--glass-border)', background: 'var(--color-bg-secondary)' }}>
         <Monitor className="w-3.5 h-3.5 text-cyan-400" />
-        <span className="text-[10px] text-gray-400 uppercase tracking-wider font-medium">
+        <span className="text-[10px] uppercase tracking-wider font-medium" style={{ color: 'var(--color-text-secondary)' }}>
           {isPreview ? t('agent.preview') : t('agent.simulator')}
         </span>
 
         {isPreview && editorReady && (
-          <span className="text-[9px] text-gray-600 ml-1">
+          <span className="text-[9px] ml-1" style={{ color: 'var(--color-text-muted)' }}>
             {t('agent.editorHint')}
           </span>
         )}
