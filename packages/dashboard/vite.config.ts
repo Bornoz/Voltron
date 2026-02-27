@@ -34,11 +34,21 @@ export default defineConfig({
         warn(warning);
       },
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-recharts': ['recharts'],
-          'vendor-utils': ['date-fns', 'zustand', 'clsx', 'tailwind-merge'],
-          'vendor-icons': ['lucide-react'],
+        manualChunks(id) {
+          // All React-related modules MUST be in the same chunk to share the dispatcher
+          if (id.includes('node_modules/react') || id.includes('node_modules/scheduler')) {
+            return 'vendor-react';
+          }
+          if (id.includes('node_modules/recharts')) return 'vendor-recharts';
+          if (
+            id.includes('node_modules/date-fns') ||
+            id.includes('node_modules/zustand') ||
+            id.includes('node_modules/clsx') ||
+            id.includes('node_modules/tailwind-merge')
+          ) {
+            return 'vendor-utils';
+          }
+          if (id.includes('node_modules/lucide-react')) return 'vendor-icons';
         },
       },
     },

@@ -54,7 +54,6 @@ export function useAgentHydration(projectId: string | null): void {
         if (session && typeof session === 'object') {
           const s = session as Record<string, unknown>;
           if (s.sessionId) hydrateData.sessionId = s.sessionId as string;
-          if (s.status) hydrateData.status = s.status as string as any;
           if (s.model) hydrateData.model = s.model as string;
           if (s.startedAt) hydrateData.startedAt = s.startedAt as number;
           if (typeof s.inputTokens === 'number' && typeof s.outputTokens === 'number') {
@@ -63,6 +62,20 @@ export function useAgentHydration(projectId: string | null): void {
               outputTokens: s.outputTokens as number,
             };
           }
+          // If server reports no active process (status not RUNNING/PAUSED/SPAWNING),
+          // treat as completed to avoid showing stale "in-progress" data
+          const serverStatus = (s.status as string) ?? 'IDLE';
+          const isActiveOnServer = ['RUNNING', 'PAUSED', 'SPAWNING', 'INJECTING'].includes(serverStatus);
+          if (isActiveOnServer) {
+            hydrateData.status = serverStatus as any;
+          } else {
+            // Session exists but is not active — show as completed or idle
+            hydrateData.status = (serverStatus === 'COMPLETED' ? 'COMPLETED' : serverStatus === 'CRASHED' ? 'CRASHED' : 'IDLE') as any;
+          }
+        } else {
+          // No session at all — reset to idle
+          hydrate({ status: 'IDLE' as any });
+          return;
         }
 
         // Breadcrumbs (API returns DESC order, reverse for chronological)

@@ -313,7 +313,84 @@ export class AgentRunner extends EventEmitter {
    * Kills current process, restarts with --continue and enriched context.
    */
   async injectPrompt(projectId: string, injection: PromptInjection): Promise<void> {
-    const agent = this.getRunningAgent(projectId);
+    let agent = this.agents.get(projectId) ?? null;
+
+    // If no active agent, try to re-spawn from last completed session
+    if (!agent) {
+      const lastSession = this.sessionRepo.findLatestByProject(projectId);
+      if (!lastSession) {
+        throw new Error(`No agent running for project ${projectId}`);
+      }
+
+      // Re-create agent entry from last session for --continue
+      const sessionId = lastSession.sessionId ?? randomUUID();
+      const newSessionRow = this.sessionRepo.create({
+        projectId,
+        sessionId,
+        status: 'INJECTING',
+        model: lastSession.model ?? AGENT_CONSTANTS.DEFAULT_MODEL,
+        prompt: injection.prompt,
+        targetDir: lastSession.targetDir,
+        pid: null,
+        startedAt: Date.now(),
+      });
+
+      agent = {
+        process: null as any,
+        parser: new AgentStreamParser(),
+        projectId,
+        sessionDbId: newSessionRow.id,
+        sessionId,
+        status: 'INJECTING' as AgentStatus,
+        model: lastSession.model ?? AGENT_CONSTANTS.DEFAULT_MODEL,
+        prompt: injection.prompt,
+        targetDir: lastSession.targetDir,
+        location: null,
+        plan: null,
+        breadcrumbs: [],
+        inputTokens: 0,
+        outputTokens: 0,
+        startedAt: Date.now(),
+        lastThinkingText: '',
+        lastTextOutput: '',
+        hasReceivedThinking: false,
+        planDebounceTimer: null,
+        textPlanDebounceTimer: null,
+        killTimer: null,
+        paused: false,
+        pausedEventQueue: [],
+        breakpoints: new Set(),
+        injectionQueue: [],
+        lastToolInput: null,
+        _devServerDebounce: null,
+        _sessionEnded: false,
+        _sessionEndError: false,
+      };
+      this.agents.set(projectId, agent);
+
+      console.log(`[AgentRunner] Re-spawning completed agent for inject (project=${projectId}, sessionId=${sessionId})`);
+      this.emitStatus(projectId, 'INJECTING');
+
+      // Record injection in DB
+      this.injectionRepo.insert({
+        sessionId,
+        projectId,
+        prompt: injection.prompt,
+        contextFile: injection.context?.filePath ?? null,
+        contextLineStart: injection.context?.lineRange?.start ?? null,
+        contextLineEnd: injection.context?.lineRange?.end ?? null,
+        constraints: injection.context?.constraints ? JSON.stringify(injection.context.constraints) : null,
+        urgency: injection.urgency ?? 'normal',
+        injectedAt: Date.now(),
+        agentStatusBefore: 'COMPLETED',
+      });
+
+      // Build enriched prompt and spawn with --continue
+      const enrichedPrompt = this.buildEnrichedPrompt(agent, injection, projectId);
+      this.spawnProcess(agent, enrichedPrompt, true);
+      return;
+    }
+
     const prevStatus = agent.status;
 
     // Record injection in DB
@@ -448,6 +525,7 @@ export class AgentRunner extends EventEmitter {
     if (isContinue) {
       args.push('--continue');
       args.push('--session-id', agent.sessionId);
+      args.push('--fork-session');
     }
 
     // Use explicit -p flag to prevent --allowedTools from swallowing the prompt

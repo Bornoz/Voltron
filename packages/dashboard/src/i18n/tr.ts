@@ -139,12 +139,7 @@ export const tr = {
     prompts: 'Promptlar',
   },
 
-  // StatusBar
-  statusBar: {
-    events: 'olay',
-    noEvents: 'Olay yok',
-    emergencyStop: 'Ctrl+Shift+S: Acil Durdurma',
-  },
+  // StatusBar (moved to end of file)
 
   // Notifications (used in useEventStream)
   notifications: {
@@ -422,6 +417,23 @@ export const tr = {
     quickAddTypeScript: 'TypeScript Ekle',
     quickResponsive: 'Responsive Yap',
 
+    // Hizli Baslat Sablonlari
+    presets: {
+      title: 'Hizli Sablonlar',
+      landingPage: 'Landing Page',
+      landingPageDesc: 'Hero, ozellikler, fiyatlandirma ve iletisim bolumlu modern sayfa',
+      bugFix: 'Hata Duzeltme',
+      bugFixDesc: 'Kod tabanini analiz et, hatalari bul ve duzelt',
+      fullApp: 'Tam Uygulama',
+      fullAppDesc: 'Proje gereksinimlerine gore eksiksiz web uygulamasi olustur',
+      apiBackend: 'API Backend',
+      apiBackendDesc: 'CRUD endpoint, validasyon ve hata yonetimli REST API',
+      uiPolish: 'UI Cilalama',
+      uiPolishDesc: 'Stil, animasyon ve responsive tasarim iyilestirmeleri',
+      testSuite: 'Test Paketi',
+      testSuiteDesc: 'Kapsamli unit ve entegrasyon testleri',
+    },
+
     // Rules
     rules: {
       title: 'Proje Kurallari',
@@ -640,6 +652,7 @@ export const tr = {
       toolName: 'Arac',
       searchFiles: 'Dosya ara...',
       heatmap: 'Isi Haritasi',
+      panMode: 'Tasima Modu (El Araci)',
       minimap: 'Mini Harita',
       zoomIn: 'Yakinlastir',
       zoomOut: 'Uzaklastir',
@@ -729,6 +742,106 @@ export const tr = {
   language: {
     tr: 'TR',
     en: 'EN',
+  },
+
+  // Komut Paleti
+  commandPalette: {
+    placeholder: 'Komut yazin...',
+    noResults: 'Eslesen komut bulunamadi',
+    panels: 'Paneller',
+    layout: 'Yerlesim',
+    agent: 'Agent',
+    navigation: 'Navigasyon',
+    show: 'Goster',
+    hide: 'Gizle',
+    maximize: 'Tam Ekran',
+    layoutIDE: 'IDE Yerlesimi',
+    layoutGPS: 'GPS Odakli Yerlesim',
+    layoutMonitor: 'Monitor Yerlesimi',
+    layoutReset: 'Yerlesimi Sifirla',
+    showShortcuts: 'Klavye Kisayollarini Goster',
+    openSettings: 'Ayarlari Ac',
+    switchLanguage: 'Dil Degistir',
+    navigate: 'Gezin',
+    execute: 'Calistir',
+    close: 'Kapat',
+  },
+
+  // Klavye Kisayollari
+  shortcuts: {
+    title: 'Klavye Kisayollari',
+    global: 'Genel',
+    agent: 'Agent',
+    panels: 'Paneller',
+    gps: 'GPS Navigasyon',
+    commandPalette: 'Komut Paleti',
+    showShortcuts: 'Kisayollari Goster',
+    emergencyStop: 'Acil Durdurma',
+    closeModal: 'Modal Kapat / Cikis',
+    pauseResume: 'Duraklat / Devam Et',
+    focusPrompt: 'Prompt Alanina Odaklan',
+    toggleBreakpoint: 'Kesme Noktasi Degistir',
+    toggleOutput: 'Cikti Panelini Degistir',
+    sendPrompt: 'Prompt Gonder',
+    gpsFullscreen: 'GPS Tam Ekran',
+    editorFullscreen: 'Editor Tam Ekran',
+    togglePanelMenu: 'Panel Menusunu Degistir',
+    cyclePanels: 'Paneller Arasi Gezin',
+    searchFiles: 'Dosya Ara',
+    zoomInOut: 'Yakinlastir / Uzaklastir',
+    panAlways: 'Tasima (her zaman)',
+    panMode: 'Tasima modu surukle',
+    scroll: 'Kaydirma',
+    middleClick: 'Orta Tik',
+    handTool: 'El Araci',
+    footer: 'Bu diyalogu gostermek icin ? tusuna basin',
+  },
+
+  // Hosgeldiniz Turu
+  tour: {
+    title: 'Voltron\'a Hosgeldiniz',
+    subtitle: 'Temel ozellikleri kesfetmek icin hizli bir tur yapalim.',
+    skipTour: 'Turu Atla',
+    previous: 'Onceki',
+    next: 'Sonraki',
+    finish: 'Tamamla',
+    stepOf: '{current} / {total}',
+    completedTitle: 'Tur Tamamlandi!',
+    completedMessage: 'Artik Voltron\'u kullanmaya hazirsiniz. Iyi calisma!',
+    close: 'Basla',
+    step1Title: 'Proje Secici',
+    step1Desc: 'Sol ustteki proje secicisinden projeler arasinda gecis yapin. Her proje kendi koruma bolgeleri, kurallar ve agent oturumlarina sahiptir.',
+    step2Title: 'Agent Sekmesi',
+    step2Desc: 'Ana calisma alaniniz. AI agent\'i buradan baslatir, izler ve yonetirsiniz. Prompt enjeksiyonu, faz takibi ve cikti panelleri burada yer alir.',
+    step3Title: 'Calistirma Kontrolleri',
+    step3Desc: 'Agent\'i duraklatma, devam ettirme ve sonlandirma kontrolleri. Acil durumlarda Ctrl+Shift+S ile aninda durdurabilirsiniz.',
+    step4Title: 'GPS Navigasyon Haritasi',
+    step4Desc: 'Agent\'in dosya sisteminde nerede calistigini gercek zamanli gorsellestirir. Isi haritasi, zoom, pan ve breakpoint ozellikleri iceren interaktif harita.',
+    step5Title: 'Gorsel Editor',
+    step5Desc: 'Canli onizleme ile dogrudan UI uzerinde duzenleme yapin. Sag tik menusunden renk, metin, efekt degisiklikleri ve prompt pin\'leri ekleyin.',
+    step6Title: 'Klavye Kisayollari',
+    step6Desc: 'Ctrl+K ile komut paletini acin, ? ile tum kisayollari gorun. Bosluk tusuna basarak agent\'i hizla duraklatip devam ettirebilirsiniz.',
+  },
+
+  // Ayarlar
+  settings: {
+    title: 'Ayarlar',
+    language: 'Dil',
+    defaultModel: 'Varsayilan AI Modeli',
+    defaultLayout: 'Varsayilan Yerlesim',
+    notifications: 'Bildirimler',
+  },
+
+  // Durum Cubugu
+  statusBar: {
+    events: 'olay',
+    noEvents: 'Olay yok',
+    emergencyStop: 'Ctrl+Shift+S: Acil Durdurma',
+    connected: 'WebSocket Bagli',
+    disconnected: 'WebSocket Bagli Degil',
+    eventRate: 'Dakika basina olay',
+    uptime: 'Sunucu Calisma Suresi',
+    commandPalette: 'Komutlar',
   },
 } as const;
 

@@ -14,6 +14,7 @@ import {
   Clock,
   Eye,
   Terminal,
+  Hand,
 } from 'lucide-react';
 import { useAgentStore } from '../../stores/agentStore';
 import type { AgentBreadcrumb } from '@voltron/shared';
@@ -321,6 +322,7 @@ export function FileNavigationMap({ onAgentAction, onFileAction }: FileNavigatio
   // ── UI state ────────────────────────────────────────
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [heatmapMode, setHeatmapMode] = useState(false);
+  const [panMode, setPanMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ type: null, x: 0, y: 0 });
@@ -437,8 +439,34 @@ export function FileNavigationMap({ onAgentAction, onFileAction }: FileNavigatio
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
+      // Middle mouse button (button 1) always pans
+      if (e.button === 1) {
+        e.preventDefault();
+        setIsPanning(true);
+        panStart.current = {
+          x: e.clientX,
+          y: e.clientY,
+          tx: transform.translateX,
+          ty: transform.translateY,
+        };
+        return;
+      }
       if (e.button !== 0) return;
-      // Only pan on direct SVG/container click (not on nodes)
+
+      // In pan mode (hand tool): all left clicks pan, even on nodes
+      if (panMode) {
+        e.preventDefault();
+        setIsPanning(true);
+        panStart.current = {
+          x: e.clientX,
+          y: e.clientY,
+          tx: transform.translateX,
+          ty: transform.translateY,
+        };
+        return;
+      }
+
+      // Normal mode: only pan on direct SVG/container click (not on nodes)
       const target = e.target as HTMLElement;
       if (target.closest('[data-node]') || target.closest('[data-ai-marker]')) return;
 
@@ -450,7 +478,7 @@ export function FileNavigationMap({ onAgentAction, onFileAction }: FileNavigatio
         ty: transform.translateY,
       };
     },
-    [transform.translateX, transform.translateY],
+    [transform.translateX, transform.translateY, panMode],
   );
 
   const handleMouseMove = useCallback(
@@ -510,11 +538,13 @@ export function FileNavigationMap({ onAgentAction, onFileAction }: FileNavigatio
   //  MINIMAP CLICK
   // ═══════════════════════════════════════════════════════
 
-  const handleMinimapClick = useCallback(
-    (e: React.MouseEvent<SVGSVGElement>) => {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
+  const minimapDragging = useRef(false);
+
+  const handleMinimapNav = useCallback(
+    (clientX: number, clientY: number, svgEl: SVGSVGElement) => {
+      const rect = svgEl.getBoundingClientRect();
+      const mx = clientX - rect.left;
+      const my = clientY - rect.top;
 
       const ratioX = mx / MINIMAP_W;
       const ratioY = my / MINIMAP_H;
@@ -533,6 +563,35 @@ export function FileNavigationMap({ onAgentAction, onFileAction }: FileNavigatio
     },
     [canvasW, canvasH],
   );
+
+  const handleMinimapMouseDown = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      minimapDragging.current = true;
+      handleMinimapNav(e.clientX, e.clientY, e.currentTarget);
+    },
+    [handleMinimapNav],
+  );
+
+  const handleMinimapMouseMove = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      if (!minimapDragging.current) return;
+      handleMinimapNav(e.clientX, e.clientY, e.currentTarget);
+    },
+    [handleMinimapNav],
+  );
+
+  const handleMinimapMouseUp = useCallback(() => {
+    minimapDragging.current = false;
+  }, []);
+
+  // Release minimap drag on global mouseup
+  useEffect(() => {
+    const handler = () => { minimapDragging.current = false; };
+    window.addEventListener('mouseup', handler);
+    return () => window.removeEventListener('mouseup', handler);
+  }, []);
 
   // ═══════════════════════════════════════════════════════
   //  CONTEXT MENU HANDLERS
@@ -700,10 +759,23 @@ export function FileNavigationMap({ onAgentAction, onFileAction }: FileNavigatio
           />
         </div>
 
+        {/* Pan mode (hand tool) toggle */}
+        <button
+          onClick={() => setPanMode((p) => !p)}
+          className={`ml-auto p-0.5 rounded transition-all duration-200 ${
+            panMode
+              ? 'bg-blue-500/20 text-blue-400'
+              : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/60'
+          }`}
+          title={t('agent.gps.panMode')}
+        >
+          <Hand className="w-3 h-3" />
+        </button>
+
         {/* Heatmap toggle */}
         <button
           onClick={() => setHeatmapMode((p) => !p)}
-          className={`ml-auto p-0.5 rounded transition-all duration-200 ${
+          className={`p-0.5 rounded transition-all duration-200 ${
             heatmapMode
               ? 'bg-orange-500/20 text-orange-400'
               : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/60'
@@ -757,7 +829,7 @@ export function FileNavigationMap({ onAgentAction, onFileAction }: FileNavigatio
       <div
         ref={containerRef}
         className="flex-1 relative overflow-hidden"
-        style={{ cursor: isPanning ? 'grabbing' : 'grab' }}
+        style={{ cursor: isPanning ? 'grabbing' : panMode ? 'grab' : 'default' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -922,10 +994,10 @@ export function FileNavigationMap({ onAgentAction, onFileAction }: FileNavigatio
                   <g
                     key={node.id}
                     data-node
-                    onMouseEnter={() => setHoveredNode(node.id)}
-                    onMouseLeave={() => setHoveredNode(null)}
-                    onContextMenu={(e) => handleFileRightClick(e, node.filePath)}
-                    style={{ cursor: 'pointer' }}
+                    onMouseEnter={panMode ? undefined : () => setHoveredNode(node.id)}
+                    onMouseLeave={panMode ? undefined : () => setHoveredNode(null)}
+                    onContextMenu={panMode ? undefined : (e) => handleFileRightClick(e, node.filePath)}
+                    style={{ cursor: panMode ? (isPanning ? 'grabbing' : 'grab') : 'pointer' }}
                     opacity={isSearchDimmed ? 0.2 : 1}
                   >
                     <circle
@@ -957,10 +1029,10 @@ export function FileNavigationMap({ onAgentAction, onFileAction }: FileNavigatio
                 <g
                   key={node.id}
                   data-node
-                  onMouseEnter={() => setHoveredNode(node.id)}
-                  onMouseLeave={() => setHoveredNode(null)}
-                  onContextMenu={(e) => handleFileRightClick(e, node.filePath)}
-                  style={{ cursor: 'pointer' }}
+                  onMouseEnter={panMode ? undefined : () => setHoveredNode(node.id)}
+                  onMouseLeave={panMode ? undefined : () => setHoveredNode(null)}
+                  onContextMenu={panMode ? undefined : (e) => handleFileRightClick(e, node.filePath)}
+                  style={{ cursor: panMode ? (isPanning ? 'grabbing' : 'grab') : 'pointer' }}
                   opacity={isSearchDimmed ? 0.25 : 1}
                 >
                   {/* Search highlight ring */}
@@ -1200,8 +1272,10 @@ export function FileNavigationMap({ onAgentAction, onFileAction }: FileNavigatio
           <svg
             width={MINIMAP_W}
             height={MINIMAP_H}
-            onClick={handleMinimapClick}
-            className="cursor-pointer"
+            onMouseDown={handleMinimapMouseDown}
+            onMouseMove={handleMinimapMouseMove}
+            onMouseUp={handleMinimapMouseUp}
+            className="cursor-crosshair"
           >
             {/* Directory zones (minimap) */}
             {dirs.map((d) => (

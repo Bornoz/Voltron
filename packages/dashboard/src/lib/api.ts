@@ -63,9 +63,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
         const body = await response.json().catch(() => ({ error: response.statusText }));
         const err = new ApiError(response.status, body.error ?? 'Unknown error');
 
-        // 401 → clear token and redirect to login
+        // 401 → clear all auth state and redirect to login
         if (response.status === 401) {
           localStorage.removeItem('voltron_token');
+          localStorage.removeItem('voltron-auth'); // clear zustand persist
           if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
             window.location.href = '/login';
           }

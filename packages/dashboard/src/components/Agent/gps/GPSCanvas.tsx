@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState, type ReactNode, type WheelEvent, type MouseEvent } from 'react';
+import { useRef, useCallback, useState, useEffect, type ReactNode, type MouseEvent } from 'react';
 import type { GPSViewport } from './types';
 import { VIEW } from './constants';
 
@@ -16,23 +16,37 @@ export function GPSCanvas({ viewport, onViewportChange, width, height, children,
   const [dragging, setDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0, vpX: 0, vpY: 0 });
 
-  const handleWheel = useCallback((e: WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -VIEW.ZOOM_STEP : VIEW.ZOOM_STEP;
-    const newZoom = Math.max(VIEW.MIN_ZOOM, Math.min(VIEW.MAX_ZOOM, viewport.zoom + delta));
-    if (newZoom === viewport.zoom) return;
+  // Store latest viewport/callback in refs so the native listener always sees current values
+  const vpRef = useRef(viewport);
+  const onVpChangeRef = useRef(onViewportChange);
+  vpRef.current = viewport;
+  onVpChangeRef.current = onViewportChange;
 
-    // Zoom toward mouse position
-    const rect = svgRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const factor = newZoom / viewport.zoom;
-    const newX = mx - (mx - viewport.x) * factor;
-    const newY = my - (my - viewport.y) * factor;
+  // Register wheel listener with { passive: false } to allow preventDefault
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
 
-    onViewportChange({ x: newX, y: newY, zoom: newZoom });
-  }, [viewport, onViewportChange]);
+    const handleWheel = (e: globalThis.WheelEvent) => {
+      e.preventDefault();
+      const vp = vpRef.current;
+      const delta = e.deltaY > 0 ? -VIEW.ZOOM_STEP : VIEW.ZOOM_STEP;
+      const newZoom = Math.max(VIEW.MIN_ZOOM, Math.min(VIEW.MAX_ZOOM, vp.zoom + delta));
+      if (newZoom === vp.zoom) return;
+
+      const rect = el.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const factor = newZoom / vp.zoom;
+      const newX = mx - (mx - vp.x) * factor;
+      const newY = my - (my - vp.y) * factor;
+
+      onVpChangeRef.current({ x: newX, y: newY, zoom: newZoom });
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
 
   const handleMouseDown = useCallback((e: MouseEvent) => {
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
@@ -59,7 +73,6 @@ export function GPSCanvas({ viewport, onViewportChange, width, height, children,
       width={width}
       height={height}
       style={{ background: 'transparent', cursor: dragging ? 'grabbing' : 'default' }}
-      onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}

@@ -141,12 +141,7 @@ export const en: TranslationKeys = {
     prompts: 'Prompts',
   },
 
-  // StatusBar
-  statusBar: {
-    events: 'events',
-    noEvents: 'No events',
-    emergencyStop: 'Ctrl+Shift+S: Emergency Stop',
-  },
+  // StatusBar (moved to end of file)
 
   // Notifications
   notifications: {
@@ -424,6 +419,23 @@ export const en: TranslationKeys = {
     quickAddTypeScript: 'Add TypeScript',
     quickResponsive: 'Responsive',
 
+    // Quick Spawn Presets
+    presets: {
+      title: 'Quick Presets',
+      landingPage: 'Landing Page',
+      landingPageDesc: 'Modern landing page with hero, features, pricing, and contact',
+      bugFix: 'Bug Fix',
+      bugFixDesc: 'Analyze codebase, identify bugs, and fix them',
+      fullApp: 'Full App',
+      fullAppDesc: 'Build a complete web application from project requirements',
+      apiBackend: 'API Backend',
+      apiBackendDesc: 'REST API with CRUD endpoints, validation, and error handling',
+      uiPolish: 'UI Polish',
+      uiPolishDesc: 'Improve styling, animations, and responsive design',
+      testSuite: 'Test Suite',
+      testSuiteDesc: 'Comprehensive unit and integration tests',
+    },
+
     // Rules
     rules: {
       title: 'Project Rules',
@@ -642,6 +654,7 @@ export const en: TranslationKeys = {
       toolName: 'Tool',
       searchFiles: 'Search files...',
       heatmap: 'Heatmap',
+      panMode: 'Pan Mode (Hand Tool)',
       minimap: 'Minimap',
       zoomIn: 'Zoom In',
       zoomOut: 'Zoom Out',
@@ -731,5 +744,105 @@ export const en: TranslationKeys = {
   language: {
     tr: 'TR',
     en: 'EN',
+  },
+
+  // Command Palette
+  commandPalette: {
+    placeholder: 'Type a command...',
+    noResults: 'No matching commands found',
+    panels: 'Panels',
+    layout: 'Layout',
+    agent: 'Agent',
+    navigation: 'Navigation',
+    show: 'Show',
+    hide: 'Hide',
+    maximize: 'Maximize',
+    layoutIDE: 'IDE Layout',
+    layoutGPS: 'GPS Focus Layout',
+    layoutMonitor: 'Monitor Layout',
+    layoutReset: 'Reset Layout',
+    showShortcuts: 'Show Keyboard Shortcuts',
+    openSettings: 'Open Settings',
+    switchLanguage: 'Switch Language',
+    navigate: 'Navigate',
+    execute: 'Execute',
+    close: 'Close',
+  },
+
+  // Keyboard Shortcuts
+  shortcuts: {
+    title: 'Keyboard Shortcuts',
+    global: 'Global',
+    agent: 'Agent',
+    panels: 'Panels',
+    gps: 'GPS Navigation',
+    commandPalette: 'Command Palette',
+    showShortcuts: 'Show Shortcuts',
+    emergencyStop: 'Emergency Stop',
+    closeModal: 'Close Modal / Exit',
+    pauseResume: 'Pause / Resume Agent',
+    focusPrompt: 'Focus Prompt Input',
+    toggleBreakpoint: 'Toggle Breakpoint',
+    toggleOutput: 'Toggle Output Panel',
+    sendPrompt: 'Send Prompt',
+    gpsFullscreen: 'GPS Fullscreen',
+    editorFullscreen: 'Editor Fullscreen',
+    togglePanelMenu: 'Toggle Panel Menu',
+    cyclePanels: 'Cycle Panels',
+    searchFiles: 'Search Files',
+    zoomInOut: 'Zoom In / Out',
+    panAlways: 'Pan (always)',
+    panMode: 'Pan mode drag',
+    scroll: 'Scroll',
+    middleClick: 'Middle Click',
+    handTool: 'Hand Tool',
+    footer: 'Press ? anytime to show this dialog',
+  },
+
+  // Welcome Tour
+  tour: {
+    title: 'Welcome to Voltron',
+    subtitle: 'Let\'s take a quick tour to discover the key features.',
+    skipTour: 'Skip Tour',
+    previous: 'Previous',
+    next: 'Next',
+    finish: 'Finish',
+    stepOf: '{current} / {total}',
+    completedTitle: 'Tour Completed!',
+    completedMessage: 'You\'re now ready to use Voltron. Happy building!',
+    close: 'Get Started',
+    step1Title: 'Project Selector',
+    step1Desc: 'Switch between projects using the selector in the top-left corner. Each project has its own protection zones, rules, and agent sessions.',
+    step2Title: 'Agent Tab',
+    step2Desc: 'Your main workspace. Start, monitor, and manage AI agents from here. Prompt injection, phase tracking, and output panels are all accessible here.',
+    step3Title: 'Execution Controls',
+    step3Desc: 'Pause, resume, and kill agent controls. In emergencies, use Ctrl+Shift+S to instantly stop the agent.',
+    step4Title: 'GPS Navigation Map',
+    step4Desc: 'Visualizes where the agent is working in the file system in real-time. Interactive map with heatmap, zoom, pan, and breakpoint features.',
+    step5Title: 'Visual Editor',
+    step5Desc: 'Edit directly on the UI with live preview. Add color, text, effect changes, and prompt pins via the right-click context menu.',
+    step6Title: 'Keyboard Shortcuts',
+    step6Desc: 'Open the command palette with Ctrl+K, view all shortcuts with ?. Press Space to quickly pause/resume the agent.',
+  },
+
+  // Settings
+  settings: {
+    title: 'Settings',
+    language: 'Language',
+    defaultModel: 'Default AI Model',
+    defaultLayout: 'Default Layout',
+    notifications: 'Notifications',
+  },
+
+  // Status Bar
+  statusBar: {
+    events: 'events',
+    noEvents: 'No events',
+    emergencyStop: 'Ctrl+Shift+S: Emergency Stop',
+    connected: 'WebSocket Connected',
+    disconnected: 'WebSocket Disconnected',
+    eventRate: 'Events per minute',
+    uptime: 'Server Uptime',
+    commandPalette: 'Commands',
   },
 } as const;

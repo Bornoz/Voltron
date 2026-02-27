@@ -74,7 +74,7 @@ interface WindowState {
 /* ─── Defaults (percentage → computed on first render) ─── */
 
 const STORAGE_KEY = 'voltron_window_layout_v1';
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3; // Bumped to force layout recalculation
 
 function buildDefaultPanels(vw: number, vh: number): Record<PanelId, PanelState> {
   return {
@@ -411,7 +411,33 @@ export const useWindowStore = create<WindowState>((set, get) => ({
 
   resetPan: () => set({ panX: 0, panY: 0 }),
 
-  setViewportSize: (w, h) => set({ viewportWidth: w, viewportHeight: h }),
+  setViewportSize: (w, h) => set((s) => {
+    const oldW = s.viewportWidth;
+    const oldH = s.viewportHeight;
+
+    // If viewport changed significantly, proportionally reposition panels
+    if (oldW > 0 && oldH > 0 && (Math.abs(w - oldW) > 50 || Math.abs(h - oldH) > 50)) {
+      const scaleX = w / oldW;
+      const scaleY = h / oldH;
+      const newPanels = { ...s.panels } as Record<PanelId, PanelState>;
+      for (const id of Object.keys(newPanels) as PanelId[]) {
+        const p = newPanels[id];
+        if (p.maximized) continue;
+        const newX = Math.round(p.x * scaleX);
+        const newY = Math.round(p.y * scaleY);
+        const newW = Math.max(p.minWidth, Math.round(p.width * scaleX));
+        const newH = Math.max(p.minHeight, Math.round(p.height * scaleY));
+        // Clamp to viewport bounds
+        const clampedX = Math.max(0, Math.min(newX, w - 100));
+        const clampedY = Math.max(0, Math.min(newY, h - 50));
+        newPanels[id] = { ...p, x: clampedX, y: clampedY, width: newW, height: newH };
+      }
+      debouncedSave(newPanels);
+      return { viewportWidth: w, viewportHeight: h, panels: newPanels };
+    }
+
+    return { viewportWidth: w, viewportHeight: h };
+  }),
 
   applyPreset: (preset) => set((s) => {
     const newPanels = buildPresetPanels(preset, s.viewportWidth, s.viewportHeight);

@@ -2,7 +2,7 @@ import { useCallback, type ReactNode } from 'react';
 import {
   Minus, Square, X, Monitor, Map, Radio,
   ListChecks, MessageSquare, Activity, Terminal,
-  ClipboardList, Brain, History,
+  ClipboardList, Brain, History, GripVertical,
 } from 'lucide-react';
 import { useDrag } from '../../../hooks/useDrag';
 import { useResize, computeResize, type ResizeDirection } from '../../../hooks/useResize';
@@ -148,11 +148,13 @@ export function FloatingPanel({ panel, title, children }: FloatingPanelProps) {
       <div
         {...dragHandleProps}
         onDoubleClick={handleDoubleClickTitle}
-        className={`flex items-center gap-1.5 h-8 px-2 shrink-0 select-none
+        className={`flex items-center gap-1 h-8 px-1.5 shrink-0 select-none
           border-b border-gray-800/50 cursor-move
           ${isActive ? 'bg-gray-800/80' : 'bg-gray-900/60'}
         `}
       >
+        {/* Drag grip indicator */}
+        <GripVertical className="w-3 h-3 text-gray-600 shrink-0" />
         {/* Icon + Title */}
         <span className="text-gray-400">{PANEL_ICONS[panel.id]}</span>
         <span className="text-[10px] font-medium text-gray-300 truncate flex-1">
@@ -191,9 +193,21 @@ export function FloatingPanel({ panel, title, children }: FloatingPanelProps) {
       )}
 
       {/* ── Resize Handles ── */}
-      {!panel.maximized && !panel.minimized && RESIZE_DIRECTIONS.map((dir) => (
-        <div key={dir} {...getHandleProps(dir)} />
-      ))}
+      {!panel.maximized && !panel.minimized && RESIZE_DIRECTIONS.map((dir) => {
+        const isCorner = ['ne', 'se', 'sw', 'nw'].includes(dir);
+        return (
+          <div key={dir} {...getHandleProps(dir)}>
+            {isCorner && (
+              <div className={`absolute w-2 h-2 rounded-full bg-gray-500/50 hover:bg-blue-400 transition-colors ${
+                dir === 'nw' ? 'top-0 left-0' :
+                dir === 'ne' ? 'top-0 right-0' :
+                dir === 'se' ? 'bottom-0 right-0' :
+                'bottom-0 left-0'
+              }`} />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

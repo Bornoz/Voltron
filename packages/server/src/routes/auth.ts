@@ -17,6 +17,11 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 export function authRoutes(app: FastifyInstance, config: ServerConfig): void {
+  // whoami: if the request reaches here, any upstream auth (e.g. nginx basic) was passed
+  app.get('/api/auth/whoami', async (_request, reply) => {
+    return reply.send({ authenticated: true, timestamp: Date.now() });
+  });
+
   if (!config.authSecret) return;
 
   app.post('/api/auth/login', async (request, reply) => {

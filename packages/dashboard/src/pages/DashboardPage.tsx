@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, AlertCircle, GitBranch, GitCommit, Brain, FileText, Bot, LogOut } from 'lucide-react';
+import { ChevronDown, AlertCircle, GitBranch, GitCommit, Brain, FileText, Bot, LogOut, Settings } from 'lucide-react';
 import type { ProjectConfig } from '@voltron/shared';
 import * as api from '../lib/api';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -14,6 +14,7 @@ import { useAgentStream } from '../hooks/useAgentStream';
 import { useAgentHydration } from '../hooks/useAgentHydration';
 import { useFileTreeStore } from '../stores/fileTreeStore';
 import { useAuthStore } from '../stores/authStore';
+import { useLanguageStore } from '../stores/languageStore';
 import { MainLayout } from '../components/Layout/MainLayout';
 import { ActionFeed } from '../components/ActionFeed/ActionFeed';
 import { InterceptorStatus } from '../components/InterceptorStatus/InterceptorStatus';
@@ -28,6 +29,12 @@ import { Spinner } from '../components/common/Spinner';
 import { AgentControlBar } from '../components/Agent/AgentControlBar';
 import { GPSTracker } from '../components/Agent/GPSTracker';
 import { PlanViewer } from '../components/Agent/PlanViewer';
+import { CommandPalette } from '../components/Agent/CommandPalette';
+import { KeyboardShortcuts } from '../components/Agent/KeyboardShortcuts';
+import { StatusBar } from '../components/Agent/StatusBar';
+import { SettingsModal } from '../components/Agent/SettingsModal';
+import { PromptHistory } from '../components/Agent/PromptHistory';
+import { WelcomeTour } from '../components/Agent/WelcomeTour';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { useTranslation } from '../i18n';
 
@@ -50,6 +57,11 @@ export function DashboardPage() {
   const [centerTab, setCenterTab] = useState<'feed' | 'github' | 'snapshots' | 'behavior' | 'prompts' | 'agent'>('feed');
   const [showSpawnDialog, setShowSpawnDialog] = useState(false);
   const [spawnDefaultConfig, setSpawnDefaultConfig] = useState<{ model?: string; prompt?: string; targetDir?: string } | undefined>();
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showPromptHistory, setShowPromptHistory] = useState(false);
+  const [showWelcomeTour, setShowWelcomeTour] = useState(() => !localStorage.getItem('voltron_tour_completed'));
 
   const projectId = selectedProject?.id ?? null;
 
@@ -59,6 +71,28 @@ export function DashboardPage() {
   useAgentStream(client);
   useAgentHydration(projectId);
   useKeyboard(projectId);
+
+  // Global keyboard shortcuts: Ctrl+K (command palette) and ? (shortcuts)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Ctrl+K — Command Palette
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowCommandPalette((v) => !v);
+        return;
+      }
+      // ? — Keyboard Shortcuts (only when not typing)
+      const tag = (e.target as HTMLElement)?.tagName;
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable;
+      if (e.key === '?' && !isInput && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setShowShortcuts((v) => !v);
+        return;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const logout = useAuthStore((s) => s.logout);
   const agentStatus = useAgentStore((s) => s.status);
@@ -135,6 +169,23 @@ export function DashboardPage() {
       }
     })();
   }, [projectId, addEvents]);
+
+  // Language hooks — MUST be before conditional returns (Rules of Hooks)
+  const setLangDirect = useLanguageStore((s) => s.setLanguage);
+  const currentLang = useLanguageStore((s) => s.language);
+
+  const handleCommandPaletteAction = useCallback((action: string, _data?: Record<string, unknown>) => {
+    switch (action) {
+      case 'pause': if (projectId) api.agentStop(projectId).catch(() => {}); break;
+      case 'resume': if (projectId) api.agentResume(projectId).catch(() => {}); break;
+      case 'stop': if (projectId) api.agentKill(projectId).catch(() => {}); break;
+      case 'spawn': setShowSpawnDialog(true); break;
+      case 'showShortcuts': setShowShortcuts(true); break;
+      case 'openSettings': setShowSettings(true); break;
+      case 'promptHistory': setShowPromptHistory(true); break;
+      case 'switchLanguage': setLangDirect(currentLang === 'tr' ? 'en' : 'tr'); break;
+    }
+  }, [projectId, currentLang, setLangDirect]);
 
   // Loading screen
   if (loading) {
@@ -415,15 +466,20 @@ export function DashboardPage() {
   );
 
   return (
-    <>
-      <MainLayout
-        projectId={projectId}
-        projectName={selectedProject?.name ?? null}
-        executionState={executionState}
-        connectionStatus={status}
-        centerContent={centerContent}
-        rightContent={rightContent}
-      />
+    <div className="flex flex-col h-screen">
+      <div className="flex-1 overflow-hidden">
+        <MainLayout
+          projectId={projectId}
+          projectName={selectedProject?.name ?? null}
+          executionState={executionState}
+          connectionStatus={status}
+          centerContent={centerContent}
+          rightContent={rightContent}
+        />
+      </div>
+
+      {/* Status Bar */}
+      <StatusBar wsConnected={status === 'connected'} projectId={projectId} />
 
       {/* Spawn Dialog */}
       {showSpawnDialog && projectId && (
@@ -436,6 +492,44 @@ export function DashboardPage() {
           />
         </Suspense>
       )}
+
+      {/* Command Palette (Ctrl+K) */}
+      <CommandPalette
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        onAgentAction={handleCommandPaletteAction}
+      />
+
+      {/* Keyboard Shortcuts (?) */}
+      <KeyboardShortcuts
+        isOpen={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+      />
+
+      {/* Prompt History */}
+      <PromptHistory
+        isOpen={showPromptHistory}
+        onClose={() => setShowPromptHistory(false)}
+        onSelect={(prompt) => {
+          setShowPromptHistory(false);
+          if (projectId) {
+            setSpawnDefaultConfig({ prompt });
+            setShowSpawnDialog(true);
+          }
+        }}
+      />
+
+      {/* Welcome Tour (first visit) */}
+      <WelcomeTour
+        isOpen={showWelcomeTour}
+        onClose={() => setShowWelcomeTour(false)}
+      />
 
       {/* Notification toasts */}
       {notifications.length > 0 && (
@@ -467,6 +561,6 @@ export function DashboardPage() {
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 }

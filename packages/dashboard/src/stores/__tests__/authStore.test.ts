@@ -53,6 +53,7 @@ describe('authStore', () => {
     it('should login successfully with valid credentials', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: async () => ({ token: 'test-token-123', expiresAt: Date.now() + 3600000 }),
       });
 
@@ -68,6 +69,7 @@ describe('authStore', () => {
     it('should handle login failure from server', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
+        status: 401,
         json: async () => ({ error: 'Invalid credentials' }),
       });
 
@@ -81,12 +83,26 @@ describe('authStore', () => {
     it('should handle server error with fallback error message', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
+        status: 500,
         json: async () => { throw new Error('parse error'); },
       });
 
       const result = await getState().login('admin', 'wrong');
       expect(result).toBe(false);
       expect(getState().error).toBe('Login failed');
+    });
+
+    it('should pass through on 404 (auth not configured)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: 'Not found' }),
+      });
+
+      const result = await getState().login('admin', 'password');
+      expect(result).toBe(true);
+      expect(getState().isAuthenticated).toBe(true);
+      expect(localStorage.getItem('voltron_token')).toBe('dev-mode');
     });
 
     it('should pass through on network error (dev mode)', async () => {
@@ -102,6 +118,7 @@ describe('authStore', () => {
     it('should trim username', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: async () => ({ token: 'tok', expiresAt: 0 }),
       });
 
@@ -121,6 +138,7 @@ describe('authStore', () => {
 
       resolvePromise!({
         ok: true,
+        status: 200,
         json: async () => ({ token: 'tok', expiresAt: 0 }),
       });
 

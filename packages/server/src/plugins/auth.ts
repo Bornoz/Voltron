@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { ServerConfig } from '../config.js';
 
-const PUBLIC_PATHS = new Set(['/api/health', '/api/ready', '/api/auth/login']);
+const PUBLIC_PATHS = new Set(['/api/health', '/api/ready', '/api/auth/login', '/api/auth/whoami', '/api/stats', '/health']);
 
 interface TokenPayload {
   username: string;
@@ -66,6 +66,9 @@ export function registerAuth(app: FastifyInstance, config: ServerConfig): void {
     // Skip public paths
     const path = request.url.split('?')[0];
     if (PUBLIC_PATHS.has(path)) return;
+
+    // Skip non-API requests (static files served by @fastify/static)
+    if (!path.startsWith('/api/')) return;
 
     const authHeader = request.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {

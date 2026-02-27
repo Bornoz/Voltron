@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Bot, X, Zap, ClipboardList, Brain } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { QuickSpawnPresets } from './QuickSpawnPresets';
+import type { PresetConfig } from './QuickSpawnPresets';
 
 interface SpawnDialogProps {
   projectId: string;
@@ -95,6 +97,14 @@ export function SpawnDialog({ projectId, defaultConfig, onSpawn, onClose }: Spaw
                 </div>
               )}
             </div>
+          )}
+
+          {/* Quick Presets */}
+          {!prompt.trim() && (
+            <QuickSpawnPresets onSelect={(config: PresetConfig) => {
+              setPrompt(config.prompt);
+              setModel(config.model);
+            }} />
           )}
 
           {/* Prompt */}

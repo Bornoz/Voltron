@@ -10,6 +10,14 @@ interface AuthState {
   logout: () => void;
 }
 
+function apiBase(): string {
+  try {
+    return window.location.port === '6400' ? 'http://localhost:8600' : '';
+  } catch {
+    return '';
+  }
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -17,6 +25,7 @@ export const useAuthStore = create<AuthState>()(
       username: null,
       loading: false,
       error: null,
+
       login: async (username, password) => {
         if (!username.trim() || !password.trim()) {
           set({ error: 'Username and password cannot be empty' });
@@ -26,11 +35,18 @@ export const useAuthStore = create<AuthState>()(
         set({ loading: true, error: null });
 
         try {
-          const res = await fetch('/api/auth/login', {
+          const res = await fetch(`${apiBase()}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: username.trim(), password }),
           });
+
+          if (res.status === 404) {
+            // Auth route not registered — server doesn't require app-level auth (dev mode)
+            localStorage.setItem('voltron_token', 'dev-mode');
+            set({ isAuthenticated: true, username: username.trim(), loading: false, error: null });
+            return true;
+          }
 
           if (!res.ok) {
             const body = await res.json().catch(() => ({ error: 'Login failed' }));
@@ -43,11 +59,13 @@ export const useAuthStore = create<AuthState>()(
           set({ isAuthenticated: true, username: username.trim(), loading: false, error: null });
           return true;
         } catch {
-          // If server doesn't have auth enabled (dev mode), allow pass-through
+          // Network error — server unreachable, allow dev pass-through
+          localStorage.setItem('voltron_token', 'dev-mode');
           set({ isAuthenticated: true, username: username.trim(), loading: false, error: null });
           return true;
         }
       },
+
       logout: () => {
         localStorage.removeItem('voltron_token');
         set({ isAuthenticated: false, username: null, error: null });
