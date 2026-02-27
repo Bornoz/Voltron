@@ -151,7 +151,7 @@ export function GPSNavigator({ projectId, files, onAgentAction, onInject }: GPSN
         className="flex flex-col items-center justify-center h-full gap-3"
         style={{ background: DARK_THEME.background }}
       >
-        <MapIcon size={40} className="text-slate-600" />
+        <MapIcon size={40} className="text-slate-700" style={{ filter: 'drop-shadow(0 0 12px rgba(59,130,246,0.15))' }} />
         <span className="text-sm text-slate-500">{t('agent.noNavigation')}</span>
         <span className="text-xs text-slate-600">{t('agent.startAgent')}</span>
       </div>
@@ -164,26 +164,35 @@ export function GPSNavigator({ projectId, files, onAgentAction, onInject }: GPSN
       className={`relative flex flex-col ${fullscreen ? 'fixed inset-0 z-40' : 'h-full'}`}
       style={{ background: DARK_THEME.background }}
     >
-      {/* Toolbar */}
+      {/* Toolbar — glass style */}
       <div
-        className="flex items-center gap-1.5 px-2 py-1.5 shrink-0"
-        style={{ borderBottom: '1px solid rgba(71,85,105,0.3)' }}
+        className="flex items-center gap-1.5 px-3 py-2 shrink-0"
+        style={{
+          background: 'rgba(17,24,39,0.6)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(255,255,255,0.04)',
+        }}
       >
-        <MapIcon size={14} className="text-blue-400" />
-        <span className="text-xs font-medium text-slate-300 mr-2">{t('agent.fileMap')}</span>
+        <MapIcon size={14} className="text-blue-400 drop-shadow-[0_0_6px_rgba(59,130,246,0.3)]" />
+        <span className="text-xs font-semibold text-slate-200 mr-2 tracking-wide">{t('agent.fileMap')}</span>
+
+        {/* File count badge */}
+        <span className="text-[9px] font-mono text-slate-500 bg-white/[0.04] border border-white/[0.06] px-1.5 py-0.5 rounded-md">
+          {filteredFiles.length} files
+        </span>
 
         {/* Search */}
-        <div className="relative flex-1 max-w-[200px]">
+        <div className="relative flex-1 max-w-[200px] ml-2">
           <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('agent.gps.searchFiles')}
-            className="w-full pl-7 pr-2 py-1 text-xs bg-slate-800/50 border border-slate-700/50 rounded text-slate-300 placeholder-slate-600"
+            className="w-full pl-7 pr-2 py-1 text-xs bg-white/[0.03] border border-white/[0.06] rounded-md text-slate-300 placeholder-slate-600 focus:outline-none focus:border-blue-500/30 focus:ring-1 focus:ring-blue-500/15 transition-all"
           />
         </div>
 
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-0.5">
           <ToolbarBtn
             icon={<Flame size={13} />}
             active={heatmapEnabled}
@@ -196,12 +205,13 @@ export function GPSNavigator({ projectId, files, onAgentAction, onInject }: GPSN
             onClick={() => setStatsVisible(!statsVisible)}
             title="Stats"
           />
+          <div className="w-px h-4 bg-white/[0.06] mx-1" />
           <ToolbarBtn
             icon={<ZoomOut size={13} />}
             onClick={zoomOut}
             title={t('agent.gps.zoomOut')}
           />
-          <span className="text-[10px] font-mono text-slate-500 min-w-[32px] text-center">
+          <span className="text-[10px] font-mono text-slate-400 min-w-[36px] text-center bg-white/[0.03] rounded px-1 py-0.5">
             {Math.round(viewport.zoom * 100)}%
           </span>
           <ToolbarBtn
@@ -209,6 +219,7 @@ export function GPSNavigator({ projectId, files, onAgentAction, onInject }: GPSN
             onClick={zoomIn}
             title={t('agent.gps.zoomIn')}
           />
+          <div className="w-px h-4 bg-white/[0.06] mx-1" />
           <ToolbarBtn
             icon={<RotateCcw size={13} />}
             onClick={resetView}
@@ -317,8 +328,10 @@ function ToolbarBtn({ icon, active, onClick, title }: {
     <button
       onClick={onClick}
       title={title}
-      className={`p-1 rounded transition-colors ${
-        active ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-300'
+      className={`p-1.5 rounded-md transition-all ${
+        active
+          ? 'bg-blue-500/15 text-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.15)]'
+          : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200'
       }`}
     >
       {icon}

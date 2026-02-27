@@ -67,10 +67,10 @@ export function SpawnDialog({ projectId, defaultConfig, onSpawn, onClose }: Spaw
   }, [handleKeyDown]);
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-[200000] flex items-center justify-center" onClick={onClose} role="dialog" aria-modal="true" aria-label={t('agent.spawnAgent')}>
-      <div ref={dialogRef} className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-lg mx-4" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200000] flex items-center justify-center" onClick={onClose} role="dialog" aria-modal="true" aria-label={t('agent.spawnAgent')}>
+      <div ref={dialogRef} className="glass rounded-xl w-full max-w-lg mx-4 animate-fade-in-up" style={{ boxShadow: 'var(--shadow-elevated)' }} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.04]">
           <div className="flex items-center gap-2">
             <Bot className="w-5 h-5 text-blue-400" />
             <span className="font-semibold text-sm text-gray-200">{t('agent.spawnAgent')}</span>
@@ -115,7 +115,7 @@ export function SpawnDialog({ projectId, defaultConfig, onSpawn, onClose }: Spaw
               onChange={(e) => setPrompt(e.target.value)}
               placeholder={t('agent.promptPlaceholder')}
               rows={4}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-200 placeholder:text-gray-600 focus:outline-none focus:border-blue-500 resize-none"
+              className="w-full px-3 py-2 bg-white/[0.03] border border-white/[0.06] rounded-lg text-sm text-gray-200 placeholder:text-gray-600 focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/15 resize-none transition-all"
               autoFocus
             />
           </div>
@@ -129,10 +129,10 @@ export function SpawnDialog({ projectId, defaultConfig, onSpawn, onClose }: Spaw
                   key={m.id}
                   type="button"
                   onClick={() => setModel(m.id)}
-                  className={`flex-1 px-3 py-2 rounded-lg text-xs border transition-colors ${
+                  className={`flex-1 px-3 py-2 rounded-lg text-xs border transition-all ${
                     model === m.id
-                      ? 'bg-blue-900/30 border-blue-600 text-blue-400'
-                      : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'
+                      ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/40 text-[var(--color-accent)] shadow-[0_0_12px_color-mix(in_srgb,var(--color-accent)_15%,transparent)]'
+                      : 'bg-white/[0.03] border-white/[0.06] text-gray-400 hover:border-white/[0.12]'
                   }`}
                 >
                   <div className="font-medium">{m.label}</div>
@@ -149,7 +149,7 @@ export function SpawnDialog({ projectId, defaultConfig, onSpawn, onClose }: Spaw
               type="text"
               value={targetDir}
               onChange={(e) => setTargetDir(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-200 font-mono focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 bg-white/[0.03] border border-white/[0.06] rounded-lg text-sm text-gray-200 font-mono focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/15 transition-all"
             />
           </div>
 
@@ -165,7 +165,7 @@ export function SpawnDialog({ projectId, defaultConfig, onSpawn, onClose }: Spaw
             <button
               type="submit"
               disabled={!prompt.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg text-xs font-medium transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 disabled:from-gray-700 disabled:to-gray-700 disabled:text-gray-500 text-white rounded-lg text-xs font-medium transition-all active:scale-[0.98] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]"
             >
               <Zap className="w-3.5 h-3.5" />
               {t('agent.spawn')}

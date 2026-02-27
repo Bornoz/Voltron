@@ -42,18 +42,19 @@ export const GPSStatsOverlay = memo(function GPSStatsOverlay({
 
   return (
     <div
-      className="absolute top-2 left-2 flex flex-col gap-2 p-3 rounded-lg"
+      className="absolute top-2 left-2 flex flex-col gap-2 p-3 rounded-xl animate-fade-in-up"
       style={{
-        background: 'rgba(15,23,42,0.92)',
-        border: '1px solid rgba(71,85,105,0.4)',
-        backdropFilter: 'blur(8px)',
+        background: 'rgba(17,24,39,0.85)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        backdropFilter: 'blur(16px)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
         zIndex: 15,
-        minWidth: 200,
+        minWidth: 210,
       }}
     >
       {/* Summary */}
-      <div className="flex items-center gap-2 text-[11px] text-slate-300 font-medium">
-        <BarChart3 size={12} className="text-blue-400" />
+      <div className="flex items-center gap-2 text-[11px] text-slate-200 font-semibold">
+        <BarChart3 size={12} className="text-blue-400 drop-shadow-[0_0_4px_rgba(59,130,246,0.4)]" />
         Statistics
       </div>
 
@@ -79,7 +80,7 @@ export const GPSStatsOverlay = memo(function GPSStatsOverlay({
 
       {/* Top files */}
       {stats.topFiles.length > 0 && (
-        <div className="mt-1 border-t border-slate-700/30 pt-1">
+        <div className="mt-1 border-t border-white/[0.06] pt-1">
           <div className="text-[9px] text-slate-500 mb-1">TOP FILES</div>
           {stats.topFiles.map((f) => (
             <div key={f.path} className="flex items-center gap-1 py-0.5">
@@ -99,7 +100,7 @@ export const GPSStatsOverlay = memo(function GPSStatsOverlay({
       )}
 
       {/* Activity breakdown */}
-      <div className="border-t border-slate-700/30 pt-1">
+      <div className="border-t border-white/[0.06] pt-1">
         <div className="text-[9px] text-slate-500 mb-1">ACTIVITY</div>
         <div className="flex gap-1 flex-wrap">
           {Object.entries(stats.activityCounts).map(([activity, count]) => (

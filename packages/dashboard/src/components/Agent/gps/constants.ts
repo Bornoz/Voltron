@@ -59,15 +59,15 @@ export const EXT_ICONS: Record<string, string> = {
 
 // ── Theme ───────────────────────────────────────────────
 export const DARK_THEME: GPSTheme = {
-  background: '#0a0e1a',
-  dirFill: 'rgba(30,41,59,0.6)',
-  dirStroke: 'rgba(71,85,105,0.4)',
+  background: '#060a14',
+  dirFill: 'rgba(17,24,39,0.5)',
+  dirStroke: 'rgba(59,130,246,0.12)',
   dirLabel: '#94a3b8',
-  fileFill: '#1e293b',
-  fileStroke: '#334155',
-  fileLabel: '#cbd5e1',
+  fileFill: 'rgba(17,24,39,0.7)',
+  fileStroke: 'rgba(255,255,255,0.06)',
+  fileLabel: '#e2e8f0',
   currentGlow: '#3b82f6',
-  edgeDefault: 'rgba(148,163,184,0.2)',
+  edgeDefault: 'rgba(148,163,184,0.15)',
   trailDefault: 'rgba(59,130,246,0.6)',
   cursorHalo: 'rgba(59,130,246,0.3)',
   textPrimary: '#f1f5f9',

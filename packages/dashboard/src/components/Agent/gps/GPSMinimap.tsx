@@ -42,10 +42,12 @@ export const GPSMinimap = memo(function GPSMinimap({
       width={VIEW.MINIMAP_W}
       height={VIEW.MINIMAP_H}
       style={{
-        background: 'rgba(10,14,26,0.9)',
-        border: '1px solid rgba(71,85,105,0.5)',
-        borderRadius: 6,
+        background: 'rgba(6,10,20,0.9)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        borderRadius: 8,
         cursor: 'pointer',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+        backdropFilter: 'blur(8px)',
       }}
       onClick={handleClick}
     >

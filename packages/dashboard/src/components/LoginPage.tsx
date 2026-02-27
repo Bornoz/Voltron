@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, User, Lock, AlertCircle, Loader2 } from 'lucide-react';
+import { User, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { useTranslation } from '../i18n';
 import type { Language } from '../i18n';
@@ -35,9 +35,23 @@ export function LoginPage() {
 
   return (
     <div className="relative flex items-center justify-center min-h-screen bg-[var(--color-bg-primary)] overflow-hidden">
-      {/* Background grid effect */}
+      {/* Animated mesh gradient background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `
+              radial-gradient(ellipse at 25% 50%, color-mix(in srgb, var(--color-accent) 6%, transparent) 0%, transparent 50%),
+              radial-gradient(ellipse at 75% 20%, rgba(139, 92, 246, 0.05) 0%, transparent 50%),
+              radial-gradient(ellipse at 50% 80%, rgba(6, 182, 212, 0.04) 0%, transparent 50%)
+            `,
+          }}
+        />
+      </div>
+
+      {/* Grid effect */}
       <svg
-        className="absolute inset-0 w-full h-full opacity-[0.04]"
+        className="absolute inset-0 w-full h-full opacity-[0.03]"
         xmlns="http://www.w3.org/2000/svg"
       >
         <defs>
@@ -48,22 +62,27 @@ export function LoginPage() {
         <rect width="100%" height="100%" fill="url(#grid)" />
       </svg>
 
-      {/* Radial gradient overlay */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--color-accent)_0%,transparent_70%)] opacity-[0.06]" />
-
       {/* Login card */}
-      <div className="relative z-10 w-full max-w-sm mx-4">
-        <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl shadow-2xl p-8">
+      <div className="relative z-10 w-full max-w-sm mx-4 animate-fade-in-up">
+        <div
+          className="glass rounded-2xl p-8"
+          style={{ boxShadow: 'var(--shadow-elevated)' }}
+        >
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 mb-4">
-              <img src="/voltronlogo.png" alt="Voltron" className="w-16 h-16 object-contain drop-shadow-[0_0_12px_rgba(59,130,246,0.4)]" />
+            <div className="inline-flex items-center justify-center w-20 h-20 mb-4">
+              <img
+                src="/voltronlogo.png"
+                alt="Voltron"
+                className="w-20 h-20 object-contain"
+                style={{ filter: 'drop-shadow(0 0 24px rgba(59, 130, 246, 0.3))' }}
+              />
             </div>
             <h1 className="text-2xl font-bold tracking-wider text-[var(--color-text-primary)]">
               {t('login.title')}
             </h1>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1 tracking-wide">
-              {t('login.subtitle')}
+            <p className="text-[11px] text-[var(--color-text-muted)] mt-1.5 tracking-[0.2em] uppercase">
+              AI Operation Control Center
             </p>
           </div>
 
@@ -79,7 +98,7 @@ export function LoginPage() {
                 placeholder={t('login.username')}
                 autoComplete="username"
                 disabled={loading}
-                className="w-full pl-10 pr-4 py-2.5 text-sm bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30 transition-colors disabled:opacity-50"
+                className="w-full pl-10 pr-4 py-2.5 text-sm bg-white/[0.03] border border-white/[0.06] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20 transition-all disabled:opacity-50"
               />
             </div>
 
@@ -93,13 +112,13 @@ export function LoginPage() {
                 placeholder={t('login.password')}
                 autoComplete="current-password"
                 disabled={loading}
-                className="w-full pl-10 pr-4 py-2.5 text-sm bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30 transition-colors disabled:opacity-50"
+                className="w-full pl-10 pr-4 py-2.5 text-sm bg-white/[0.03] border border-white/[0.06] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20 transition-all disabled:opacity-50"
               />
             </div>
 
             {/* Error */}
             {error && (
-              <div className="flex items-center gap-2 px-3 py-2 text-xs bg-red-500/10 border border-red-500/20 rounded-lg text-red-400">
+              <div className="flex items-center gap-2 px-3 py-2 text-xs bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 animate-fade-in-up">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 {error}
               </div>
@@ -109,7 +128,8 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 text-sm font-semibold rounded-lg bg-[var(--color-accent)] text-white hover:brightness-110 active:brightness-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-2.5 text-sm font-semibold rounded-lg bg-gradient-to-b from-[var(--color-accent)] to-[var(--color-accent-hover)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] hover:brightness-110 active:scale-[0.98] active:brightness-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15), 0 4px 16px color-mix(in srgb, var(--color-accent) 25%, transparent)' }}
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {t('login.signIn')}

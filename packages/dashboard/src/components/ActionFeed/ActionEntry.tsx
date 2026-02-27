@@ -5,7 +5,8 @@ import {
   ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import type { AiActionEvent, OperationType } from '@voltron/shared';
+import type { AiActionEvent, OperationType, RiskLevel } from '@voltron/shared';
+import { RISK_COLORS } from '@voltron/shared';
 import { Badge } from '../common/Badge';
 import { formatRelativeTime, formatPath } from '../../lib/formatters';
 import { DiffViewer } from '../DiffViewer/DiffViewer';
@@ -46,16 +47,22 @@ export function ActionEntry({ event, isSelected, onSelect }: ActionEntryProps) {
   return (
     <div
       className={clsx(
-        'border-b border-gray-800/50 transition-colors',
-        isSelected && 'bg-blue-900/20 border-l-2 border-l-blue-500',
+        'border-b border-white/[0.03] transition-all relative',
+        isSelected && 'bg-blue-900/15',
+        event.risk === 'CRITICAL' && 'bg-red-900/5',
       )}
     >
+      {/* Left risk border indicator */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-[2px]"
+        style={{ backgroundColor: RISK_COLORS[event.risk as RiskLevel] ?? RISK_COLORS.NONE, opacity: 0.5 }}
+      />
       <button
         onClick={() => {
           onSelect(event);
           if (event.diff) setExpanded(!expanded);
         }}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-800/30 transition-colors"
+        className="w-full flex items-center gap-2 px-3 pl-4 py-2 text-left hover:bg-white/[0.03] transition-colors"
       >
         {/* Expand icon */}
         {event.diff ? (

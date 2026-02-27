@@ -62,29 +62,36 @@ export const GPSTimeline = memo(function GPSTimeline({
   const color = currentBC ? (ACTIVITY_COLORS[currentBC.activity] ?? '#6b7280') : '#6b7280';
 
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5" style={{ background: 'rgba(15,23,42,0.8)', borderTop: '1px solid rgba(71,85,105,0.3)' }}>
+    <div
+      className="flex items-center gap-2 px-3 py-1.5"
+      style={{
+        background: 'rgba(17,24,39,0.6)',
+        backdropFilter: 'blur(12px)',
+        borderTop: '1px solid rgba(255,255,255,0.04)',
+      }}
+    >
       {/* Controls */}
       <button
         onClick={() => onTimelineChange(0)}
-        className="p-1 rounded hover:bg-slate-700 text-slate-400"
+        className="p-1 rounded-md hover:bg-white/[0.06] text-slate-400 transition-colors"
         title="Start"
       >
         <SkipBack size={14} />
       </button>
 
       {playing ? (
-        <button onClick={handlePause} className="p-1 rounded hover:bg-slate-700 text-slate-400" title="Pause">
+        <button onClick={handlePause} className="p-1 rounded-md hover:bg-white/[0.06] text-slate-400 transition-colors" title="Pause">
           <Pause size={14} />
         </button>
       ) : (
-        <button onClick={handlePlay} className="p-1 rounded hover:bg-slate-700 text-slate-400" title="Play">
+        <button onClick={handlePlay} className="p-1 rounded-md hover:bg-white/[0.06] text-slate-400 transition-colors" title="Play">
           <Play size={14} />
         </button>
       )}
 
       <button
         onClick={handleLive}
-        className="p-1 rounded hover:bg-slate-700 text-slate-400"
+        className="p-1 rounded-md hover:bg-white/[0.06] text-slate-400 transition-colors"
         title="Skip to live"
       >
         <SkipForward size={14} />
@@ -93,7 +100,7 @@ export const GPSTimeline = memo(function GPSTimeline({
       {/* Speed */}
       <button
         onClick={() => setSpeed((s) => s === 1 ? 2 : s === 2 ? 4 : 1)}
-        className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-700 text-slate-300"
+        className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-slate-300 hover:bg-white/[0.08] transition-colors"
       >
         {speed}x
       </button>
@@ -114,7 +121,10 @@ export const GPSTimeline = memo(function GPSTimeline({
       {/* Status */}
       <span className="text-[10px] font-mono text-slate-400 min-w-[60px] text-right">
         {isLive ? (
-          <span className="text-green-400">LIVE</span>
+          <span className="text-green-400" style={{ textShadow: '0 0 8px rgba(34,197,94,0.5)' }}>
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 mr-1 align-middle animate-pulse" />
+            LIVE
+          </span>
         ) : (
           `${current + 1}/${total}`
         )}

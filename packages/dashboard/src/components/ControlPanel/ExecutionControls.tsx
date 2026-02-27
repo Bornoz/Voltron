@@ -9,12 +9,12 @@ import { formatRelativeTime } from '../../lib/formatters';
 import { useTranslation } from '../../i18n';
 import type { ExecutionState } from '@voltron/shared';
 
-const stateStyles: Record<ExecutionState, { bg: string; text: string; label: string }> = {
-  IDLE: { bg: 'bg-gray-800', text: 'text-gray-300', label: 'IDLE' },
-  RUNNING: { bg: 'bg-green-900/40', text: 'text-green-400', label: 'RUNNING' },
-  STOPPED: { bg: 'bg-red-900/40', text: 'text-red-400', label: 'STOPPED' },
-  RESUMING: { bg: 'bg-yellow-900/40', text: 'text-yellow-400', label: 'RESUMING' },
-  ERROR: { bg: 'bg-red-900/60', text: 'text-red-300', label: 'ERROR' },
+const stateStyles: Record<ExecutionState, { bg: string; text: string; label: string; glow: string }> = {
+  IDLE: { bg: 'bg-gray-800/50', text: 'text-gray-300', label: 'IDLE', glow: '' },
+  RUNNING: { bg: 'bg-green-900/30', text: 'text-green-400', label: 'RUNNING', glow: 'shadow-[0_0_16px_rgba(34,197,94,0.15)]' },
+  STOPPED: { bg: 'bg-red-900/30', text: 'text-red-400', label: 'STOPPED', glow: 'shadow-[0_0_16px_rgba(239,68,68,0.15)]' },
+  RESUMING: { bg: 'bg-yellow-900/30', text: 'text-yellow-400', label: 'RESUMING', glow: 'shadow-[0_0_16px_rgba(234,179,8,0.15)]' },
+  ERROR: { bg: 'bg-red-900/40', text: 'text-red-300', label: 'ERROR', glow: 'shadow-[0_0_16px_rgba(239,68,68,0.25)]' },
 };
 
 interface ExecutionControlsProps {
@@ -48,10 +48,10 @@ export function ExecutionControls({ projectId }: ExecutionControlsProps) {
       <div className="mb-4">
         <div
           className={clsx(
-            'flex items-center justify-center py-3 rounded-lg border',
+            'flex items-center justify-center py-3 rounded-lg border border-white/[0.06] transition-shadow duration-300',
             stateStyle.bg,
+            stateStyle.glow,
             executionState === 'RUNNING' && 'animate-pulse',
-            'border-gray-700',
           )}
         >
           <span className={clsx('text-lg font-bold tracking-widest', stateStyle.text)}>
@@ -132,6 +132,19 @@ export function ExecutionControls({ projectId }: ExecutionControlsProps) {
           <h4 className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold mb-2">
             {t('executionControls.stateHistory')}
           </h4>
+          {/* Timeline dots */}
+          <div className="flex items-center gap-1 mb-2 px-1">
+            {history.slice(0, 12).map((entry, i) => (
+              <div
+                key={i}
+                className={clsx(
+                  'w-2 h-2 rounded-full transition-all',
+                  stateStyles[entry.state]?.bg ?? 'bg-gray-700',
+                )}
+                title={`${entry.state}${entry.reason ? ` (${entry.reason})` : ''}`}
+              />
+            ))}
+          </div>
           <div className="space-y-1 max-h-32 overflow-y-auto">
             {history.slice(0, 10).map((entry, i) => (
               <div key={i} className="flex items-center gap-2 text-xs">

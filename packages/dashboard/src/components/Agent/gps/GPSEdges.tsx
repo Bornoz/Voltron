@@ -29,24 +29,35 @@ export const GPSEdges = memo(function GPSEdges({ edges, nodes }: GPSEdgesProps) 
 
         return (
           <g key={`${edge.source}-${edge.target}-${i}`}>
+            {/* Glow trail behind edge */}
             <path
               d={`M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`}
               fill="none"
               stroke={color}
-              strokeWidth={1.5}
+              strokeWidth={3}
+              strokeOpacity={edge.opacity * 0.08}
+              filter="url(#gps-glow)"
+            />
+            {/* Main edge line */}
+            <path
+              d={`M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`}
+              fill="none"
+              stroke={color}
+              strokeWidth={1.2}
               strokeOpacity={edge.opacity * 0.5}
-              strokeDasharray="4 4"
+              strokeDasharray="6 3"
+              strokeLinecap="round"
             >
               <animate
                 attributeName="stroke-dashoffset"
-                from="8"
+                from="9"
                 to="0"
-                dur="1s"
+                dur="0.8s"
                 repeatCount="indefinite"
               />
             </path>
-            {/* Arrow head */}
-            <circle cx={x2} cy={y2} r={3} fill={color} opacity={edge.opacity * 0.7} />
+            {/* Arrow head — glowing dot */}
+            <circle cx={x2} cy={y2} r={3} fill={color} opacity={edge.opacity * 0.8} filter="url(#gps-soft-glow)" />
           </g>
         );
       })}

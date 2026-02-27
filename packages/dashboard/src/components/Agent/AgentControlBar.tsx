@@ -68,16 +68,23 @@ export function AgentControlBar({ onSpawn, onPause, onResume, onKill }: AgentCon
   const isActive = ['RUNNING', 'PAUSED', 'SPAWNING', 'INJECTING', 'STOPPING'].includes(status);
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2 bg-gray-900/50 border border-gray-800 rounded-lg">
+    <div className="flex items-center gap-2 px-3 py-2 glass rounded-lg">
       {/* Status badge */}
       <div className="flex items-center gap-1.5">
-        <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_COLORS[status]}`} />
-        <span className={`text-[10px] font-semibold uppercase ${STATUS_TEXT_COLORS[status]}`}>
+        <span
+          className={`w-2.5 h-2.5 rounded-full shrink-0 ${STATUS_COLORS[status]}`}
+          style={{
+            boxShadow: ['RUNNING', 'SPAWNING', 'INJECTING'].includes(status)
+              ? `0 0 8px currentColor`
+              : 'none',
+          }}
+        />
+        <span className={`text-xs font-semibold uppercase ${STATUS_TEXT_COLORS[status]}`}>
           {t(`agent.status.${status.toLowerCase()}`)}
         </span>
       </div>
 
-      <div className="w-px h-4 bg-gray-700" />
+      <div className="w-px h-4 bg-white/[0.06]" />
 
       {/* Control buttons */}
       <div className="flex items-center gap-1">
@@ -85,7 +92,7 @@ export function AgentControlBar({ onSpawn, onPause, onResume, onKill }: AgentCon
           <button
             onClick={onSpawn}
             aria-label={t('agent.spawn')}
-            className="flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[10px] font-medium transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1 bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white rounded-md text-xs font-medium transition-all active:scale-[0.98] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]"
           >
             <Zap className="w-3 h-3" />
             {t('agent.spawn')}
@@ -95,7 +102,7 @@ export function AgentControlBar({ onSpawn, onPause, onResume, onKill }: AgentCon
             {status === 'RUNNING' && (
               <button
                 onClick={onPause}
-                className="p-1 hover:bg-gray-800 rounded transition-colors"
+                className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors"
                 title={t('agent.pause')}
                 aria-label={t('agent.pause')}
               >
@@ -105,7 +112,7 @@ export function AgentControlBar({ onSpawn, onPause, onResume, onKill }: AgentCon
             {status === 'PAUSED' && (
               <button
                 onClick={onResume}
-                className="p-1 hover:bg-gray-800 rounded transition-colors"
+                className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors"
                 title={t('agent.resume')}
                 aria-label={t('agent.resume')}
               >
@@ -115,7 +122,7 @@ export function AgentControlBar({ onSpawn, onPause, onResume, onKill }: AgentCon
             {isActive && (
               <button
                 onClick={onKill}
-                className="p-1 hover:bg-gray-800 rounded transition-colors"
+                className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors"
                 title={t('agent.kill')}
                 aria-label={t('agent.kill')}
               >
@@ -129,25 +136,27 @@ export function AgentControlBar({ onSpawn, onPause, onResume, onKill }: AgentCon
       {/* Info badges */}
       {isActive && (
         <>
-          <div className="w-px h-4 bg-gray-700" />
+          <div className="w-px h-4 bg-white/[0.06]" />
 
           {/* Elapsed */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.04]">
             <Clock className="w-3 h-3 text-gray-500" />
-            <span className="text-[10px] text-gray-400 font-mono">{elapsed}</span>
+            <span className="text-xs text-gray-400 font-mono">{elapsed}</span>
           </div>
 
           {/* Tokens */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.04]">
             <Cpu className="w-3 h-3 text-gray-500" />
-            <span className="text-[10px] text-gray-400 font-mono">
+            <span className="text-xs text-gray-400 font-mono">
               {formatTokens(tokenUsage.inputTokens + tokenUsage.outputTokens)}
             </span>
           </div>
 
           {/* Model */}
           {model && (
-            <span className="text-[9px] text-gray-600 bg-gray-800 px-1.5 py-0.5 rounded">
+            <span
+              className="text-[10px] text-[var(--color-accent)] bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20 px-1.5 py-0.5 rounded-md font-medium"
+            >
               {model.includes('haiku') ? 'Haiku' : model.includes('sonnet') ? 'Sonnet' : model.includes('opus') ? 'Opus' : model}
             </span>
           )}

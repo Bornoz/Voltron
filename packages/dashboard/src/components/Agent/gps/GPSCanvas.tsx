@@ -122,7 +122,30 @@ export function GPSCanvas({ viewport, onViewportChange, width, height, children,
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
+        <filter id="gps-soft-glow">
+          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+        {/* Node drop shadow for depth */}
+        <filter id="gps-node-shadow" x="-10%" y="-10%" width="120%" height="130%">
+          <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#000" floodOpacity="0.4" />
+        </filter>
+        {/* Cursor outer glow */}
+        <filter id="gps-cursor-glow">
+          <feGaussianBlur stdDeviation="8" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        {/* Background grid pattern */}
+        <pattern id="gps-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.015)" strokeWidth="0.5" />
+        </pattern>
       </defs>
+      {/* Background grid for depth */}
+      <rect width={width} height={height} fill="url(#gps-grid)" />
       <g transform={`translate(${viewport.x}, ${viewport.y}) scale(${viewport.zoom})`}>
         {children}
       </g>

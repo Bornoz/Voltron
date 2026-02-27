@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
@@ -14,6 +14,9 @@ interface MainLayoutProps {
   connectionStatus: ConnectionStatus;
   centerContent: ReactNode;
   rightContent: ReactNode;
+  agentFullscreen?: boolean;
+  onOpenSettings?: () => void;
+  onLogout?: () => void;
 }
 
 export function MainLayout({
@@ -23,10 +26,21 @@ export function MainLayout({
   connectionStatus,
   centerContent,
   rightContent,
+  agentFullscreen = false,
+  onOpenSettings,
+  onLogout,
 }: MainLayoutProps) {
   const { t } = useTranslation();
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
+
+  // Auto-collapse panels when agent fullscreen
+  useEffect(() => {
+    if (agentFullscreen) {
+      setLeftCollapsed(true);
+      setRightCollapsed(true);
+    }
+  }, [agentFullscreen]);
 
   return (
     <div className="flex flex-col h-screen bg-gray-950 text-gray-100">
@@ -35,13 +49,15 @@ export function MainLayout({
         projectName={projectName}
         executionState={executionState}
         connectionStatus={connectionStatus}
+        onOpenSettings={onOpenSettings}
+        onLogout={onLogout}
       />
 
       {/* Main 3-column layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar */}
         <div
-          className={`relative border-r border-gray-800 transition-all duration-200 ${
+          className={`relative border-r border-white/[0.04] transition-all duration-300 ease-in-out ${
             leftCollapsed ? 'w-0 overflow-hidden' : 'w-[280px]'
           }`}
         >
@@ -51,7 +67,7 @@ export function MainLayout({
         {/* Left toggle button */}
         <button
           onClick={() => setLeftCollapsed(!leftCollapsed)}
-          className="flex items-center justify-center w-5 shrink-0 hover:bg-gray-800/50 text-gray-600 hover:text-gray-400 transition-colors border-r border-gray-800"
+          className="flex items-center justify-center w-5 shrink-0 hover:bg-white/[0.03] text-gray-600 hover:text-gray-400 transition-colors border-r border-white/[0.04]"
           title={leftCollapsed ? t('layout.showSidebar') : t('layout.hideSidebar')}
         >
           {leftCollapsed ? (
@@ -69,7 +85,7 @@ export function MainLayout({
         {/* Right toggle button */}
         <button
           onClick={() => setRightCollapsed(!rightCollapsed)}
-          className="flex items-center justify-center w-5 shrink-0 hover:bg-gray-800/50 text-gray-600 hover:text-gray-400 transition-colors border-l border-gray-800"
+          className="flex items-center justify-center w-5 shrink-0 hover:bg-white/[0.03] text-gray-600 hover:text-gray-400 transition-colors border-l border-white/[0.04]"
           title={rightCollapsed ? t('layout.showPanel') : t('layout.hidePanel')}
         >
           {rightCollapsed ? (
@@ -81,7 +97,7 @@ export function MainLayout({
 
         {/* Right Panel */}
         <div
-          className={`border-l border-gray-800 transition-all duration-200 overflow-y-auto ${
+          className={`border-l border-white/[0.04] transition-all duration-300 ease-in-out overflow-y-auto ${
             rightCollapsed ? 'w-0 overflow-hidden' : 'w-[320px]'
           }`}
         >

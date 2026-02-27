@@ -29,7 +29,7 @@ export function StatusBar({ connectionStatus }: StatusBarProps) {
   const connectionLabel = t(`header.${connectionStatus}` as const);
 
   return (
-    <footer className="flex items-center justify-between h-7 px-4 border-t border-gray-800 bg-gray-900/90 text-xs text-gray-500 shrink-0">
+    <footer className="flex items-center justify-between h-7 px-4 border-t border-white/[0.04] glass text-xs text-gray-500 shrink-0">
       <div className="flex items-center gap-4">
         {/* Connection */}
         <div className="flex items-center gap-1.5">

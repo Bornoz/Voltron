@@ -71,9 +71,9 @@ export function StatusBar({ wsConnected, projectId }: StatusBarProps) {
   const totalTokens = tokenUsage.inputTokens + tokenUsage.outputTokens;
 
   return (
-    <div className="flex items-center gap-3 px-3 py-1 bg-gray-950/90 border-t border-gray-800/50 text-[9px] select-none shrink-0" style={{ height: 24 }}>
+    <div className="flex items-center gap-3 px-3 py-1 glass border-t border-white/[0.04] text-[9px] select-none shrink-0" style={{ height: 24 }}>
       {/* Voltron logo */}
-      <img src="/voltronlogo.png" alt="V" className="w-3.5 h-3.5 object-contain" />
+      <img src="/voltronlogo.png" alt="V" className="w-3.5 h-3.5 object-contain drop-shadow-[0_0_4px_rgba(59,130,246,0.3)]" />
 
       {/* WebSocket connection */}
       <div className="flex items-center gap-1" title={wsConnected ? t('statusBar.connected') : t('statusBar.disconnected')}>
@@ -87,17 +87,17 @@ export function StatusBar({ wsConnected, projectId }: StatusBarProps) {
         </span>
       </div>
 
-      <div className="w-px h-3 bg-gray-800" />
+      <div className="w-px h-3 bg-white/[0.06]" />
 
       {/* Agent status */}
       <div className="flex items-center gap-1">
         <Bot className="w-3 h-3 text-gray-600" />
-        <span className={`font-semibold uppercase ${statusColors[status] ?? 'text-gray-500'}`}>
+        <span className={`font-semibold uppercase ${statusColors[status] ?? 'text-gray-500'}`} style={{ textShadow: status === 'RUNNING' ? '0 0 8px rgba(34,197,94,0.4)' : 'none' }}>
           {status}
         </span>
       </div>
 
-      <div className="w-px h-3 bg-gray-800" />
+      <div className="w-px h-3 bg-white/[0.06]" />
 
       {/* Token usage */}
       <div className="flex items-center gap-1" title={`Input: ${formatTokens(tokenUsage.inputTokens)} | Output: ${formatTokens(tokenUsage.outputTokens)}`}>
@@ -105,7 +105,7 @@ export function StatusBar({ wsConnected, projectId }: StatusBarProps) {
         <span className="text-gray-500 font-mono">{formatTokens(totalTokens)}</span>
       </div>
 
-      <div className="w-px h-3 bg-gray-800" />
+      <div className="w-px h-3 bg-white/[0.06]" />
 
       {/* Event rate */}
       <div className="flex items-center gap-1" title={t('statusBar.eventRate')}>

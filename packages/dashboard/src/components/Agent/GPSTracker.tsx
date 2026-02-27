@@ -95,12 +95,12 @@ export function GPSTracker({ onFileClick, onAgentAction }: GPSTrackerProps) {
 
   return (
     <div className="space-y-2" onClick={closeContextMenu}>
-      {/* Current Location — with timestamp sync */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/50 rounded-lg border border-gray-700/50 backdrop-blur-sm">
+      {/* Current Location — glass card */}
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/[0.06] backdrop-blur-sm" style={{ background: 'var(--glass-bg)', boxShadow: 'var(--shadow-card)' }}>
         {isActive && (
-          <span className="relative flex h-2.5 w-2.5 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500" />
+          <span className="relative flex h-3 w-3 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-accent)] opacity-75" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-[var(--color-accent)]" style={{ boxShadow: '0 0 8px color-mix(in srgb, var(--color-accent) 50%, transparent)' }} />
           </span>
         )}
 
@@ -198,8 +198,8 @@ export function GPSTracker({ onFileClick, onAgentAction }: GPSTrackerProps) {
                 key={`${crumb.timestamp}-${i}`}
                 onClick={() => onFileClick?.(crumb.filePath)}
                 onContextMenu={(e) => handleBreadcrumbContext(e, crumb.filePath, i)}
-                className={`flex items-center gap-1.5 w-full text-left px-2 py-1 rounded transition-all group ${
-                  isFirst ? 'bg-gray-800/40 border border-gray-700/30' : 'hover:bg-gray-800/50'
+                className={`flex items-center gap-1.5 w-full text-left px-2 py-1 rounded-md transition-all group ${
+                  isFirst ? 'bg-white/[0.04] border border-white/[0.06]' : 'hover:bg-white/[0.03]'
                 }`}
               >
                 <CrumbIcon className={`w-2.5 h-2.5 ${ACTIVITY_COLORS[crumb.activity]} ${isFirst ? '' : 'opacity-60'}`} />
@@ -240,8 +240,8 @@ export function GPSTracker({ onFileClick, onAgentAction }: GPSTrackerProps) {
       {/* Context Menu for breadcrumb items */}
       {contextMenu && (
         <div
-          className="fixed z-50 bg-gray-950/95 backdrop-blur-md border border-gray-700/60 rounded-lg shadow-2xl shadow-black/50 min-w-[180px] py-1"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          className="fixed z-50 backdrop-blur-xl border border-white/[0.06] rounded-xl min-w-[180px] py-1 animate-fade-in-up"
+          style={{ left: contextMenu.x, top: contextMenu.y, background: 'rgba(17,24,39,0.92)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
           onClick={(e) => e.stopPropagation()}
         >
           <ContextMenuItem
@@ -288,7 +288,7 @@ function ContextMenuItem({ icon: Icon, label, color, onClick }: {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 w-full px-3 py-1.5 text-[10px] text-gray-300 hover:bg-gray-800/60 transition-colors"
+      className="flex items-center gap-2 w-full px-3 py-1.5 text-[10px] text-gray-300 hover:bg-white/[0.06] transition-colors"
     >
       <Icon className={`w-3 h-3 ${color}`} />
       {label}

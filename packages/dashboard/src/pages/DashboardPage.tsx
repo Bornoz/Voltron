@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, AlertCircle, GitBranch, GitCommit, Brain, FileText, Bot, LogOut, Settings } from 'lucide-react';
+import { ChevronDown, AlertCircle, GitBranch, GitCommit, Brain, FileText, Bot } from 'lucide-react';
 import type { ProjectConfig } from '@voltron/shared';
 import * as api from '../lib/api';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -174,6 +174,8 @@ export function DashboardPage() {
   const setLangDirect = useLanguageStore((s) => s.setLanguage);
   const currentLang = useLanguageStore((s) => s.language);
 
+  const agentIsActive = !['IDLE', 'COMPLETED', 'CRASHED'].includes(agentStatus);
+
   const handleCommandPaletteAction = useCallback((action: string, _data?: Record<string, unknown>) => {
     switch (action) {
       case 'pause': if (projectId) api.agentStop(projectId).catch(() => {}); break;
@@ -277,18 +279,18 @@ export function DashboardPage() {
   const centerContent = (
     <div className="flex flex-col h-full">
       {/* Project selector bar */}
-      <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-800 bg-gray-900/30">
+      <div className="flex items-center gap-3 px-3 py-2 border-b border-white/[0.04] glass">
         <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">{t('app.project')}</span>
         <div className="relative">
           <button
             onClick={() => setShowProjectDropdown(!showProjectDropdown)}
-            className="flex items-center gap-2 px-2 py-1 text-xs bg-gray-800 border border-gray-700 rounded hover:border-gray-600 transition-colors"
+            className="flex items-center gap-2 px-2.5 py-1 text-xs bg-white/[0.04] border border-white/[0.06] rounded-lg hover:border-white/[0.12] transition-colors"
           >
             <span className="text-gray-300">{selectedProject?.name ?? t('app.select')}</span>
             <ChevronDown className="w-3 h-3 text-gray-500" />
           </button>
           {showProjectDropdown && (
-            <div className="absolute top-full left-0 mt-1 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50">
+            <div className="absolute top-full left-0 mt-1 w-48 bg-gray-800/95 backdrop-blur-xl border border-white/[0.08] rounded-lg shadow-xl z-50">
               {projects.map((p) => (
                 <button
                   key={p.id}
@@ -296,8 +298,8 @@ export function DashboardPage() {
                     setSelectedProject(p);
                     setShowProjectDropdown(false);
                   }}
-                  className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-700 transition-colors ${
-                    p.id === selectedProject?.id ? 'text-blue-400' : 'text-gray-300'
+                  className={`w-full text-left px-3 py-2 text-xs hover:bg-white/[0.06] transition-colors ${
+                    p.id === selectedProject?.id ? 'text-[var(--color-accent)]' : 'text-gray-300'
                   }`}
                 >
                   {p.name}
@@ -311,89 +313,56 @@ export function DashboardPage() {
         </div>
 
         {/* Center tabs */}
-        <div className="flex items-center gap-1 ml-auto" role="tablist" aria-label="Dashboard tabs">
-          <button
-            id="tab-feed"
-            role="tab"
-            aria-selected={centerTab === 'feed'}
-            onClick={() => setCenterTab('feed')}
-            className={`px-2 py-1 text-[10px] rounded transition-colors ${
-              centerTab === 'feed' ? 'bg-blue-900/50 text-blue-400' : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            {t('app.actionFeed')}
-          </button>
-          <button
-            id="tab-github"
-            role="tab"
-            aria-selected={centerTab === 'github'}
-            onClick={() => setCenterTab('github')}
-            className={`px-2 py-1 text-[10px] rounded transition-colors flex items-center gap-1 ${
-              centerTab === 'github' ? 'bg-blue-900/50 text-blue-400' : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            <GitBranch className="w-3 h-3" />
-            {t('app.github')}
-          </button>
-          <button
-            id="tab-snapshots"
-            role="tab"
-            aria-selected={centerTab === 'snapshots'}
-            onClick={() => setCenterTab('snapshots')}
-            className={`px-2 py-1 text-[10px] rounded transition-colors flex items-center gap-1 ${
-              centerTab === 'snapshots' ? 'bg-blue-900/50 text-blue-400' : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            <GitCommit className="w-3 h-3" />
-            {t('app.snapshots')}
-          </button>
-          <button
-            id="tab-behavior"
-            role="tab"
-            aria-selected={centerTab === 'behavior'}
-            onClick={() => setCenterTab('behavior')}
-            className={`px-2 py-1 text-[10px] rounded transition-colors flex items-center gap-1 ${
-              centerTab === 'behavior' ? 'bg-purple-900/50 text-purple-400' : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            <Brain className="w-3 h-3" />
-            {t('app.behavior')}
-          </button>
-          <button
-            id="tab-prompts"
-            role="tab"
-            aria-selected={centerTab === 'prompts'}
-            onClick={() => setCenterTab('prompts')}
-            className={`px-2 py-1 text-[10px] rounded transition-colors flex items-center gap-1 ${
-              centerTab === 'prompts' ? 'bg-indigo-900/50 text-indigo-400' : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            <FileText className="w-3 h-3" />
-            {t('app.prompts')}
-          </button>
+        <div className="flex items-center gap-0.5 ml-auto bg-white/[0.02] border border-white/[0.04] rounded-lg p-0.5" role="tablist" aria-label="Dashboard tabs">
+          {([
+            { id: 'feed' as const, icon: null, label: t('app.actionFeed') },
+            { id: 'github' as const, icon: <GitBranch className="w-3.5 h-3.5" />, label: t('app.github') },
+            { id: 'snapshots' as const, icon: <GitCommit className="w-3.5 h-3.5" />, label: t('app.snapshots') },
+            { id: 'behavior' as const, icon: <Brain className="w-3.5 h-3.5" />, label: t('app.behavior') },
+            { id: 'prompts' as const, icon: <FileText className="w-3.5 h-3.5" />, label: t('app.prompts') },
+          ]).map((tab) => (
+            <button
+              key={tab.id}
+              id={`tab-${tab.id}`}
+              role="tab"
+              aria-selected={centerTab === tab.id}
+              onClick={() => setCenterTab(tab.id)}
+              className={`relative px-2.5 py-1.5 text-xs rounded-md transition-all duration-150 flex items-center gap-1.5 ${
+                centerTab === tab.id
+                  ? 'bg-white/[0.06] text-[var(--color-accent)] shadow-[0_1px_4px_rgba(0,0,0,0.2)]'
+                  : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+              {centerTab === tab.id && (
+                <span className="absolute bottom-0 left-1/4 right-1/4 h-px bg-[var(--color-accent)] shadow-[0_1px_6px_var(--color-accent)]" />
+              )}
+            </button>
+          ))}
+
+          {/* Agent tab — special styling */}
           <button
             id="tab-agent"
             role="tab"
             aria-selected={centerTab === 'agent'}
             onClick={() => setCenterTab('agent')}
-            className={`px-2 py-1 text-[10px] rounded transition-colors flex items-center gap-1 ${
-              centerTab === 'agent' ? 'bg-green-900/50 text-green-400' : 'text-gray-500 hover:text-gray-300'
+            className={`relative px-2.5 py-1.5 text-xs rounded-md transition-all duration-150 flex items-center gap-1.5 ${
+              centerTab === 'agent'
+                ? 'bg-green-500/10 text-green-400 shadow-[0_1px_4px_rgba(0,0,0,0.2)]'
+                : agentIsActive
+                  ? 'text-green-400/70 bg-green-500/5 border border-green-500/20 animate-glow-pulse'
+                  : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
             }`}
           >
-            <Bot className="w-3 h-3" />
+            <Bot className="w-3.5 h-3.5" />
             {t('agent.tab')}
-            {agentStatus !== 'IDLE' && agentStatus !== 'COMPLETED' && agentStatus !== 'CRASHED' && (
+            {agentIsActive && (
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
             )}
-          </button>
-
-          {/* Logout */}
-          <button
-            onClick={handleLogout}
-            title={t('login.signOut')}
-            className="ml-2 p-1 text-gray-500 hover:text-red-400 transition-colors"
-          >
-            <LogOut className="w-3.5 h-3.5" />
+            {centerTab === 'agent' && (
+              <span className="absolute bottom-0 left-1/4 right-1/4 h-px bg-green-400 shadow-[0_1px_6px_rgba(34,197,94,0.6)]" />
+            )}
           </button>
         </div>
       </div>
@@ -499,6 +468,9 @@ export function DashboardPage() {
           connectionStatus={status}
           centerContent={centerContent}
           rightContent={rightContent}
+          agentFullscreen={centerTab === 'agent' && agentIsActive}
+          onOpenSettings={() => setShowSettings(true)}
+          onLogout={handleLogout}
         />
       </div>
 

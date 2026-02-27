@@ -3,10 +3,10 @@ import { twMerge } from 'tailwind-merge';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 const variantStyles = {
-  primary: 'bg-blue-600 hover:bg-blue-500 text-white border-blue-500',
-  danger: 'bg-red-600 hover:bg-red-500 text-white border-red-500',
-  success: 'bg-green-600 hover:bg-green-500 text-white border-green-500',
-  ghost: 'bg-transparent hover:bg-gray-800 text-gray-300 border-gray-700',
+  primary: 'bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white border-blue-500/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]',
+  danger: 'bg-gradient-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white border-red-500/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]',
+  success: 'bg-gradient-to-b from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white border-green-500/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]',
+  ghost: 'bg-white/[0.03] hover:bg-white/[0.06] text-gray-300 border-white/[0.06]',
 };
 
 const sizeStyles = {
@@ -36,9 +36,10 @@ export function Button({
     <button
       className={twMerge(
         clsx(
-          'inline-flex items-center justify-center gap-2 rounded-lg border font-medium transition-colors',
-          'focus:outline-none focus:ring-2 focus:ring-blue-500/40',
-          'disabled:opacity-50 disabled:cursor-not-allowed',
+          'inline-flex items-center justify-center gap-2 rounded-lg border font-medium transition-all duration-150',
+          'focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40',
+          'active:scale-[0.98]',
+          'disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100',
           variantStyles[variant],
           sizeStyles[size],
         ),
