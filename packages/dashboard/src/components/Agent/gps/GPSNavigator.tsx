@@ -294,6 +294,7 @@ export function GPSNavigator({ projectId, files, onAgentAction, onInject }: GPSN
           projectId={projectId}
           onClose={() => setPreviewNode(null)}
           onRedirect={handleRedirect}
+          onInject={onInject}
         />
 
         {/* Context menu */}

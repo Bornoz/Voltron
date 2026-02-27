@@ -1,7 +1,7 @@
 import { memo, useState, useEffect, useCallback, useRef } from 'react';
 import {
   X, Clock, Eye, Navigation, Code, MonitorPlay, Sparkles,
-  Maximize2, Minimize2, PanelRightClose, History,
+  Maximize2, Minimize2, PanelRightClose, History, Send, Trash2,
 } from 'lucide-react';
 import type { ForceNode } from './types';
 import { ACTIVITY_COLORS, SYNTAX } from './constants';
@@ -11,12 +11,77 @@ import { LivePreviewFrame, isRenderable } from './LivePreviewFrame';
 import { DesignContextMenu } from './DesignContextMenu';
 import type { ContextMenuEventData } from './LivePreviewFrame';
 
+/* ═══ Change Tracker ═══ */
+interface DesignChange {
+  selector: string;
+  tagName: string;
+  property: string;
+  value: string;
+  timestamp: number;
+}
+
+function generateDesignPrompt(filePath: string, changes: DesignChange[]): string {
+  if (changes.length === 0) return '';
+
+  // Group changes by selector
+  const grouped: Record<string, { tagName: string; styles: Record<string, string>; textChange?: string }> = {};
+  for (const ch of changes) {
+    if (!grouped[ch.selector]) {
+      grouped[ch.selector] = { tagName: ch.tagName, styles: {} };
+    }
+    if (ch.property === '__textContent') {
+      grouped[ch.selector].textChange = ch.value;
+    } else if (ch.property === '__delete') {
+      grouped[ch.selector].styles['__action'] = 'DELETE';
+    } else if (ch.property === '__duplicate') {
+      grouped[ch.selector].styles['__action'] = 'DUPLICATE';
+    } else {
+      grouped[ch.selector].styles[ch.property] = ch.value;
+    }
+  }
+
+  const lines: string[] = [
+    `"${filePath}" dosyasında aşağıdaki tasarım değişikliklerini uygula:`,
+    '',
+  ];
+
+  for (const [selector, data] of Object.entries(grouped)) {
+    lines.push(`## Element: <${data.tagName}> — Selector: "${selector}"`);
+
+    if (data.styles['__action'] === 'DELETE') {
+      lines.push('  - Bu elementi tamamen sil');
+    } else if (data.styles['__action'] === 'DUPLICATE') {
+      lines.push('  - Bu elementi kopyala (clone edip hemen sonrasına ekle)');
+    }
+
+    if (data.textChange !== undefined) {
+      lines.push(`  - Metin içeriğini değiştir: "${data.textChange}"`);
+    }
+
+    const styleEntries = Object.entries(data.styles).filter(([k]) => !k.startsWith('__'));
+    if (styleEntries.length > 0) {
+      lines.push('  CSS Stilleri:');
+      for (const [prop, val] of styleEntries) {
+        // Convert camelCase to kebab-case for CSS
+        const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
+        lines.push(`    - ${cssProp}: ${val}`);
+      }
+    }
+    lines.push('');
+  }
+
+  lines.push('Bu değişiklikleri doğrudan kaynak kodda uygula. Inline style yerine mümkünse Tailwind class veya CSS class kullan.');
+
+  return lines.join('\n');
+}
+
 interface GPSFilePreviewProps {
   node: ForceNode | null;
   breadcrumbs: AgentBreadcrumb[];
   projectId: string;
   onClose: () => void;
   onRedirect: (filePath: string) => void;
+  onInject?: (prompt: string, context?: { filePath?: string }) => void;
 }
 
 function highlightSyntax(code: string): string {
@@ -248,7 +313,7 @@ function ActionToast({ message, onDone }: { message: string; onDone: () => void 
 
 /* ═══ Main Component ═══ */
 export const GPSFilePreview = memo(function GPSFilePreview({
-  node, breadcrumbs, projectId, onClose, onRedirect,
+  node, breadcrumbs, projectId, onClose, onRedirect, onInject,
 }: GPSFilePreviewProps) {
   const { t } = useTranslation();
   const [content, setContent] = useState<string | null>(null);
@@ -269,6 +334,9 @@ export const GPSFilePreview = memo(function GPSFilePreview({
   const [confirmDialog, setConfirmDialog] = useState<{ selector: string; type: 'delete' } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  // Design change tracking
+  const [designChanges, setDesignChanges] = useState<DesignChange[]>([]);
+
   // Reset states when node changes
   useEffect(() => {
     if (node) {
@@ -276,6 +344,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
       setDesignMenu(null);
       setTextEditor(null);
       setConfirmDialog(null);
+      setDesignChanges([]);
     }
   }, [node?.id]);
 
@@ -310,6 +379,24 @@ export const GPSFilePreview = memo(function GPSFilePreview({
     iframe?.contentWindow?.postMessage(message, '*');
   }, []);
 
+  // ─── Design change tracker ───
+  const handleDesignChange = useCallback((selector: string, tagName: string, property: string, value: string) => {
+    setDesignChanges((prev) => [...prev, { selector, tagName, property, value, timestamp: Date.now() }]);
+  }, []);
+
+  const handleSendToAI = useCallback(() => {
+    if (!node || designChanges.length === 0 || !onInject) return;
+    const prompt = generateDesignPrompt(node.filePath, designChanges);
+    onInject(prompt, { filePath: node.filePath });
+    setToast(`${designChanges.length} degisiklik AI'ye gonderildi`);
+    setDesignChanges([]);
+  }, [node, designChanges, onInject]);
+
+  const handleClearChanges = useCallback(() => {
+    setDesignChanges([]);
+    setToast('Degisiklik gecmisi temizlendi');
+  }, []);
+
   // ─── Design context menu handlers ───
   const handlePreviewContextMenu = useCallback((data: ContextMenuEventData) => {
     setDesignMenu(data);
@@ -318,6 +405,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
   const handleApplyStyle = useCallback((selector: string, styles: Record<string, string>) => {
     sendToIframe({ type: 'VOLTRON_APPLY_STYLE', selector, styles });
     setToast('Stil uygulandı');
+    // Note: individual change tracking is done via DesignContextMenu's onDesignChange callback
   }, [sendToIframe]);
 
   const handleEditText = useCallback((selector: string) => {
@@ -331,6 +419,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
     sendToIframe({ type: 'VOLTRON_EDIT_TEXT', selector, text });
     setTextEditor(null);
     setToast('Metin guncellendi');
+    setDesignChanges((prev) => [...prev, { selector, tagName: 'unknown', property: '__textContent', value: text, timestamp: Date.now() }]);
   }, [sendToIframe]);
 
   const handleDeleteElement = useCallback((selector: string) => {
@@ -344,6 +433,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
       sendToIframe({ type: 'VOLTRON_DELETE_ELEMENT', selector: confirmDialog.selector });
       setConfirmDialog(null);
       setToast('Element silindi');
+      setDesignChanges((prev) => [...prev, { selector: confirmDialog.selector, tagName: 'unknown', property: '__delete', value: 'true', timestamp: Date.now() }]);
     }
   }, [confirmDialog, sendToIframe]);
 
@@ -351,6 +441,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
     sendToIframe({ type: 'VOLTRON_DUPLICATE_ELEMENT', selector });
     setDesignMenu(null);
     setToast('Element kopyalandi');
+    setDesignChanges((prev) => [...prev, { selector, tagName: 'unknown', property: '__duplicate', value: 'true', timestamp: Date.now() }]);
   }, [sendToIframe]);
 
   const handleToggleVisibility = useCallback((selector: string) => {
@@ -613,7 +704,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
           )}
         </div>
 
-        {/* ─── Bottom info bar ─── */}
+        {/* ─── Bottom info bar + AI Send ─── */}
         <div className="flex items-center gap-3 px-4 py-2 border-t border-white/[0.06] shrink-0 text-[10px] text-slate-600">
           <span className="font-mono">{node.extension}</span>
           <span className="w-px h-3 bg-white/[0.06]" />
@@ -624,7 +715,40 @@ export const GPSFilePreview = memo(function GPSFilePreview({
               <span className="text-green-500/60">Sag tikla: Tasarim modu</span>
             </>
           )}
-          <span className="ml-auto">Esc: Kapat</span>
+
+          {/* Design changes indicator + AI send */}
+          {designChanges.length > 0 && (
+            <>
+              <span className="w-px h-3 bg-white/[0.06]" />
+              <span className="flex items-center gap-1.5 text-blue-400 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                {designChanges.length} degisiklik
+              </span>
+              <button
+                onClick={handleClearChanges}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-red-400 transition-all"
+                title="Degisiklikleri temizle"
+              >
+                <Trash2 size={10} />
+              </button>
+              {onInject && (
+                <button
+                  onClick={handleSendToAI}
+                  className="ml-auto flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-semibold text-white transition-all active:scale-[0.97]"
+                  style={{
+                    background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                    boxShadow: '0 2px 12px rgba(59,130,246,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+                  }}
+                  title="Tum degisiklikleri AI'ye prompt olarak gonder"
+                >
+                  <Send size={11} />
+                  AI'ye Gonder ({designChanges.length})
+                </button>
+              )}
+            </>
+          )}
+
+          {designChanges.length === 0 && <span className="ml-auto">Esc: Kapat</span>}
         </div>
       </div>
 
@@ -638,6 +762,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
         onDeleteElement={handleDeleteElement}
         onDuplicateElement={handleDuplicateElement}
         onToggleVisibility={handleToggleVisibility}
+        onDesignChange={handleDesignChange}
       />
 
       {/* ═══ Premium Text Editor Modal ═══ */}
