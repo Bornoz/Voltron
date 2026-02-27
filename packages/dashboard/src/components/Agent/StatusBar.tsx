@@ -72,6 +72,9 @@ export function StatusBar({ wsConnected, projectId }: StatusBarProps) {
 
   return (
     <div className="flex items-center gap-3 px-3 py-1 bg-gray-950/90 border-t border-gray-800/50 text-[9px] select-none shrink-0" style={{ height: 24 }}>
+      {/* Voltron logo */}
+      <img src="/voltronlogo.png" alt="V" className="w-3.5 h-3.5 object-contain" />
+
       {/* WebSocket connection */}
       <div className="flex items-center gap-1" title={wsConnected ? t('statusBar.connected') : t('statusBar.disconnected')}>
         {wsConnected ? (

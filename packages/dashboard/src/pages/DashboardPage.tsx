@@ -229,22 +229,46 @@ export function DashboardPage() {
     }
   };
 
-  const handleAgentPause = () => {
+  const handleAgentPause = async () => {
     if (!projectId) return;
-    api.agentStop(projectId).catch(() => {});
+    try {
+      await api.agentStop(projectId);
+    } catch (err) {
+      useNotificationStore.getState().addNotification({
+        type: 'error',
+        title: t('agent.pauseFailed'),
+        message: err instanceof Error ? err.message : 'Could not pause agent',
+      });
+    }
   };
 
-  const handleAgentResume = () => {
+  const handleAgentResume = async () => {
     if (!projectId) return;
-    api.agentResume(projectId).catch(() => {});
+    try {
+      await api.agentResume(projectId);
+    } catch (err) {
+      useNotificationStore.getState().addNotification({
+        type: 'error',
+        title: t('agent.resumeFailed'),
+        message: err instanceof Error ? err.message : 'Could not resume agent',
+      });
+    }
   };
 
-  const handleAgentKill = () => {
+  const handleAgentKill = async () => {
     if (!projectId) return;
-    api.agentKill(projectId).catch(() => {});
+    try {
+      await api.agentKill(projectId);
+    } catch (err) {
+      useNotificationStore.getState().addNotification({
+        type: 'error',
+        title: t('agent.killFailed'),
+        message: err instanceof Error ? err.message : 'Could not kill agent',
+      });
+    }
   };
 
-  const handleAgentInject = (prompt: string, context?: { filePath?: string; constraints?: string[] }) => {
+  const handleAgentInject = (prompt: string, context?: { filePath?: string; constraints?: string[]; attachmentUrls?: string[] }) => {
     if (!projectId) return;
     api.agentInject(projectId, { prompt, context }).catch(() => {});
   };

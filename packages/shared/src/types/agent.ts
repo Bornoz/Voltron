@@ -113,6 +113,7 @@ export const PromptInjection = z.object({
     constraints: z.array(z.string()).optional(),
     referenceImageUrl: z.string().optional(),
     simulatorPatches: z.array(z.unknown()).optional(),
+    attachmentUrls: z.array(z.string()).optional(),
   }).optional(),
   urgency: z.enum(['low', 'normal', 'high']).default('normal'),
 });

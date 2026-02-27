@@ -56,8 +56,8 @@ export function LoginPage() {
         <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl shadow-2xl p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20 mb-4">
-              <Shield className="w-7 h-7 text-[var(--color-accent)]" />
+            <div className="inline-flex items-center justify-center w-16 h-16 mb-4">
+              <img src="/voltronlogo.png" alt="Voltron" className="w-16 h-16 object-contain drop-shadow-[0_0_12px_rgba(59,130,246,0.4)]" />
             </div>
             <h1 className="text-2xl font-bold tracking-wider text-[var(--color-text-primary)]">
               {t('login.title')}

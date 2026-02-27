@@ -87,8 +87,8 @@ export function useAgentStream(client: VoltronWebSocket): void {
         toolName: p.toolName,
         input: p.input,
       });
-      // Forward text outputs to chat
-      if (p.type === 'text' && p.text) {
+      // Forward text and delta outputs to chat
+      if ((p.type === 'text' || p.type === 'delta') && p.text) {
         addAgentChatMessage(p.text);
       }
     }));

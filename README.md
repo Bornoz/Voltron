@@ -8,6 +8,10 @@
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License" />
 </p>
 
+<p align="center">
+  <img src="images/voltronlogo.png" alt="Voltron Logo" width="180" />
+</p>
+
 <h1 align="center">VOLTRON</h1>
 <h3 align="center">AI Operation Control Center</h3>
 

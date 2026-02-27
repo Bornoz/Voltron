@@ -1,10 +1,11 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import {
   CheckCircle2, XCircle, FileText, Clock, Cpu,
 } from 'lucide-react';
 import { useAgentStore } from '../../stores/agentStore';
 import { useWindowStore } from '../../stores/windowStore';
 import { useTranslation } from '../../i18n';
+import * as api from '../../lib/api';
 import { AgentControlBar } from './AgentControlBar';
 import { AgentToasts } from './AgentToasts';
 import { SessionExport } from './SessionExport';
@@ -54,6 +55,26 @@ export function AgentWorkspace({
 
   const isActive = !['IDLE', 'COMPLETED', 'CRASHED'].includes(status);
   const isFinished = status === 'COMPLETED' || status === 'CRASHED';
+  const hydrate = useAgentStore((s) => s.hydrate);
+
+  // On mount: re-hydrate if status is IDLE but a session exists on server
+  // This ensures preview works when switching back to agent tab
+  useEffect(() => {
+    if (status === 'IDLE') {
+      api.getAgentSession(projectId).then((session) => {
+        if (!session || typeof session !== 'object') return;
+        const s = session as Record<string, unknown>;
+        if (s.sessionId && s.status && s.status !== 'IDLE') {
+          hydrate({
+            sessionId: s.sessionId as string,
+            status: s.status as any,
+            model: (s.model as string) ?? undefined,
+            startedAt: (s.startedAt as number) ?? undefined,
+          });
+        }
+      }).catch(() => {});
+    }
+  }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Compute file count from breadcrumbs
   const fileStats = useMemo(() => {
@@ -72,9 +93,17 @@ export function AgentWorkspace({
     return Date.now() - startedAt;
   }, [startedAt, status]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const panels = useWindowStore((s) => s.panels);
   const toggleVisibility = useWindowStore((s) => s.toggleVisibility);
   const cyclePanel = useWindowStore((s) => s.cyclePanel);
   const toggleMaximize = useWindowStore((s) => s.toggleMaximize);
+
+  // Auto-show agent-output panel when agent becomes active
+  useEffect(() => {
+    if (isActive && !panels['agent-output']?.visible) {
+      toggleVisibility('agent-output');
+    }
+  }, [isActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* -- Agent actions from GPS/Map components -- */
   const handleAgentAction = useCallback((action: string, data?: Record<string, unknown>) => {

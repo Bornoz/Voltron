@@ -326,7 +326,7 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
   const [editingPinId, setEditingPinId] = useState<string | null>(null);
 
   const isActive = !['IDLE'].includes(status);
-  const canInject = ['RUNNING', 'PAUSED'].includes(status);
+  const canInject = ['RUNNING', 'PAUSED', 'COMPLETED', 'CRASHED'].includes(status);
   const isPreview = mode === 'preview';
   const currentUrl = isPreview ? getPreviewUrl(projectId, devServer) : getSimulatorUrl(projectId);
   const viewportWidth = viewportPreset === 'desktop' ? '100%' : viewportPreset === 'tablet' ? '768px' : '375px';
@@ -375,12 +375,17 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
     prevDevServerStatus.current = devServer?.status;
   }, [devServer?.status, isPreview]);
 
-  // Auto-refresh on agent write
+  // Auto-refresh on agent write — refresh on every WRITING activity, not just file changes
   useEffect(() => {
     const prev = prevLocationRef.current;
     prevLocationRef.current = location;
-    if (isPreview && location?.activity === 'WRITING' && prev?.filePath !== location.filePath) {
-      setIframeKey((k) => k + 1);
+    if (isPreview && location?.activity === 'WRITING') {
+      // Refresh on any write to HTML/CSS/JS files, or when file changes
+      const ext = location.filePath?.split('.').pop()?.toLowerCase();
+      const isRenderableFile = ['html', 'css', 'js', 'jsx', 'ts', 'tsx', 'vue', 'svelte'].includes(ext ?? '');
+      if (isRenderableFile || prev?.filePath !== location.filePath) {
+        setIframeKey((k) => k + 1);
+      }
     }
   }, [location, isPreview]);
 

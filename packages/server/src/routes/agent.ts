@@ -44,6 +44,7 @@ const InjectBody = z.object({
     constraints: z.array(z.string()).optional(),
     referenceImageUrl: z.string().optional(),
     simulatorPatches: z.array(z.unknown()).optional(),
+    attachmentUrls: z.array(z.string()).optional(),
   }).optional(),
   urgency: z.enum(['low', 'normal', 'high']).optional(),
   includeConstraints: z.boolean().optional(),
@@ -89,24 +90,33 @@ export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner, devS
     }
   });
 
-  // Pause agent (SIGTSTP)
+  // Pause agent (soft pause)
   app.post<{ Params: { id: string } }>('/api/projects/:id/agent/stop', async (request, reply) => {
     try {
       agentRunner.pause(request.params.id);
       return reply.send({ status: 'PAUSED' });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Stop failed';
+      // Agent may not be running or already paused — return current status instead of 400
+      if (message.includes('No agent running') || message.includes('Cannot pause')) {
+        const session = agentRunner.getSession(request.params.id);
+        return reply.send({ status: session?.status ?? 'IDLE', message });
+      }
       return reply.status(400).send({ error: message });
     }
   });
 
-  // Resume agent (SIGCONT)
+  // Resume agent
   app.post<{ Params: { id: string } }>('/api/projects/:id/agent/resume', async (request, reply) => {
     try {
       agentRunner.resume(request.params.id);
       return reply.send({ status: 'RUNNING' });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Resume failed';
+      if (message.includes('No agent running') || message.includes('Cannot resume')) {
+        const session = agentRunner.getSession(request.params.id);
+        return reply.send({ status: session?.status ?? 'IDLE', message });
+      }
       return reply.status(400).send({ error: message });
     }
   });
@@ -117,7 +127,11 @@ export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner, devS
       await agentRunner.kill(request.params.id);
       return reply.send({ status: 'COMPLETED' });
     } catch (err) {
+      // If agent is already gone/completed, treat kill as success
       const message = err instanceof Error ? err.message : 'Kill failed';
+      if (message.includes('No agent running') || message.includes('not found')) {
+        return reply.send({ status: 'COMPLETED' });
+      }
       return reply.status(400).send({ error: message });
     }
   });
@@ -382,6 +396,37 @@ export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner, devS
         .header('Cache-Control', 'no-cache')
         .send(content);
     } catch {
+      // File not found — return a helpful placeholder for HTML requests
+      const ext = extname(filePath).toLowerCase();
+      if (ext === '.html' || filePath === 'index.html' || filePath.endsWith('/index.html')) {
+        const agentActive = !!agentRunner.getSession(projectId);
+        const placeholder = `<!DOCTYPE html>
+<html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Voltron Preview</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{display:flex;align-items:center;justify-content:center;min-height:100vh;
+    background:#0a0a1a;color:#94a3b8;font-family:system-ui,sans-serif}
+  .container{text-align:center;padding:2rem}
+  .spinner{width:40px;height:40px;border:3px solid #1e293b;border-top:3px solid #3b82f6;
+    border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1rem}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  h2{font-size:1rem;color:#e2e8f0;margin-bottom:0.5rem}
+  p{font-size:0.8rem;color:#64748b}
+</style>
+</head><body>
+<div class="container">
+  ${agentActive ? '<div class="spinner"></div>' : ''}
+  <h2>${agentActive ? 'Agent dosyaları oluşturuyor...' : 'Dosya henüz mevcut değil'}</h2>
+  <p>${agentActive ? 'Preview, dosyalar oluşturulunca otomatik güncellenecek.' : 'Agent başlatarak dosyaları oluşturabilirsiniz.'}</p>
+</div>
+${agentActive ? '<script>setTimeout(()=>location.reload(),3000)</script>' : ''}
+</body></html>`;
+        return reply
+          .header('Content-Type', 'text/html; charset=utf-8')
+          .header('Cache-Control', 'no-cache')
+          .send(placeholder);
+      }
       return reply.status(404).send({ error: 'File not found' });
     }
   });

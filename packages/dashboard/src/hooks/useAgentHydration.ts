@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { useAgentStore } from '../stores/agentStore';
+import { getWsClient } from '../lib/ws';
 import * as api from '../lib/api';
 import type { AgentBreadcrumb } from '@voltron/shared';
 
 /**
- * Hydrates agentStore with historical data from the API when projectId changes.
+ * Hydrates agentStore with historical data from the API when projectId changes
+ * or when WebSocket reconnects after a disconnection.
  * This ensures that breadcrumbs, plan, session info, and injections persist
  * across page refreshes — they're loaded from the DB, not just WS events.
  */
@@ -12,6 +14,33 @@ export function useAgentHydration(projectId: string | null): void {
   const hydrate = useAgentStore((s) => s.hydrate);
   const currentStatus = useAgentStore((s) => s.status);
   const lastProjectRef = useRef<string | null>(null);
+
+  // Re-hydrate on WS reconnection to recover stale state
+  useEffect(() => {
+    if (!projectId) return;
+    const client = getWsClient();
+    const unsub = client.onStatusChange((status) => {
+      if (status === 'connected') {
+        // WS just reconnected — re-fetch agent status from API
+        api.getAgentSession(projectId).then((session) => {
+          if (!session || typeof session !== 'object') return;
+          const s = session as Record<string, unknown>;
+          if (s.sessionId && s.status) {
+            hydrate({
+              sessionId: s.sessionId as string,
+              status: s.status as any,
+              model: (s.model as string) ?? undefined,
+              startedAt: (s.startedAt as number) ?? undefined,
+              tokenUsage: typeof s.inputTokens === 'number' && typeof s.outputTokens === 'number'
+                ? { inputTokens: s.inputTokens as number, outputTokens: s.outputTokens as number }
+                : undefined,
+            });
+          }
+        }).catch(() => {});
+      }
+    });
+    return unsub;
+  }, [projectId, hydrate]);
 
   useEffect(() => {
     if (!projectId) return;

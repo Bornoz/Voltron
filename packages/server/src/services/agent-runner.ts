@@ -260,9 +260,11 @@ export class AgentRunner extends EventEmitter {
     contextParts.push('Continue where you left off.');
     const enrichedPrompt = contextParts.join('\n');
 
+    const oldSessionId = agent.sessionId;
+    agent.sessionId = randomUUID();
     this.setStatus(agent, 'RUNNING');
     this.sessionRepo.updateStatus(agent.sessionDbId, 'RUNNING');
-    this.spawnProcess(agent, enrichedPrompt, true);
+    this.spawnProcess(agent, enrichedPrompt, true, oldSessionId);
   }
 
   /**
@@ -326,10 +328,12 @@ export class AgentRunner extends EventEmitter {
       }
 
       // Re-create agent entry from last session for --continue
-      const sessionId = lastSession.sessionId ?? randomUUID();
+      // CRITICAL: Use a NEW sessionId for the new run, keep old one for --continue reference
+      const oldSessionId = lastSession.sessionId;
+      const newSessionId = randomUUID();
       const newSessionRow = this.sessionRepo.create({
         projectId,
-        sessionId,
+        sessionId: newSessionId,
         status: 'INJECTING',
         model: lastSession.model ?? AGENT_CONSTANTS.DEFAULT_MODEL,
         prompt: injection.prompt,
@@ -343,7 +347,7 @@ export class AgentRunner extends EventEmitter {
         parser: new AgentStreamParser(),
         projectId,
         sessionDbId: newSessionRow.id,
-        sessionId,
+        sessionId: newSessionId,
         status: 'INJECTING' as AgentStatus,
         model: lastSession.model ?? AGENT_CONSTANTS.DEFAULT_MODEL,
         prompt: injection.prompt,
@@ -372,12 +376,12 @@ export class AgentRunner extends EventEmitter {
       };
       this.agents.set(projectId, agent);
 
-      console.log(`[AgentRunner] Re-spawning completed agent for inject (project=${projectId}, sessionId=${sessionId})`);
+      console.log(`[AgentRunner] Re-spawning completed agent for inject (project=${projectId}, newSession=${newSessionId}, continueFrom=${oldSessionId})`);
       this.emitStatus(projectId, 'INJECTING');
 
       // Record injection in DB
       this.injectionRepo.insert({
-        sessionId,
+        sessionId: newSessionId,
         projectId,
         prompt: injection.prompt,
         contextFile: injection.context?.filePath ?? null,
@@ -389,9 +393,9 @@ export class AgentRunner extends EventEmitter {
         agentStatusBefore: 'COMPLETED',
       });
 
-      // Build enriched prompt and spawn with --continue
+      // Build enriched prompt and spawn with --continue from OLD session
       const enrichedPrompt = this.buildEnrichedPrompt(agent, injection, projectId);
-      this.spawnProcess(agent, enrichedPrompt, true);
+      this.spawnProcess(agent, enrichedPrompt, true, oldSessionId);
       return;
     }
 
@@ -412,16 +416,21 @@ export class AgentRunner extends EventEmitter {
     });
 
     this.sessionRepo.incrementInjections(agent.sessionDbId);
+    const oldSessionId = agent.sessionId;
     this.setStatus(agent, 'INJECTING');
 
     // Kill current process
     await this.killProcess(agent);
 
+    // Generate new session ID for the forked session
+    const newSessionId = randomUUID();
+    agent.sessionId = newSessionId;
+
     // Build enriched prompt
     const enrichedPrompt = this.buildEnrichedPrompt(agent, injection, projectId);
 
-    // Respawn with --continue
-    this.spawnProcess(agent, enrichedPrompt, true);
+    // Respawn with --continue from old session, forking into new
+    this.spawnProcess(agent, enrichedPrompt, true, oldSessionId);
   }
 
   /**
@@ -516,7 +525,7 @@ export class AgentRunner extends EventEmitter {
 
   // ── Internal ─────────────────────────────────────────
 
-  private spawnProcess(agent: RunningAgent, prompt: string, isContinue = false): void {
+  private spawnProcess(agent: RunningAgent, prompt: string, isContinue = false, continueFromSessionId?: string): void {
     const args = [
       '--print',
       '--output-format', 'stream-json',
@@ -528,7 +537,9 @@ export class AgentRunner extends EventEmitter {
 
     if (isContinue) {
       args.push('--continue');
-      args.push('--session-id', agent.sessionId);
+      // Use the original session ID to continue from (not the new agent's session ID)
+      const refSessionId = continueFromSessionId ?? agent.sessionId;
+      args.push('--session-id', refSessionId);
       args.push('--fork-session');
     }
 
@@ -589,6 +600,15 @@ export class AgentRunner extends EventEmitter {
     proc.on('exit', (code, signal) => {
       console.log(`[AgentRunner] Process exited: code=${code}, signal=${signal}, status=${agent.status} (project=${agent.projectId})`);
       agent.parser.flush();
+
+      // Flush paused events before processing exit so UI receives final updates
+      if (agent.pausedEventQueue.length > 0) {
+        const queued = agent.pausedEventQueue.splice(0);
+        for (const { event, payload } of queued) {
+          this.eventBus.emit(event, payload);
+        }
+      }
+
       if (agent._timeoutTimer) {
         clearTimeout(agent._timeoutTimer);
         agent._timeoutTimer = null;
@@ -628,6 +648,13 @@ export class AgentRunner extends EventEmitter {
       }
 
       if (agent.status === 'INJECTING') {
+        // If process exited unexpectedly during injection (not SIGTERM from us), mark as CRASHED
+        if (code !== null && code !== 0 && signal !== 'SIGTERM') {
+          console.warn(`[AgentRunner] Unexpected crash during injection: code=${code}, signal=${signal} (project=${agent.projectId})`);
+          this.setStatus(agent, 'CRASHED');
+          this.sessionRepo.setCrashed(agent.sessionDbId, `Crashed during injection: exit code ${code}, signal ${signal}`);
+          this.agents.delete(agent.projectId);
+        }
         // Expected kill during injection - don't mark as completed
         return;
       }
@@ -1042,6 +1069,15 @@ export class AgentRunner extends EventEmitter {
     // Additional constraints
     if (injection.context?.constraints?.length) {
       parts.push(`[Additional Constraints: ${injection.context.constraints.join(', ')}]`);
+    }
+
+    // Inline attachment URLs from injection context
+    if (injection.context?.attachmentUrls?.length) {
+      parts.push('[INLINE ATTACHMENTS');
+      for (const url of injection.context.attachmentUrls) {
+        parts.push(`  - ${url}`);
+      }
+      parts.push(']');
     }
 
     // Attached files

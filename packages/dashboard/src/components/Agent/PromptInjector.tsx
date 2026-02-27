@@ -23,7 +23,7 @@ export function PromptInjector({ projectId, onInject }: PromptInjectorProps) {
   const location = useAgentStore((s) => s.location);
   const status = useAgentStore((s) => s.status);
 
-  const canInject = ['RUNNING', 'PAUSED'].includes(status) && prompt.trim().length > 0;
+  const canInject = ['RUNNING', 'PAUSED', 'COMPLETED', 'CRASHED'].includes(status) && prompt.trim().length > 0;
 
   const handleInject = () => {
     if (!canInject) return;
