@@ -59,10 +59,9 @@ export const useAuthStore = create<AuthState>()(
           set({ isAuthenticated: true, username: username.trim(), loading: false, error: null });
           return true;
         } catch {
-          // Network error — server unreachable, allow dev pass-through
-          localStorage.setItem('voltron_token', 'dev-mode');
-          set({ isAuthenticated: true, username: username.trim(), loading: false, error: null });
-          return true;
+          // Network error — server unreachable
+          set({ loading: false, error: 'Server unreachable. Please check the connection.' });
+          return false;
         }
       },
 

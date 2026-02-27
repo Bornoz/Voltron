@@ -1,6 +1,7 @@
-import { resolve, isAbsolute } from 'node:path';
+import { resolve, isAbsolute, normalize } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import type { WebSocket } from 'ws';
+import { z } from 'zod';
 import { ClientRegistration, WsMessage, hashString, schemas, type AiActionEvent, type Snapshot } from '@voltron/shared';
 import { Broadcaster } from './broadcaster.js';
 import { Replayer } from './replayer.js';
@@ -13,10 +14,11 @@ import { SnapshotRepository } from '../db/repositories/snapshots.js';
 import { ProjectRepository } from '../db/repositories/projects.js';
 import { ProtectionZoneRepository } from '../db/repositories/protection-zones.js';
 import { SessionRepository } from '../db/repositories/sessions.js';
-import { AgentSpawnConfig, PromptInjection, SimulatorConstraint } from '@voltron/shared';
+import { AgentSpawnConfig, PromptInjection, SimulatorConstraint, AGENT_CONSTANTS } from '@voltron/shared';
 import type { AgentRunner } from '../services/agent-runner.js';
 import { SimulatorConstraintRepository } from '../db/repositories/simulator-constraints.js';
 import type { ServerConfig } from '../config.js';
+import { verifyToken } from '../plugins/auth.js';
 
 // --- Event Deduplication ---
 // LRU-style set with max capacity to prevent unbounded memory growth
@@ -148,6 +150,7 @@ export function createWsServices(config: ServerConfig, eventBus: EventBus, agent
       'AGENT_TOKEN_USAGE',
       'AGENT_ERROR',
       'AGENT_PHASE_UPDATE',
+      'AGENT_BREAKPOINT_HIT',
       'DEV_SERVER_STATUS',
     ] as const;
 
@@ -168,6 +171,18 @@ export function createWsServices(config: ServerConfig, eventBus: EventBus, agent
         }
       });
     }
+
+    // Wire AgentRunner status changes to XState state machine
+    eventBus.on('AGENT_STATUS_CHANGE', (payload: { projectId: string; status: string; sessionId?: string; error?: string }) => {
+      const { projectId: pid, status, sessionId: sid } = payload;
+      if (status === 'RUNNING' || status === 'SPAWNING') {
+        stateMachine.send(pid, { type: 'AGENT_SPAWNED', sessionId: sid ?? '' }, 'agent-runner');
+      } else if (status === 'COMPLETED') {
+        stateMachine.send(pid, { type: 'AGENT_COMPLETED', sessionId: sid ?? '' }, 'agent-runner');
+      } else if (status === 'CRASHED') {
+        stateMachine.send(pid, { type: 'AGENT_CRASHED', sessionId: sid ?? '', error: (payload as Record<string, unknown>).error as string ?? 'Agent crashed' }, 'agent-runner');
+      }
+    });
   }
 
   return { broadcaster, replayer, stateMachine, riskEngine, circuitBreaker, actionRepo, snapshotRepo, projectRepo, zoneRepo, sessionRepo, deduplicator, sequenceTracker, rateLimiter, agentRunner, constraintRepo };
@@ -220,10 +235,16 @@ export function registerWsHandler(
           return;
         }
 
-        // Validate interceptor auth
+        // Validate auth tokens
         if (reg.data.clientType === 'interceptor' && config.interceptorSecret) {
           if (reg.data.authToken !== config.interceptorSecret) {
             socket.close(4003, 'Invalid auth token');
+            return;
+          }
+        } else if ((reg.data.clientType === 'dashboard' || reg.data.clientType === 'simulator') && config.authSecret) {
+          // Dashboard/Simulator must provide a valid JWT auth token
+          if (!reg.data.authToken || !verifyToken(reg.data.authToken, config.authSecret)) {
+            socket.close(4003, 'Invalid or missing auth token');
             return;
           }
         }
@@ -545,7 +566,17 @@ async function handleMessage(
       if (clientType !== 'dashboard') return;
       const { agentRunner } = services as typeof services & { agentRunner?: AgentRunner };
       if (!agentRunner) return;
-      const spawnPayload = msg.payload as { model?: string; prompt: string; targetDir: string };
+      const SpawnPayloadSchema = z.object({
+        model: z.string().optional(),
+        prompt: z.string().min(1),
+        targetDir: z.string().min(1),
+      });
+      const spawnParsed = SpawnPayloadSchema.safeParse(msg.payload);
+      if (!spawnParsed.success) {
+        socket.send(JSON.stringify({ type: 'AGENT_ERROR', payload: { error: 'Invalid spawn payload' }, timestamp: Date.now() }));
+        return;
+      }
+      const spawnPayload = spawnParsed.data;
 
       // Resolve targetDir relative to project rootPath
       const project = projectRepo.findById(projectId);
@@ -553,10 +584,18 @@ async function handleMessage(
         ? resolve(project.rootPath, spawnPayload.targetDir)
         : spawnPayload.targetDir;
 
+      // Path traversal protection
+      const BLOCKED_PATHS = ['/etc', '/usr', '/bin', '/sbin', '/boot', '/proc', '/sys', '/dev', '/var/run'];
+      const normalizedDir = normalize(resolvedDir);
+      if (BLOCKED_PATHS.some((bp) => normalizedDir === bp || normalizedDir.startsWith(bp + '/'))) {
+        socket.send(JSON.stringify({ type: 'AGENT_ERROR', payload: { error: 'Target directory is in a protected zone' }, timestamp: Date.now() }));
+        return;
+      }
+
       try {
         const sessionId = await agentRunner.spawn({
           projectId,
-          model: spawnPayload.model ?? 'claude-haiku-4-5-20251001',
+          model: spawnPayload.model ?? AGENT_CONSTANTS.DEFAULT_MODEL,
           prompt: spawnPayload.prompt,
           targetDir: resolvedDir,
         });
@@ -607,12 +646,22 @@ async function handleMessage(
       if (clientType !== 'dashboard') return;
       const { agentRunner: runner4 } = services as typeof services & { agentRunner?: AgentRunner };
       if (!runner4) return;
-      const injectPayload = msg.payload as { prompt: string; context?: Record<string, unknown>; urgency?: string };
+      const InjectPayloadSchema = z.object({
+        prompt: z.string().min(1),
+        context: z.record(z.unknown()).optional(),
+        urgency: z.enum(['low', 'normal', 'high']).optional(),
+      });
+      const injectParsed = InjectPayloadSchema.safeParse(msg.payload);
+      if (!injectParsed.success) {
+        socket.send(JSON.stringify({ type: 'AGENT_ERROR', payload: { error: 'Invalid inject payload' }, timestamp: Date.now() }));
+        return;
+      }
+      const injectPayload = injectParsed.data;
       try {
         await runner4.injectPrompt(projectId, {
           prompt: injectPayload.prompt,
           context: injectPayload.context as PromptInjection['context'],
-          urgency: (injectPayload.urgency ?? 'normal') as 'low' | 'normal' | 'high',
+          urgency: injectPayload.urgency ?? 'normal',
         });
       } catch (err) {
         socket.send(JSON.stringify({ type: 'AGENT_ERROR', payload: { error: err instanceof Error ? err.message : 'Inject failed' }, timestamp: Date.now() }));

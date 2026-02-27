@@ -830,6 +830,10 @@ export const tr = {
     defaultModel: 'Varsayilan AI Modeli',
     defaultLayout: 'Varsayilan Yerlesim',
     notifications: 'Bildirimler',
+    turkish: 'Turkce',
+    modelFast: 'Hizli',
+    modelBalanced: 'Dengeli',
+    modelPowerful: 'Guclu',
   },
 
   // Durum Cubugu

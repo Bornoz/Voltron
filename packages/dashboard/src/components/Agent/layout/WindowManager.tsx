@@ -294,7 +294,7 @@ export function WindowManager({ projectId, onInject, onAgentAction }: WindowMana
           onClick={resetPan}
           className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[99998] px-3 py-1 text-[10px] text-gray-400 bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700/50 rounded-full backdrop-blur-sm transition-colors"
         >
-          Reset view
+          {t('agent.windowManager.resetView')}
         </button>
       )}
 

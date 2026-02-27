@@ -26,7 +26,8 @@ export const AGENT_CONSTANTS = {
   /** Supported Claude models */
   SUPPORTED_MODELS: [
     'claude-haiku-4-5-20251001',
-    'claude-sonnet-4-5-20250514',
+    'claude-sonnet-4-6',
+    'claude-opus-4-6',
   ] as const,
 
   /** Tool name to AgentActivity mapping */

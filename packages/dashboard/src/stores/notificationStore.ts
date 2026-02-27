@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { RiskLevel } from '@voltron/shared';
+import { areNotificationsEnabled } from '../components/Agent/SettingsModal';
 
 export interface Notification {
   id: string;
@@ -29,6 +30,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   addNotification: (notification) =>
     set((state) => {
+      // Respect user notification settings (errors always shown)
+      if (!areNotificationsEnabled() && notification.type !== 'error') {
+        return state;
+      }
       const id = crypto.randomUUID();
       const entry: Notification = {
         ...notification,

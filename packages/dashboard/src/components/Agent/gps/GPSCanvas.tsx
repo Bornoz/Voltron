@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState, useEffect, type ReactNode, type MouseEvent } from 'react';
+import { useRef, useCallback, useEffect, type ReactNode, type PointerEvent } from 'react';
 import type { GPSViewport } from './types';
 import { VIEW } from './constants';
 
@@ -8,15 +8,15 @@ interface GPSCanvasProps {
   width: number;
   height: number;
   children: ReactNode;
-  onContextMenu?: (e: MouseEvent) => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }
 
 export function GPSCanvas({ viewport, onViewportChange, width, height, children, onContextMenu }: GPSCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [dragging, setDragging] = useState(false);
+  const dragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, vpX: 0, vpY: 0 });
 
-  // Store latest viewport/callback in refs so the native listener always sees current values
+  // Store latest viewport/callback in refs so listeners always see current values
   const vpRef = useRef(viewport);
   const onVpChangeRef = useRef(onViewportChange);
   vpRef.current = viewport;
@@ -48,23 +48,53 @@ export function GPSCanvas({ viewport, onViewportChange, width, height, children,
     return () => el.removeEventListener('wheel', handleWheel);
   }, []);
 
-  const handleMouseDown = useCallback((e: MouseEvent) => {
-    if (e.button === 1 || (e.button === 0 && e.altKey)) {
+  // Pointer-based drag with capture — works even when cursor leaves the SVG
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+
+    const handlePointerMove = (e: globalThis.PointerEvent) => {
+      if (!dragging.current) return;
+      const dx = e.clientX - dragStart.current.x;
+      const dy = e.clientY - dragStart.current.y;
+      onVpChangeRef.current({
+        ...vpRef.current,
+        x: dragStart.current.vpX + dx,
+        y: dragStart.current.vpY + dy,
+      });
+    };
+
+    const handlePointerUp = (e: globalThis.PointerEvent) => {
+      if (!dragging.current) return;
+      dragging.current = false;
+      el.releasePointerCapture(e.pointerId);
+    };
+
+    el.addEventListener('pointermove', handlePointerMove);
+    el.addEventListener('pointerup', handlePointerUp);
+    return () => {
+      el.removeEventListener('pointermove', handlePointerMove);
+      el.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, []);
+
+  const handlePointerDown = useCallback((e: PointerEvent<SVGSVGElement>) => {
+    // Left click (button 0) or middle click (button 1) to pan
+    if (e.button === 0 || e.button === 1) {
+      // Skip if clicking on an interactive node element
+      const target = e.target as Element;
+      if (target.closest('[data-node]') || target.closest('[data-interactive]')) return;
+
       e.preventDefault();
-      setDragging(true);
-      dragStart.current = { x: e.clientX, y: e.clientY, vpX: viewport.x, vpY: viewport.y };
+      dragging.current = true;
+      dragStart.current = {
+        x: e.clientX,
+        y: e.clientY,
+        vpX: vpRef.current.x,
+        vpY: vpRef.current.y,
+      };
+      svgRef.current?.setPointerCapture(e.pointerId);
     }
-  }, [viewport]);
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!dragging) return;
-    const dx = e.clientX - dragStart.current.x;
-    const dy = e.clientY - dragStart.current.y;
-    onViewportChange({ ...viewport, x: dragStart.current.vpX + dx, y: dragStart.current.vpY + dy });
-  }, [dragging, viewport, onViewportChange]);
-
-  const handleMouseUp = useCallback(() => {
-    setDragging(false);
   }, []);
 
   return (
@@ -72,11 +102,8 @@ export function GPSCanvas({ viewport, onViewportChange, width, height, children,
       ref={svgRef}
       width={width}
       height={height}
-      style={{ background: 'transparent', cursor: dragging ? 'grabbing' : 'default' }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      style={{ background: 'transparent', cursor: dragging.current ? 'grabbing' : 'grab', touchAction: 'none' }}
+      onPointerDown={handlePointerDown}
       onContextMenu={onContextMenu}
     >
       <defs>

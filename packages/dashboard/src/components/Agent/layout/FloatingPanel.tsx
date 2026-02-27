@@ -127,7 +127,7 @@ export function FloatingPanel({ panel, title, children }: FloatingPanelProps) {
   return (
     <div
       onMouseDown={handleMouseDown}
-      className={`${isMaximized ? 'fixed inset-0' : 'absolute'} flex flex-col overflow-hidden
+      className={`${isMaximized ? 'fixed inset-0' : 'absolute'} flex flex-col
         bg-gray-900/95 backdrop-blur-md border
         ${isMaximized ? 'rounded-none' : 'rounded-lg'}
         shadow-2xl shadow-black/50

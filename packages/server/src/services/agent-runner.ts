@@ -52,6 +52,8 @@ interface RunningAgent {
   // Session end tracking for completion detection
   _sessionEnded: boolean;
   _sessionEndError: boolean;
+  // Agent timeout timer
+  _timeoutTimer: ReturnType<typeof setTimeout> | null;
 }
 
 export class AgentRunner extends EventEmitter {
@@ -131,6 +133,7 @@ export class AgentRunner extends EventEmitter {
       _devServerDebounce: null,
       _sessionEnded: false,
       _sessionEndError: false,
+      _timeoutTimer: null,
     };
 
     this.agents.set(projectId, agent);
@@ -365,6 +368,7 @@ export class AgentRunner extends EventEmitter {
         _devServerDebounce: null,
         _sessionEnded: false,
         _sessionEndError: false,
+        _timeoutTimer: null,
       };
       this.agents.set(projectId, agent);
 
@@ -553,6 +557,17 @@ export class AgentRunner extends EventEmitter {
     this.setStatus(agent, 'RUNNING');
     this.sessionRepo.updateStatus(agent.sessionDbId, 'RUNNING');
 
+    // Agent timeout enforcement
+    if (agent._timeoutTimer) clearTimeout(agent._timeoutTimer);
+    const timeoutMs = AGENT_CONSTANTS.AGENT_TIMEOUT_MS || Number(process.env.VOLTRON_AGENT_TIMEOUT_MS) || 0;
+    if (timeoutMs > 0) {
+      agent._timeoutTimer = setTimeout(() => {
+        console.warn(`[AgentRunner] Agent timeout (${timeoutMs}ms) reached for project=${agent.projectId}. Killing.`);
+        this.eventBus.emit('AGENT_ERROR', { projectId: agent.projectId, error: `Agent timed out after ${Math.round(timeoutMs / 1000)}s`, timestamp: Date.now() });
+        this.kill(agent.projectId).catch(() => {});
+      }, timeoutMs);
+    }
+
     // Wire up parser
     agent.parser = new AgentStreamParser();
     this.wireParser(agent);
@@ -574,6 +589,10 @@ export class AgentRunner extends EventEmitter {
     proc.on('exit', (code, signal) => {
       console.log(`[AgentRunner] Process exited: code=${code}, signal=${signal}, status=${agent.status} (project=${agent.projectId})`);
       agent.parser.flush();
+      if (agent._timeoutTimer) {
+        clearTimeout(agent._timeoutTimer);
+        agent._timeoutTimer = null;
+      }
       if (agent.killTimer) {
         clearTimeout(agent.killTimer);
         agent.killTimer = null;

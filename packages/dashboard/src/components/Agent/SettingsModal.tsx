@@ -3,6 +3,7 @@ import { X, Globe, Layout, Bell, Cpu } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 import { useLanguageStore } from '../../stores/languageStore';
 import { useWindowStore } from '../../stores/windowStore';
+import { useNotificationStore } from '../../stores/notificationStore';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -18,26 +19,46 @@ interface UserSettings {
   defaultLayout: string;
 }
 
+// Global flag so notificationStore can check it
+let notificationsEnabled = true;
+export function areNotificationsEnabled(): boolean {
+  return notificationsEnabled;
+}
+
 function loadSettings(currentLang: string): UserSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...defaultSettings(currentLang), ...JSON.parse(raw) };
+    if (raw) {
+      const settings = { ...defaultSettings(currentLang), ...JSON.parse(raw) };
+      notificationsEnabled = settings.notifications;
+      return settings;
+    }
   } catch { /* ignore */ }
   return defaultSettings(currentLang);
 }
 
 function saveSettings(settings: UserSettings) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  notificationsEnabled = settings.notifications;
 }
 
 function defaultSettings(lang = 'en'): UserSettings {
   return {
     language: lang as 'en' | 'tr',
-    defaultModel: 'claude-haiku-4-5-20251001',
+    defaultModel: 'claude-sonnet-4-6',
     notifications: true,
     defaultLayout: 'ide-style',
   };
 }
+
+// Initialize on load
+try {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) {
+    const parsed = JSON.parse(raw);
+    notificationsEnabled = parsed.notifications !== false;
+  }
+} catch { /* ignore */ }
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { t, language } = useTranslation();
@@ -108,7 +129,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     : 'bg-gray-800/40 border-gray-700/50 text-gray-400 hover:border-gray-600'
                 }`}
               >
-                Turkce
+                {t('settings.turkish')}
               </button>
             </div>
           </div>
@@ -124,9 +145,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               onChange={(e) => update({ defaultModel: e.target.value })}
               className="w-full px-3 py-2 text-xs bg-gray-800/60 border border-gray-700/50 rounded-lg text-gray-300 outline-none focus:border-blue-500/50"
             >
-              <option value="claude-haiku-4-5-20251001">Haiku 4.5 (Hizli)</option>
-              <option value="claude-sonnet-4-6">Sonnet 4.6 (Dengeli)</option>
-              <option value="claude-opus-4-6">Opus 4.6 (Guclu)</option>
+              <option value="claude-haiku-4-5-20251001">Haiku 4.5 ({t('settings.modelFast')})</option>
+              <option value="claude-sonnet-4-6">Sonnet 4.6 ({t('settings.modelBalanced')})</option>
+              <option value="claude-opus-4-6">Opus 4.6 ({t('settings.modelPowerful')})</option>
             </select>
           </div>
 

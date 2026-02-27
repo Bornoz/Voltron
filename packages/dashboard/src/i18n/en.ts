@@ -832,6 +832,10 @@ export const en: TranslationKeys = {
     defaultModel: 'Default AI Model',
     defaultLayout: 'Default Layout',
     notifications: 'Notifications',
+    turkish: 'Turkish',
+    modelFast: 'Fast',
+    modelBalanced: 'Balanced',
+    modelPowerful: 'Powerful',
   },
 
   // Status Bar

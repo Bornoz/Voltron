@@ -98,12 +98,15 @@ export class VoltronWebSocket {
 
   private register(): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.projectId) return;
+    // Include auth token for server-side WS authentication
+    const authToken = localStorage.getItem('voltron_token') ?? undefined;
     this.ws.send(
       JSON.stringify({
         type: 'REGISTER',
         clientType: 'dashboard',
         clientId: this.clientId,
         projectId: this.projectId,
+        authToken,
       }),
     );
   }

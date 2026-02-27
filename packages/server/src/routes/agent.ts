@@ -3,6 +3,7 @@ import { readFile, readdir, stat } from 'node:fs/promises';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AgentSpawnConfig, PromptInjection } from '@voltron/shared';
+import { AGENT_CONSTANTS } from '@voltron/shared';
 import type { AgentRunner } from '../services/agent-runner.js';
 import type { DevServerManager } from '../services/dev-server-manager.js';
 import { ProjectRepository } from '../db/repositories/projects.js';
@@ -65,10 +66,19 @@ export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner, devS
       ? body.targetDir
       : resolve(project.rootPath, body.targetDir);
 
+    // Path traversal protection: block sensitive system paths
+    const BLOCKED_PATHS = ['/etc', '/usr', '/bin', '/sbin', '/boot', '/proc', '/sys', '/dev', '/var/run'];
+    const normalizedTarget = normalize(resolvedTargetDir);
+    if (BLOCKED_PATHS.some((bp) => normalizedTarget === bp || normalizedTarget.startsWith(bp + '/'))
+      || normalizedTarget.startsWith('/opt/voltron/packages/server')
+      || normalizedTarget.startsWith('/opt/voltron/packages/shared')) {
+      return reply.status(403).send({ error: 'Target directory is in a protected zone' });
+    }
+
     try {
       const sessionId = await agentRunner.spawn({
         projectId,
-        model: body.model ?? 'claude-haiku-4-5-20251001',
+        model: body.model ?? AGENT_CONSTANTS.DEFAULT_MODEL,
         prompt: body.prompt,
         targetDir: resolvedTargetDir,
       });

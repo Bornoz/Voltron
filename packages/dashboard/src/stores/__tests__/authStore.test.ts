@@ -105,14 +105,13 @@ describe('authStore', () => {
       expect(localStorage.getItem('voltron_token')).toBe('dev-mode');
     });
 
-    it('should pass through on network error (dev mode)', async () => {
+    it('should fail on network error (no bypass)', async () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
       const result = await getState().login('admin', 'password');
-      // In dev mode, network errors pass through
-      expect(result).toBe(true);
-      expect(getState().isAuthenticated).toBe(true);
-      expect(getState().username).toBe('admin');
+      expect(result).toBe(false);
+      expect(getState().isAuthenticated).toBe(false);
+      expect(getState().error).toBe('Server unreachable. Please check the connection.');
     });
 
     it('should trim username', async () => {
