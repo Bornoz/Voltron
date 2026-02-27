@@ -3,7 +3,7 @@ import {
   Type, Palette, Move, Sparkles, Layers, Copy, Trash2, Eye, EyeOff,
   Maximize2, AlignLeft, AlignCenter, AlignRight, Bold, Italic,
   Square, Circle, ChevronRight, RotateCcw, Paintbrush, Grid3X3,
-  BoxSelect, Minus, Plus, SunDim, Underline, Columns,
+  BoxSelect, Minus, Plus, SunDim, Underline, Columns, Check,
 } from 'lucide-react';
 import type { ContextMenuEventData } from './LivePreviewFrame';
 
@@ -32,11 +32,18 @@ interface DesignContextMenuProps {
 
 /* ═══ Categories ═══ */
 const CATEGORIES = [
-  { id: 'content', label: 'Icerik', icon: <Type size={12} /> },
-  { id: 'appearance', label: 'Gorunum', icon: <Palette size={12} /> },
-  { id: 'layout', label: 'Yerlesim', icon: <Grid3X3 size={12} /> },
-  { id: 'effects', label: 'Efektler', icon: <Sparkles size={12} /> },
-  { id: 'structure', label: 'Yapi', icon: <Layers size={12} /> },
+  { id: 'content', label: 'Icerik', icon: <Type size={12} />, desc: 'Metin, font, hizalama' },
+  { id: 'appearance', label: 'Gorunum', icon: <Palette size={12} />, desc: 'Renk, opaklık, cerceve' },
+  { id: 'layout', label: 'Yerlesim', icon: <Grid3X3 size={12} />, desc: 'Flex, grid, bosluk' },
+  { id: 'effects', label: 'Efektler', icon: <Sparkles size={12} />, desc: 'Golge, blur, animasyon' },
+  { id: 'structure', label: 'Yapi', icon: <Layers size={12} />, desc: 'Kopyala, sil, sifirla' },
+];
+
+const PRESET_COLORS = [
+  '#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4',
+  '#3b82f6', '#8b5cf6', '#ec4899', '#ffffff', '#000000',
+  '#1e293b', '#334155', '#64748b', '#94a3b8', '#e2e8f0',
+  'transparent',
 ];
 
 /* ═══ Component ═══ */
@@ -47,6 +54,7 @@ export const DesignContextMenu = memo(function DesignContextMenu({
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [colorPickerTarget, setColorPickerTarget] = useState<string | null>(null);
   const [customColor, setCustomColor] = useState('#3b82f6');
+  const [appliedAction, setAppliedAction] = useState<string | null>(null);
 
   // Close on outside click
   useEffect(() => {
@@ -62,16 +70,32 @@ export const DesignContextMenu = memo(function DesignContextMenu({
   // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        if (colorPickerTarget) setColorPickerTarget(null);
+        else onClose();
+      }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [onClose]);
+  }, [onClose, colorPickerTarget]);
+
+  // Reset on new data
+  useEffect(() => {
+    setActiveCategory(null);
+    setColorPickerTarget(null);
+    setAppliedAction(null);
+  }, [data?.selector]);
 
   const applyStyle = useCallback((prop: string, value: string) => {
     if (!data) return;
     onApplyStyle(data.selector, { [prop]: value });
   }, [data, onApplyStyle]);
+
+  // Show a brief feedback flash on an action
+  const flashAction = useCallback((id: string) => {
+    setAppliedAction(id);
+    setTimeout(() => setAppliedAction(null), 800);
+  }, []);
 
   if (!data) return null;
 
@@ -83,327 +107,333 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     // ── CONTENT ──
     {
       id: 'edit-text', category: 'content',
-      icon: <Type size={13} />,
+      icon: <Type size={14} />,
       label: 'Metni Duzenle',
-      description: 'Elementin ic metnini degistir. Cift tiklayarak da duzenleyebilirsin.',
-      action: () => { onEditText(data.selector); onClose(); },
+      description: 'Secili elementin ic metnini premium editor ile degistir.',
+      action: () => { onEditText(data.selector); },
       accent: true,
     },
     {
       id: 'bold', category: 'content',
-      icon: <Bold size={13} />,
+      icon: <Bold size={14} />,
       label: 'Kalin Yazi',
-      description: 'Font kalinligini bold/normal arasinda degistir.',
-      action: () => { applyStyle('fontWeight', data.styles.fontWeight === '700' || data.styles.fontWeight === 'bold' ? 'normal' : 'bold'); },
+      description: 'Font kalinligini bold/normal arasinda toggle et.',
+      action: () => { applyStyle('fontWeight', data.styles.fontWeight === '700' || data.styles.fontWeight === 'bold' ? 'normal' : 'bold'); flashAction('bold'); },
     },
     {
       id: 'italic', category: 'content',
-      icon: <Italic size={13} />,
+      icon: <Italic size={14} />,
       label: 'Italik',
-      description: 'Yaziyi italik yap veya normal\'e dondur.',
-      action: () => { applyStyle('fontStyle', data.styles.fontWeight === 'italic' ? 'normal' : 'italic'); },
+      description: 'Yaziyi italik/normal arasinda toggle et.',
+      action: () => { applyStyle('fontStyle', data.styles.fontStyle === 'italic' ? 'normal' : 'italic'); flashAction('italic'); },
     },
     {
       id: 'underline', category: 'content',
-      icon: <Underline size={13} />,
+      icon: <Underline size={14} />,
       label: 'Alti Cizili',
       description: 'Yazi altina cizgi ekle veya kaldir.',
-      action: () => { applyStyle('textDecoration', data.styles.fontWeight === 'underline' ? 'none' : 'underline'); },
+      action: () => { applyStyle('textDecoration', data.styles.textDecoration?.includes('underline') ? 'none' : 'underline'); flashAction('underline'); },
     },
     {
       id: 'font-increase', category: 'content',
-      icon: <Plus size={13} />,
-      label: 'Yazl Boyutu +',
-      description: 'Font boyutunu 2px artir.',
+      icon: <Plus size={14} />,
+      label: 'Yazi Boyutu +2px',
+      description: `Mevcut: ${data.styles.fontSize} → artir.`,
       action: () => {
         const current = parseInt(data.styles.fontSize) || 14;
         applyStyle('fontSize', `${current + 2}px`);
+        flashAction('font-increase');
       },
     },
     {
       id: 'font-decrease', category: 'content',
-      icon: <Minus size={13} />,
-      label: 'Yazi Boyutu -',
-      description: 'Font boyutunu 2px azalt.',
+      icon: <Minus size={14} />,
+      label: 'Yazi Boyutu -2px',
+      description: `Mevcut: ${data.styles.fontSize} → azalt.`,
       action: () => {
         const current = parseInt(data.styles.fontSize) || 14;
         applyStyle('fontSize', `${Math.max(8, current - 2)}px`);
+        flashAction('font-decrease');
       },
     },
     {
       id: 'align-left', category: 'content',
-      icon: <AlignLeft size={13} />,
+      icon: <AlignLeft size={14} />,
       label: 'Sola Hizala',
-      description: 'Metni sola hizala.',
-      action: () => { applyStyle('textAlign', 'left'); },
+      description: 'text-align: left uygula.',
+      action: () => { applyStyle('textAlign', 'left'); flashAction('align-left'); },
     },
     {
       id: 'align-center', category: 'content',
-      icon: <AlignCenter size={13} />,
+      icon: <AlignCenter size={14} />,
       label: 'Ortala',
-      description: 'Metni ortaya hizala.',
-      action: () => { applyStyle('textAlign', 'center'); },
+      description: 'text-align: center uygula.',
+      action: () => { applyStyle('textAlign', 'center'); flashAction('align-center'); },
     },
     {
       id: 'align-right', category: 'content',
-      icon: <AlignRight size={13} />,
+      icon: <AlignRight size={14} />,
       label: 'Saga Hizala',
-      description: 'Metni saga hizala.',
-      action: () => { applyStyle('textAlign', 'right'); },
+      description: 'text-align: right uygula.',
+      action: () => { applyStyle('textAlign', 'right'); flashAction('align-right'); },
     },
 
     // ── APPEARANCE ──
     {
       id: 'text-color', category: 'appearance',
-      icon: <Paintbrush size={13} />,
+      icon: <Paintbrush size={14} />,
       label: 'Yazi Rengi',
-      description: 'Elementin metin rengini degistir. Mevcut: ' + data.styles.color,
+      description: `Mevcut: ${data.styles.color}. Renk paletinden sec.`,
       action: () => { setColorPickerTarget('color'); setActiveCategory('appearance'); },
       accent: true,
     },
     {
       id: 'bg-color', category: 'appearance',
-      icon: <Square size={13} />,
+      icon: <Square size={14} />,
       label: 'Arka Plan Rengi',
-      description: 'Elementin arka plan rengini degistir. Mevcut: ' + data.styles.backgroundColor,
+      description: `Mevcut: ${data.styles.backgroundColor}. Renk sec.`,
       action: () => { setColorPickerTarget('backgroundColor'); setActiveCategory('appearance'); },
       accent: true,
     },
     {
       id: 'opacity-up', category: 'appearance',
-      icon: <SunDim size={13} />,
-      label: 'Opakligi Artir',
-      description: 'Elementin opakligi %10 artir.',
+      icon: <SunDim size={14} />,
+      label: 'Opaklik +10%',
+      description: 'Elementin gorununurluk yogunlugunu artir.',
       action: () => {
         const current = parseFloat(data.styles.opacity) || 1;
-        applyStyle('opacity', String(Math.min(1, current + 0.1)));
+        applyStyle('opacity', String(Math.min(1, +(current + 0.1).toFixed(1))));
+        flashAction('opacity-up');
       },
     },
     {
       id: 'opacity-down', category: 'appearance',
-      icon: <SunDim size={13} />,
-      label: 'Opakligi Azalt',
-      description: 'Elementin opakligi %10 azalt. Seffaflik efekti icin.',
+      icon: <SunDim size={14} />,
+      label: 'Opaklik -10%',
+      description: 'Elementi daha seffaf yap. Katmanli tasarim icin.',
       action: () => {
         const current = parseFloat(data.styles.opacity) || 1;
-        applyStyle('opacity', String(Math.max(0, current - 0.1)));
+        applyStyle('opacity', String(Math.max(0, +(current - 0.1).toFixed(1))));
+        flashAction('opacity-down');
       },
     },
     {
       id: 'border-radius-add', category: 'appearance',
-      icon: <Circle size={13} />,
-      label: 'Koseler Yuvarla',
-      description: 'Border-radius\'u 4px artir. Daha yuvarlak koseler.',
+      icon: <Circle size={14} />,
+      label: 'Koseleri Yuvarla +4px',
+      description: `Mevcut: ${data.styles.borderRadius}. Daha yumusak koseler.`,
       action: () => {
         const current = parseInt(data.styles.borderRadius) || 0;
         applyStyle('borderRadius', `${current + 4}px`);
+        flashAction('border-radius-add');
       },
     },
     {
       id: 'border-radius-remove', category: 'appearance',
-      icon: <BoxSelect size={13} />,
+      icon: <BoxSelect size={14} />,
       label: 'Koseleri Duzlestir',
-      description: 'Border-radius\'u sifirla. Kare koseler.',
-      action: () => { applyStyle('borderRadius', '0'); },
+      description: 'border-radius: 0 — keskin kare koseler.',
+      action: () => { applyStyle('borderRadius', '0'); flashAction('border-radius-remove'); },
     },
     {
       id: 'border-add', category: 'appearance',
-      icon: <Square size={13} />,
+      icon: <Square size={14} />,
       label: 'Cerceve Ekle',
-      description: 'Elementin etrafina 1px solid cerceve ekle.',
-      action: () => { applyStyle('border', '1px solid rgba(255,255,255,0.2)'); },
+      description: '1px solid beyaz cerceve ekle.',
+      action: () => { applyStyle('border', '1px solid rgba(255,255,255,0.2)'); flashAction('border-add'); },
     },
 
     // ── LAYOUT ──
     {
       id: 'display-flex', category: 'layout',
-      icon: <Columns size={13} />,
-      label: 'Flex Yap',
-      description: 'Display\'i flex yap. Cocuk elementleri yan yana dizer.',
-      action: () => { applyStyle('display', 'flex'); },
+      icon: <Columns size={14} />,
+      label: 'Flex Layout',
+      description: 'Cocuk elementleri yan yana diz. display:flex.',
+      action: () => { applyStyle('display', 'flex'); flashAction('display-flex'); },
       accent: true,
     },
     {
       id: 'display-grid', category: 'layout',
-      icon: <Grid3X3 size={13} />,
-      label: 'Grid Yap',
-      description: 'Display\'i grid yap. CSS Grid layout kullan.',
-      action: () => { applyStyle('display', 'grid'); },
+      icon: <Grid3X3 size={14} />,
+      label: 'Grid Layout',
+      description: 'CSS Grid sistemi aktif et. display:grid.',
+      action: () => { applyStyle('display', 'grid'); flashAction('display-grid'); },
     },
     {
       id: 'display-block', category: 'layout',
-      icon: <Maximize2 size={13} />,
-      label: 'Blok Yap',
-      description: 'Display\'i block yap. Her element yeni satirda.',
-      action: () => { applyStyle('display', 'block'); },
+      icon: <Maximize2 size={14} />,
+      label: 'Blok',
+      description: 'display:block — her element yeni satirda.',
+      action: () => { applyStyle('display', 'block'); flashAction('display-block'); },
     },
     {
       id: 'display-none', category: 'layout',
-      icon: <EyeOff size={13} />,
-      label: 'Gizle (Display None)',
-      description: 'Elementi display:none ile tamamen gizle.',
-      action: () => { applyStyle('display', 'none'); },
+      icon: <EyeOff size={14} />,
+      label: 'Gizle',
+      description: 'display:none ile elementi tamamen gizle.',
+      action: () => { applyStyle('display', 'none'); flashAction('display-none'); },
     },
     {
       id: 'center-flex', category: 'layout',
-      icon: <AlignCenter size={13} />,
+      icon: <AlignCenter size={14} />,
       label: 'Flex ile Ortala',
-      description: 'Display flex + align-items center + justify-content center.',
+      description: 'display:flex + align-items:center + justify-content:center.',
       action: () => {
-        onApplyStyle(data.selector, {
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        });
+        onApplyStyle(data.selector, { display: 'flex', alignItems: 'center', justifyContent: 'center' });
+        flashAction('center-flex');
       },
+      accent: true,
     },
     {
       id: 'padding-add', category: 'layout',
-      icon: <Plus size={13} />,
-      label: 'Padding Artir',
-      description: 'Ic boslugu (padding) 8px artir.',
+      icon: <Plus size={14} />,
+      label: 'Padding +8px',
+      description: `Mevcut: ${data.styles.padding}. Ic bosluk artir.`,
       action: () => {
         const current = parseInt(data.styles.padding) || 0;
         applyStyle('padding', `${current + 8}px`);
+        flashAction('padding-add');
       },
     },
     {
       id: 'padding-remove', category: 'layout',
-      icon: <Minus size={13} />,
-      label: 'Padding Azalt',
-      description: 'Ic boslugu (padding) 8px azalt.',
+      icon: <Minus size={14} />,
+      label: 'Padding -8px',
+      description: 'Ic boslugu azalt.',
       action: () => {
         const current = parseInt(data.styles.padding) || 0;
         applyStyle('padding', `${Math.max(0, current - 8)}px`);
+        flashAction('padding-remove');
       },
     },
     {
       id: 'margin-add', category: 'layout',
-      icon: <Plus size={13} />,
-      label: 'Margin Artir',
-      description: 'Dis boslugu (margin) 8px artir.',
+      icon: <Plus size={14} />,
+      label: 'Margin +8px',
+      description: `Mevcut: ${data.styles.margin}. Dis bosluk artir.`,
       action: () => {
         const current = parseInt(data.styles.margin) || 0;
         applyStyle('margin', `${current + 8}px`);
+        flashAction('margin-add');
       },
     },
     {
       id: 'width-100', category: 'layout',
-      icon: <Maximize2 size={13} />,
+      icon: <Maximize2 size={14} />,
       label: 'Tam Genislik',
-      description: 'Width\'i %100 yap. Elementin tum genisligi kaplamasini saglar.',
-      action: () => { applyStyle('width', '100%'); },
+      description: 'width: 100% — tum genisligi kapla.',
+      action: () => { applyStyle('width', '100%'); flashAction('width-100'); },
     },
     {
       id: 'position-relative', category: 'layout',
-      icon: <Move size={13} />,
+      icon: <Move size={14} />,
       label: 'Position: Relative',
-      description: 'Pozisyonu relative yap. Top/left ile kaydirmak icin.',
-      action: () => { applyStyle('position', 'relative'); },
+      description: 'Akis icerisinde kaydirmaya izin verir.',
+      action: () => { applyStyle('position', 'relative'); flashAction('position-relative'); },
     },
     {
       id: 'position-absolute', category: 'layout',
-      icon: <Move size={13} />,
+      icon: <Move size={14} />,
       label: 'Position: Absolute',
-      description: 'Pozisyonu absolute yap. Parent\'a gore konumla.',
-      action: () => { applyStyle('position', 'absolute'); },
+      description: 'Parent elementa gore serbest konumlandirma.',
+      action: () => { applyStyle('position', 'absolute'); flashAction('position-absolute'); },
     },
 
     // ── EFFECTS ──
     {
       id: 'shadow-add', category: 'effects',
-      icon: <Sparkles size={13} />,
+      icon: <Sparkles size={14} />,
       label: 'Golge Ekle',
-      description: 'Elemente box-shadow ekle. Derinlik hissi verir.',
-      action: () => { applyStyle('boxShadow', '0 4px 24px rgba(0,0,0,0.3)'); },
+      description: 'Yumusak box-shadow. Derinlik ve katman hissi.',
+      action: () => { applyStyle('boxShadow', '0 4px 24px rgba(0,0,0,0.3)'); flashAction('shadow-add'); },
       accent: true,
     },
     {
       id: 'shadow-glow', category: 'effects',
-      icon: <Sparkles size={13} />,
+      icon: <Sparkles size={14} />,
       label: 'Glow Efekti',
-      description: 'Isildayan bir golge ekle. Premium goruntu icin.',
-      action: () => { applyStyle('boxShadow', '0 0 20px rgba(59,130,246,0.3)'); },
+      description: 'Mavi isildayan golge. Premium arayuz icin.',
+      action: () => { applyStyle('boxShadow', '0 0 20px rgba(59,130,246,0.3)'); flashAction('shadow-glow'); },
     },
     {
       id: 'shadow-remove', category: 'effects',
-      icon: <RotateCcw size={13} />,
+      icon: <RotateCcw size={14} />,
       label: 'Golgeyi Kaldir',
-      description: 'Tum golge efektlerini temizle.',
-      action: () => { applyStyle('boxShadow', 'none'); },
+      description: 'box-shadow: none — tum golgeleri temizle.',
+      action: () => { applyStyle('boxShadow', 'none'); flashAction('shadow-remove'); },
     },
     {
       id: 'blur-add', category: 'effects',
-      icon: <SunDim size={13} />,
+      icon: <SunDim size={14} />,
       label: 'Bulaniklastir',
-      description: 'Elemente blur filtresi ekle. Glassmorphism icin.',
-      action: () => { applyStyle('filter', 'blur(4px)'); },
+      description: 'filter: blur(4px) — arka plan icin glassmorphism.',
+      action: () => { applyStyle('filter', 'blur(4px)'); flashAction('blur-add'); },
     },
     {
       id: 'blur-remove', category: 'effects',
-      icon: <RotateCcw size={13} />,
+      icon: <RotateCcw size={14} />,
       label: 'Bulanikligi Kaldir',
-      description: 'Blur filtresini temizle.',
-      action: () => { applyStyle('filter', 'none'); },
+      description: 'filter: none — netligi geri getir.',
+      action: () => { applyStyle('filter', 'none'); flashAction('blur-remove'); },
     },
     {
       id: 'backdrop-blur', category: 'effects',
-      icon: <Sparkles size={13} />,
+      icon: <Sparkles size={14} />,
       label: 'Backdrop Blur',
-      description: 'Arka plana blur ekle. Glassmorphism efekti yaratir.',
-      action: () => { applyStyle('backdropFilter', 'blur(12px)'); },
+      description: 'Arka plani bulaniklastir. Cam efekti.',
+      action: () => { applyStyle('backdropFilter', 'blur(12px)'); flashAction('backdrop-blur'); },
     },
     {
       id: 'transition-add', category: 'effects',
-      icon: <Sparkles size={13} />,
+      icon: <Sparkles size={14} />,
       label: 'Gecis Animasyonu',
-      description: 'Tum CSS degisikliklerine 300ms gecis animasyonu ekle.',
-      action: () => { applyStyle('transition', 'all 0.3s ease'); },
+      description: 'transition: all 0.3s — tum degisikliklere animasyon.',
+      action: () => { applyStyle('transition', 'all 0.3s ease'); flashAction('transition-add'); },
     },
     {
       id: 'scale-up', category: 'effects',
-      icon: <Maximize2 size={13} />,
-      label: 'Buyut (Scale 1.1)',
-      description: 'Elementi %10 buyut. Transform scale kullanir.',
-      action: () => { applyStyle('transform', 'scale(1.1)'); },
+      icon: <Maximize2 size={14} />,
+      label: 'Buyut (%110)',
+      description: 'transform: scale(1.1) — elementi buyut.',
+      action: () => { applyStyle('transform', 'scale(1.1)'); flashAction('scale-up'); },
     },
     {
       id: 'scale-reset', category: 'effects',
-      icon: <RotateCcw size={13} />,
+      icon: <RotateCcw size={14} />,
       label: 'Boyutu Sifirla',
-      description: 'Transform\'u temizle. Normal boyuta dondur.',
-      action: () => { applyStyle('transform', 'none'); },
+      description: 'transform: none — normal boyuta dondur.',
+      action: () => { applyStyle('transform', 'none'); flashAction('scale-reset'); },
     },
 
     // ── STRUCTURE ──
     {
       id: 'duplicate', category: 'structure',
-      icon: <Copy size={13} />,
+      icon: <Copy size={14} />,
       label: 'Kopyala',
-      description: 'Elementi kopyalayip hemen altina yerlestir.',
-      action: () => { onDuplicateElement(data.selector); onClose(); },
+      description: 'Elementi birebir kopyalayip hemen sonrasina yerlestir.',
+      action: () => { onDuplicateElement(data.selector); },
       accent: true,
     },
     {
       id: 'toggle-visibility', category: 'structure',
-      icon: <Eye size={13} />,
-      label: 'Gorunurlugu Degistir',
-      description: 'Elementi goster/gizle toggle. Display none/block.',
-      action: () => { onToggleVisibility(data.selector); onClose(); },
+      icon: <Eye size={14} />,
+      label: 'Gorunurlugu Toggle',
+      description: 'Elementi goster/gizle (display none ↔ block).',
+      action: () => { onToggleVisibility(data.selector); },
     },
     {
       id: 'delete', category: 'structure',
-      icon: <Trash2 size={13} />,
-      label: 'Sil',
-      description: 'Elementi DOM\'dan tamamen kaldir. Geri alinamaz!',
-      action: () => { onDeleteElement(data.selector); onClose(); },
+      icon: <Trash2 size={14} />,
+      label: 'Elementi Sil',
+      description: 'DOM\'dan tamamen kaldir. Onay istenir.',
+      action: () => { onDeleteElement(data.selector); },
       danger: true,
     },
     {
       id: 'reset-styles', category: 'structure',
-      icon: <RotateCcw size={13} />,
-      label: 'Stilleri Sifirla',
-      description: 'Bu elemente yapilan tum stil degisikliklerini geri al.',
+      icon: <RotateCcw size={14} />,
+      label: 'Tum Stilleri Sifirla',
+      description: 'Bu elemente yapilan tum CSS degisikliklerini geri al.',
       action: () => {
         onApplyStyle(data.selector, {
           color: '', backgroundColor: '', fontSize: '', fontWeight: '',
@@ -413,6 +443,7 @@ export const DesignContextMenu = memo(function DesignContextMenu({
           transition: '', backdropFilter: '', width: '',
           alignItems: '', justifyContent: '',
         });
+        flashAction('reset-styles');
       },
     },
   ];
@@ -432,150 +463,210 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     if (colorPickerTarget && data) {
       applyStyle(colorPickerTarget, customColor);
       setColorPickerTarget(null);
+      flashAction('color-applied');
     }
   };
-
-  const PRESET_COLORS = [
-    '#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4',
-    '#3b82f6', '#8b5cf6', '#ec4899', '#ffffff', '#000000',
-    '#1e293b', '#334155', '#64748b', '#94a3b8', '#e2e8f0',
-    'transparent',
-  ];
 
   return (
     <div
       ref={menuRef}
       className="fixed z-[60] flex animate-fade-in-up"
       style={{
-        left: Math.min(menuX, window.innerWidth - 420),
-        top: Math.min(menuY, window.innerHeight - 400),
+        left: Math.min(menuX, window.innerWidth - 460),
+        top: Math.min(menuY, window.innerHeight - 500),
       }}
     >
-      {/* Main menu */}
+      {/* ═══ Main menu ═══ */}
       <div
-        className="flex flex-col rounded-xl overflow-hidden"
+        className="flex flex-col rounded-2xl overflow-hidden"
         style={{
-          width: 260,
-          maxHeight: 440,
-          background: 'rgba(10,15,30,0.95)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          backdropFilter: 'blur(20px)',
-          boxShadow: '0 12px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.02)',
+          width: 300,
+          maxHeight: 520,
+          background: 'rgba(8,12,24,0.97)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          backdropFilter: 'blur(24px)',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.7), 0 0 40px rgba(59,130,246,0.05), inset 0 1px 0 rgba(255,255,255,0.04)',
         }}
       >
-        {/* Selected element info */}
-        <div className="px-3 py-2 border-b border-white/[0.06]">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-mono text-blue-400 bg-blue-900/30 px-1.5 py-0.5 rounded">
-              {data.tagName}
+        {/* ─── Selected element info ─── */}
+        <div className="px-4 py-3 border-b border-white/[0.06]">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-mono text-blue-400 bg-blue-500/10 border border-blue-500/15 px-2 py-0.5 rounded-md font-medium">
+              &lt;{data.tagName.toLowerCase()}&gt;
             </span>
             <span className="text-[10px] font-mono text-slate-500 truncate flex-1">
               {data.selector}
             </span>
           </div>
           {data.textContent && (
-            <p className="text-[9px] text-slate-600 mt-1 truncate">
+            <p className="text-[10px] text-slate-500 mt-1.5 truncate leading-tight bg-white/[0.02] rounded-md px-2 py-1 font-mono">
               "{data.textContent}"
             </p>
           )}
+          {/* Current element dimensions */}
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-[9px] text-slate-600 font-mono bg-white/[0.03] px-1.5 py-0.5 rounded">
+              {Math.round(data.rect.width)}x{Math.round(data.rect.height)}
+            </span>
+            <span className="text-[9px] text-slate-600 font-mono bg-white/[0.03] px-1.5 py-0.5 rounded">
+              {data.styles.display}
+            </span>
+            <span className="text-[9px] text-slate-600 font-mono bg-white/[0.03] px-1.5 py-0.5 rounded">
+              {data.styles.fontSize}
+            </span>
+          </div>
         </div>
 
-        {/* Category tabs */}
-        <div className="flex border-b border-white/[0.06] overflow-x-auto">
+        {/* ─── Category tabs ─── */}
+        <div className="flex border-b border-white/[0.06]">
           {CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
-              className={`flex items-center gap-1 px-2.5 py-1.5 text-[10px] whitespace-nowrap transition-all ${
+              className={`flex flex-col items-center gap-0.5 flex-1 py-2 transition-all ${
                 activeCategory === cat.id
-                  ? 'text-blue-400 bg-blue-500/10 border-b-2 border-blue-400'
-                  : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]'
+                  ? 'text-blue-400 bg-blue-500/8'
+                  : 'text-slate-600 hover:text-slate-400 hover:bg-white/[0.02]'
               }`}
+              title={cat.desc}
             >
               {cat.icon}
-              <span>{cat.label}</span>
+              <span className="text-[8px] font-medium">{cat.label}</span>
+              {activeCategory === cat.id && (
+                <div className="w-4 h-0.5 rounded-full bg-blue-400 mt-0.5" />
+              )}
             </button>
           ))}
         </div>
 
-        {/* Actions list */}
-        <div className="overflow-y-auto flex-1" style={{ maxHeight: 320 }}>
+        {/* ─── Actions list ─── */}
+        <div className="overflow-y-auto flex-1" style={{ maxHeight: 380 }}>
           {visibleGroups.map((group) => (
             <div key={group.id}>
               {!activeCategory && (
-                <div className="px-3 py-1.5 text-[9px] text-slate-600 font-semibold uppercase tracking-wider sticky top-0" style={{ background: 'rgba(10,15,30,0.95)' }}>
-                  {group.label}
+                <div className="px-4 py-2 flex items-center gap-2 sticky top-0" style={{ background: 'rgba(8,12,24,0.97)' }}>
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">{group.label}</span>
+                  <span className="text-[8px] text-slate-700 font-normal normal-case">{group.desc}</span>
                 </div>
               )}
-              {group.actions.map((action) => (
-                <button
-                  key={action.id}
-                  onClick={action.action}
-                  className={`flex items-start gap-2 w-full px-3 py-2 text-left hover:bg-white/[0.05] transition-colors group ${
-                    action.danger ? 'hover:bg-red-900/20' : ''
-                  }`}
-                >
-                  <span className={`mt-0.5 shrink-0 ${
-                    action.danger ? 'text-red-400' :
-                    action.accent ? 'text-blue-400' :
-                    'text-slate-400 group-hover:text-slate-200'
-                  }`}>
-                    {action.icon}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className={`text-[11px] font-medium ${
+              {group.actions.map((action) => {
+                const isApplied = appliedAction === action.id;
+                return (
+                  <button
+                    key={action.id}
+                    onClick={action.action}
+                    className={`flex items-start gap-3 w-full px-4 py-2.5 text-left transition-all group relative ${
+                      isApplied
+                        ? 'bg-green-500/10'
+                        : action.danger
+                          ? 'hover:bg-red-500/8'
+                          : 'hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    {/* Success indicator */}
+                    {isApplied && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <Check size={14} className="text-green-400" />
+                      </div>
+                    )}
+
+                    <span className={`mt-0.5 shrink-0 transition-colors ${
+                      isApplied ? 'text-green-400' :
                       action.danger ? 'text-red-400' :
-                      action.accent ? 'text-blue-300' :
-                      'text-slate-300'
+                      action.accent ? 'text-blue-400' :
+                      'text-slate-500 group-hover:text-slate-300'
                     }`}>
-                      {action.label}
+                      {action.icon}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className={`text-[12px] font-medium leading-tight ${
+                        isApplied ? 'text-green-300' :
+                        action.danger ? 'text-red-400' :
+                        action.accent ? 'text-blue-300' :
+                        'text-slate-200'
+                      }`}>
+                        {action.label}
+                      </div>
+                      <div className="text-[10px] text-slate-600 mt-0.5 leading-tight">
+                        {action.description}
+                      </div>
                     </div>
-                    <div className="text-[9px] text-slate-600 mt-0.5 leading-tight">
-                      {action.description}
-                    </div>
-                  </div>
-                  <ChevronRight size={10} className="text-slate-700 mt-1 shrink-0 group-hover:text-slate-500" />
-                </button>
-              ))}
+                    {!isApplied && (
+                      <ChevronRight size={11} className="text-slate-700 mt-1 shrink-0 group-hover:text-slate-500 transition-colors" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           ))}
         </div>
 
-        {/* Current styles footer */}
-        <div className="px-3 py-1.5 border-t border-white/[0.06] flex items-center gap-2">
-          <span className="text-[8px] text-slate-700">
-            {data.styles.display} | {data.styles.position} | {data.styles.fontSize}
-          </span>
+        {/* ─── Current styles footer ─── */}
+        <div className="px-4 py-2 border-t border-white/[0.06] flex items-center gap-2 flex-wrap">
+          {[
+            { label: data.styles.display, color: '#60a5fa' },
+            { label: data.styles.position, color: '#c084fc' },
+            { label: data.styles.fontSize, color: '#4ade80' },
+          ].map((s, i) => (
+            <span key={i} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.03] border border-white/[0.04]" style={{ color: s.color }}>
+              {s.label}
+            </span>
+          ))}
         </div>
       </div>
 
-      {/* Color picker panel */}
+      {/* ═══ Color picker panel ═══ */}
       {colorPickerTarget && (
         <div
-          className="ml-2 rounded-xl p-3 animate-fade-in-up"
+          className="ml-3 rounded-2xl p-4 animate-fade-in-up self-start"
           style={{
-            width: 180,
-            background: 'rgba(10,15,30,0.95)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            backdropFilter: 'blur(20px)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            width: 220,
+            background: 'rgba(8,12,24,0.97)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(24px)',
+            boxShadow: '0 16px 48px rgba(0,0,0,0.6), 0 0 20px rgba(59,130,246,0.04), inset 0 1px 0 rgba(255,255,255,0.04)',
           }}
         >
-          <div className="text-[10px] text-slate-400 mb-2 font-medium">
-            {colorPickerTarget === 'color' ? 'Yazi Rengi' : 'Arka Plan Rengi'}
+          {/* Header */}
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/15 flex items-center justify-center">
+              <Palette size={12} className="text-blue-400" />
+            </div>
+            <span className="text-xs text-slate-200 font-medium">
+              {colorPickerTarget === 'color' ? 'Yazi Rengi' : 'Arka Plan'}
+            </span>
+          </div>
+
+          {/* Current color preview */}
+          <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-white/[0.03] border border-white/[0.04]">
+            <div
+              className="w-8 h-8 rounded-lg border border-white/[0.1]"
+              style={{ background: customColor === 'transparent' ? 'repeating-conic-gradient(#333 0% 25%, #555 0% 50%) 50% / 8px 8px' : customColor }}
+            />
+            <div>
+              <span className="text-[10px] text-slate-400 block">Secili renk</span>
+              <span className="text-[11px] font-mono text-slate-200">{customColor}</span>
+            </div>
           </div>
 
           {/* Preset colors */}
-          <div className="grid grid-cols-4 gap-1.5 mb-3">
+          <div className="grid grid-cols-4 gap-2 mb-4">
             {PRESET_COLORS.map((c) => (
               <button
                 key={c}
-                onClick={() => { setCustomColor(c); applyStyle(colorPickerTarget, c); }}
-                className="w-8 h-8 rounded-lg border border-white/[0.1] hover:border-white/[0.3] transition-all hover:scale-110"
+                onClick={() => {
+                  setCustomColor(c);
+                  applyStyle(colorPickerTarget, c);
+                  flashAction('color-applied');
+                }}
+                className={`w-10 h-10 rounded-xl border transition-all hover:scale-110 active:scale-95 ${
+                  customColor === c ? 'border-blue-400 ring-2 ring-blue-400/30' : 'border-white/[0.08] hover:border-white/[0.2]'
+                }`}
                 style={{
                   background: c === 'transparent'
                     ? 'repeating-conic-gradient(#333 0% 25%, #555 0% 50%) 50% / 8px 8px'
                     : c,
+                  boxShadow: customColor === c ? `0 0 12px ${c}40` : undefined,
                 }}
                 title={c}
               />
@@ -583,24 +674,36 @@ export const DesignContextMenu = memo(function DesignContextMenu({
           </div>
 
           {/* Custom color input */}
-          <div className="flex items-center gap-2">
-            <input
-              type="color"
-              value={customColor}
-              onChange={(e) => setCustomColor(e.target.value)}
-              className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent"
-            />
-            <input
-              type="text"
-              value={customColor}
-              onChange={(e) => setCustomColor(e.target.value)}
-              className="flex-1 text-[10px] font-mono bg-white/[0.05] border border-white/[0.1] rounded px-2 py-1 text-slate-300 focus:outline-none focus:border-blue-500/30"
-            />
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={customColor === 'transparent' ? '#000000' : customColor}
+                onChange={(e) => setCustomColor(e.target.value)}
+                className="w-10 h-10 rounded-lg cursor-pointer border border-white/[0.08] bg-transparent"
+              />
+              <input
+                type="text"
+                value={customColor}
+                onChange={(e) => setCustomColor(e.target.value)}
+                className="flex-1 text-xs font-mono rounded-lg px-3 py-2 text-slate-200 focus:outline-none transition-all"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.3)'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
+              />
+            </div>
             <button
               onClick={handleColorApply}
-              className="text-[10px] text-blue-400 hover:text-blue-300 font-medium px-2 py-1 rounded bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
+              className="w-full py-2 text-xs font-semibold text-white rounded-xl transition-all active:scale-[0.97]"
+              style={{
+                background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+                boxShadow: '0 4px 16px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.1)',
+              }}
             >
-              Uygula
+              Rengi Uygula
             </button>
           </div>
         </div>

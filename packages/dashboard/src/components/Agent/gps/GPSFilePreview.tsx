@@ -1,5 +1,8 @@
 import { memo, useState, useEffect, useCallback, useRef } from 'react';
-import { X, Clock, Eye, Navigation, Code, MonitorPlay, Sparkles } from 'lucide-react';
+import {
+  X, Clock, Eye, Navigation, Code, MonitorPlay, Sparkles,
+  Maximize2, Minimize2, PanelRightClose, History,
+} from 'lucide-react';
 import type { ForceNode } from './types';
 import { ACTIVITY_COLORS, SYNTAX } from './constants';
 import type { AgentBreadcrumb } from '@voltron/shared';
@@ -31,27 +34,248 @@ function highlightSyntax(code: string): string {
   return result;
 }
 
+/* ═══ Premium Inline Text Editor Modal ═══ */
+function PremiumTextEditor({ selector, currentText, onSubmit, onCancel }: {
+  selector: string;
+  currentText: string;
+  onSubmit: (selector: string, text: string) => void;
+  onCancel: () => void;
+}) {
+  const [text, setText] = useState(currentText);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        onSubmit(selector, text);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [selector, text, onSubmit, onCancel]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center animate-fade-in-up"
+      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
+      onClick={onCancel}
+    >
+      <div
+        className="flex flex-col rounded-2xl overflow-hidden animate-fade-in-up"
+        style={{
+          width: 480,
+          background: 'rgba(10,15,30,0.97)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          backdropFilter: 'blur(24px)',
+          boxShadow: '0 24px 80px rgba(0,0,0,0.7), 0 0 40px rgba(59,130,246,0.08), inset 0 1px 0 rgba(255,255,255,0.04)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.06]">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/20 flex items-center justify-center">
+            <Code size={16} className="text-blue-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-slate-100">Metin Duzenle</h3>
+            <p className="text-[10px] text-slate-500 font-mono mt-0.5">{selector}</p>
+          </div>
+          <button
+            onClick={onCancel}
+            className="ml-auto p-1.5 rounded-lg hover:bg-white/[0.06] text-slate-500 hover:text-slate-300 transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4">
+          <label className="text-[11px] text-slate-400 font-medium mb-2 block">Yeni icerik</label>
+          <textarea
+            ref={inputRef}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={4}
+            className="w-full rounded-xl px-4 py-3 text-sm text-slate-200 font-mono leading-relaxed resize-none focus:outline-none transition-all"
+            style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)',
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(59,130,246,0.3)';
+              e.currentTarget.style.boxShadow = 'inset 0 2px 4px rgba(0,0,0,0.2), 0 0 12px rgba(59,130,246,0.1)';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+              e.currentTarget.style.boxShadow = 'inset 0 2px 4px rgba(0,0,0,0.2)';
+            }}
+            placeholder="Yeni metin giriniz..."
+          />
+          <p className="text-[9px] text-slate-600 mt-2">Ctrl+Enter ile hizlica uygulayabilirsiniz</p>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center gap-2 px-5 py-3 border-t border-white/[0.06]">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-xs font-medium text-slate-400 rounded-lg hover:bg-white/[0.04] border border-white/[0.06] transition-all"
+          >
+            Iptal
+          </button>
+          <button
+            onClick={() => onSubmit(selector, text)}
+            className="ml-auto px-5 py-2 text-xs font-semibold text-white rounded-lg transition-all active:scale-[0.97]"
+            style={{
+              background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+              boxShadow: '0 4px 16px rgba(59,130,246,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+            }}
+          >
+            Uygula
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══ Premium Confirm Dialog ═══ */
+function PremiumConfirm({ title, message, onConfirm, onCancel, danger }: {
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  danger?: boolean;
+}) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+      if (e.key === 'Enter') onConfirm();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onConfirm, onCancel]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center animate-fade-in-up"
+      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
+      onClick={onCancel}
+    >
+      <div
+        className="flex flex-col rounded-2xl overflow-hidden animate-fade-in-up"
+        style={{
+          width: 400,
+          background: 'rgba(10,15,30,0.97)',
+          border: `1px solid ${danger ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.1)'}`,
+          backdropFilter: 'blur(24px)',
+          boxShadow: danger
+            ? '0 24px 80px rgba(0,0,0,0.7), 0 0 40px rgba(239,68,68,0.08)'
+            : '0 24px 80px rgba(0,0,0,0.7), 0 0 40px rgba(59,130,246,0.08)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.06]">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+            danger ? 'bg-red-500/10 border border-red-500/20' : 'bg-blue-500/10 border border-blue-500/20'
+          }`}>
+            {danger ? <X size={16} className="text-red-400" /> : <Sparkles size={16} className="text-blue-400" />}
+          </div>
+          <h3 className="text-sm font-semibold text-slate-100">{title}</h3>
+        </div>
+        <div className="px-5 py-4">
+          <p className="text-xs text-slate-400 leading-relaxed">{message}</p>
+        </div>
+        <div className="flex items-center gap-2 px-5 py-3 border-t border-white/[0.06]">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-xs font-medium text-slate-400 rounded-lg hover:bg-white/[0.04] border border-white/[0.06] transition-all"
+          >
+            Vazgec
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`ml-auto px-5 py-2 text-xs font-semibold text-white rounded-lg transition-all active:scale-[0.97] ${
+              danger ? '' : ''
+            }`}
+            style={{
+              background: danger
+                ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                : 'linear-gradient(135deg, #3b82f6, #6366f1)',
+              boxShadow: danger
+                ? '0 4px 16px rgba(239,68,68,0.3), inset 0 1px 0 rgba(255,255,255,0.1)'
+                : '0 4px 16px rgba(59,130,246,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+            }}
+          >
+            Onayla
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══ Action Toast ═══ */
+function ActionToast({ message, onDone }: { message: string; onDone: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onDone, 2000);
+    return () => clearTimeout(timer);
+  }, [onDone]);
+
+  return (
+    <div
+      className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-xl text-xs text-slate-200 font-medium animate-fade-in-up"
+      style={{
+        background: 'rgba(10,15,30,0.92)',
+        border: '1px solid rgba(59,130,246,0.15)',
+        backdropFilter: 'blur(16px)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 0 16px rgba(59,130,246,0.08)',
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <Sparkles size={12} className="text-blue-400" />
+        {message}
+      </div>
+    </div>
+  );
+}
+
+/* ═══ Main Component ═══ */
 export const GPSFilePreview = memo(function GPSFilePreview({
   node, breadcrumbs, projectId, onClose, onRedirect,
 }: GPSFilePreviewProps) {
   const { t } = useTranslation();
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const iframeContainerRef = useRef<HTMLDivElement>(null);
 
-  // View mode: 'preview' or 'code'
+  // View & layout state
   const canPreview = node ? isRenderable(node.extension) : false;
   const [viewMode, setViewMode] = useState<'preview' | 'code'>(canPreview ? 'preview' : 'code');
+  const [maximized, setMaximized] = useState(true); // default: fullscreen overlay
+  const [historyVisible, setHistoryVisible] = useState(false);
 
   // Design context menu state
   const [designMenu, setDesignMenu] = useState<ContextMenuEventData | null>(null);
 
-  // Reset view mode when node changes
+  // Premium dialogs state
+  const [textEditor, setTextEditor] = useState<{ selector: string; text: string } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ selector: string; type: 'delete' } | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  // Reset states when node changes
   useEffect(() => {
     if (node) {
       setViewMode(isRenderable(node.extension) ? 'preview' : 'code');
       setDesignMenu(null);
+      setTextEditor(null);
+      setConfirmDialog(null);
     }
   }, [node?.id]);
 
@@ -80,49 +304,60 @@ export const GPSFilePreview = memo(function GPSFilePreview({
     if (node) onRedirect(node.filePath);
   }, [node, onRedirect]);
 
-  // Design context menu handlers
+  // ─── iframe communication helpers ───
+  const sendToIframe = useCallback((message: Record<string, unknown>) => {
+    const iframe = iframeContainerRef.current?.querySelector('iframe');
+    iframe?.contentWindow?.postMessage(message, '*');
+  }, []);
+
+  // ─── Design context menu handlers ───
   const handlePreviewContextMenu = useCallback((data: ContextMenuEventData) => {
     setDesignMenu(data);
   }, []);
 
   const handleApplyStyle = useCallback((selector: string, styles: Record<string, string>) => {
-    // Send to iframe
-    const iframe = iframeContainerRef.current?.querySelector('iframe');
-    if (iframe?.contentWindow) {
-      iframe.contentWindow.postMessage({ type: 'VOLTRON_APPLY_STYLE', selector, styles }, '*');
-    }
-  }, []);
+    sendToIframe({ type: 'VOLTRON_APPLY_STYLE', selector, styles });
+    setToast('Stil uygulandı');
+  }, [sendToIframe]);
 
   const handleEditText = useCallback((selector: string) => {
-    const newText = prompt('Yeni metin girin:');
-    if (newText !== null) {
-      const iframe = iframeContainerRef.current?.querySelector('iframe');
-      if (iframe?.contentWindow) {
-        iframe.contentWindow.postMessage({ type: 'VOLTRON_EDIT_TEXT', selector, text: newText }, '*');
-      }
-    }
-  }, []);
+    // Open premium text editor instead of browser prompt()
+    const currentText = designMenu?.textContent ?? '';
+    setTextEditor({ selector, text: currentText });
+    setDesignMenu(null);
+  }, [designMenu]);
+
+  const handleTextSubmit = useCallback((selector: string, text: string) => {
+    sendToIframe({ type: 'VOLTRON_EDIT_TEXT', selector, text });
+    setTextEditor(null);
+    setToast('Metin guncellendi');
+  }, [sendToIframe]);
 
   const handleDeleteElement = useCallback((selector: string) => {
-    const iframe = iframeContainerRef.current?.querySelector('iframe');
-    if (iframe?.contentWindow) {
-      iframe.contentWindow.postMessage({ type: 'VOLTRON_DELETE_ELEMENT', selector }, '*');
-    }
+    // Open premium confirm dialog
+    setConfirmDialog({ selector, type: 'delete' });
+    setDesignMenu(null);
   }, []);
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (confirmDialog) {
+      sendToIframe({ type: 'VOLTRON_DELETE_ELEMENT', selector: confirmDialog.selector });
+      setConfirmDialog(null);
+      setToast('Element silindi');
+    }
+  }, [confirmDialog, sendToIframe]);
 
   const handleDuplicateElement = useCallback((selector: string) => {
-    const iframe = iframeContainerRef.current?.querySelector('iframe');
-    if (iframe?.contentWindow) {
-      iframe.contentWindow.postMessage({ type: 'VOLTRON_DUPLICATE_ELEMENT', selector }, '*');
-    }
-  }, []);
+    sendToIframe({ type: 'VOLTRON_DUPLICATE_ELEMENT', selector });
+    setDesignMenu(null);
+    setToast('Element kopyalandi');
+  }, [sendToIframe]);
 
   const handleToggleVisibility = useCallback((selector: string) => {
-    const iframe = iframeContainerRef.current?.querySelector('iframe');
-    if (iframe?.contentWindow) {
-      iframe.contentWindow.postMessage({ type: 'VOLTRON_TOGGLE_VISIBILITY', selector }, '*');
-    }
-  }, []);
+    sendToIframe({ type: 'VOLTRON_TOGGLE_VISIBILITY', selector });
+    setDesignMenu(null);
+    setToast('Gorunurluk degistirildi');
+  }, [sendToIframe]);
 
   const closeDesignMenu = useCallback(() => setDesignMenu(null), []);
 
@@ -134,153 +369,266 @@ export const GPSFilePreview = memo(function GPSFilePreview({
     return { x: rect.left, y: rect.top };
   }, []);
 
+  // Escape to close
+  useEffect(() => {
+    if (!node) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !textEditor && !confirmDialog && !designMenu) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [node, onClose, textEditor, confirmDialog, designMenu]);
+
   if (!node) return null;
 
   return (
     <>
+      {/* ═══ Backdrop for fullscreen mode ═══ */}
+      {maximized && (
+        <div
+          className="fixed inset-0 z-[25] animate-fade-in-up"
+          style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+          onClick={onClose}
+        />
+      )}
+
+      {/* ═══ Main Container ═══ */}
       <div
-        ref={containerRef}
-        className="absolute top-0 right-0 h-full flex flex-col animate-fade-in-up"
-        style={{
-          width: 400,
+        className={`flex flex-col animate-fade-in-up ${
+          maximized
+            ? 'fixed z-[30]'
+            : 'absolute top-0 right-0 h-full z-20'
+        }`}
+        style={maximized ? {
+          inset: '48px 48px 48px 48px',
+          background: 'rgba(8,12,24,0.98)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: 20,
+          backdropFilter: 'blur(24px)',
+          boxShadow: '0 32px 100px rgba(0,0,0,0.8), 0 0 60px rgba(59,130,246,0.06), inset 0 1px 0 rgba(255,255,255,0.04)',
+        } : {
+          width: 440,
           background: 'rgba(10,15,30,0.95)',
           borderLeft: '1px solid rgba(255,255,255,0.06)',
           backdropFilter: 'blur(20px)',
           boxShadow: '-8px 0 40px rgba(0,0,0,0.4)',
-          zIndex: 20,
         }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06]">
-          <div className="flex items-center gap-2 min-w-0">
-            {viewMode === 'preview' ? (
-              <MonitorPlay size={14} className="text-green-400 shrink-0" />
-            ) : (
-              <Eye size={14} className="text-blue-400 shrink-0" />
-            )}
-            <span className="text-xs font-mono text-slate-200 truncate">{node.fileName}</span>
+        {/* ─── Header ─── */}
+        <div className={`flex items-center justify-between border-b border-white/[0.06] shrink-0 ${
+          maximized ? 'px-5 py-3' : 'px-3 py-2'
+        }`}>
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Icon */}
+            <div className={`rounded-lg flex items-center justify-center shrink-0 ${
+              viewMode === 'preview'
+                ? 'bg-gradient-to-br from-green-500/15 to-emerald-500/15 border border-green-500/20'
+                : 'bg-gradient-to-br from-blue-500/15 to-indigo-500/15 border border-blue-500/20'
+            } ${maximized ? 'w-9 h-9' : 'w-7 h-7'}`}>
+              {viewMode === 'preview' ? (
+                <MonitorPlay size={maximized ? 18 : 14} className="text-green-400" />
+              ) : (
+                <Eye size={maximized ? 18 : 14} className="text-blue-400" />
+              )}
+            </div>
+            {/* File info */}
+            <div className="min-w-0">
+              <h3 className={`font-semibold text-slate-100 truncate ${maximized ? 'text-sm' : 'text-xs'}`}>
+                {node.fileName}
+              </h3>
+              <p className={`font-mono text-slate-500 truncate ${maximized ? 'text-[11px]' : 'text-[9px]'}`}>
+                {node.filePath}
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
+
+          {/* Controls */}
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Stats badges */}
+            <span className={`font-mono text-slate-500 bg-white/[0.04] border border-white/[0.06] px-2 py-0.5 rounded-md ${
+              maximized ? 'text-[10px]' : 'text-[9px]'
+            }`}>
+              {node.visits} ziyaret
+            </span>
+            <span className={`font-mono bg-white/[0.04] border border-white/[0.06] px-2 py-0.5 rounded-md ${
+              maximized ? 'text-[10px]' : 'text-[9px]'
+            }`} style={{ color: ACTIVITY_COLORS[node.lastActivity] }}>
+              {node.lastActivity}
+            </span>
+
+            {canPreview && viewMode === 'preview' && (
+              <span className="flex items-center gap-1 text-[10px] text-green-400 bg-green-500/10 border border-green-500/15 px-2 py-0.5 rounded-md">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                Canli
+              </span>
+            )}
+
+            <div className="w-px h-5 bg-white/[0.06] mx-1" />
+
+            {/* History toggle */}
+            <button
+              onClick={() => setHistoryVisible(!historyVisible)}
+              className={`p-1.5 rounded-lg transition-all ${
+                historyVisible ? 'bg-blue-500/15 text-blue-400' : 'hover:bg-white/[0.06] text-slate-500 hover:text-slate-300'
+              }`}
+              title="Aktivite gecmisi"
+            >
+              <History size={maximized ? 16 : 14} />
+            </button>
+
+            {/* Redirect */}
             <button
               onClick={handleRedirect}
-              className="p-1 rounded hover:bg-slate-700 text-blue-400"
+              className="p-1.5 rounded-lg hover:bg-white/[0.06] text-blue-400 transition-all"
               title={t('agent.gps.switchFile')}
             >
-              <Navigation size={14} />
+              <Navigation size={maximized ? 16 : 14} />
             </button>
-            <button onClick={onClose} className="p-1 rounded hover:bg-slate-700 text-slate-400">
-              <X size={14} />
+
+            {/* Maximize/Minimize */}
+            <button
+              onClick={() => setMaximized(!maximized)}
+              className="p-1.5 rounded-lg hover:bg-white/[0.06] text-slate-500 hover:text-slate-300 transition-all"
+              title={maximized ? 'Kucult' : 'Tam ekran'}
+            >
+              {maximized ? <PanelRightClose size={16} /> : <Maximize2 size={14} />}
+            </button>
+
+            {/* Close */}
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-all"
+              title="Kapat (Esc)"
+            >
+              <X size={maximized ? 16 : 14} />
             </button>
           </div>
         </div>
 
-        {/* Mode Toggle — Code/Preview */}
-        <div className="flex border-b border-white/[0.06]">
+        {/* ─── Mode Toggle — Code/Preview ─── */}
+        <div className="flex border-b border-white/[0.06] shrink-0">
           <button
             onClick={() => { setViewMode('preview'); setDesignMenu(null); }}
             disabled={!canPreview}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium transition-all flex-1 justify-center ${
+            className={`flex items-center gap-2 px-5 py-2.5 font-medium transition-all flex-1 justify-center ${
+              maximized ? 'text-xs' : 'text-[11px]'
+            } ${
               viewMode === 'preview'
-                ? 'text-green-400 bg-green-500/10 border-b-2 border-green-400'
+                ? 'text-green-400 bg-green-500/8 border-b-2 border-green-400'
                 : canPreview
                   ? 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]'
                   : 'text-slate-700 cursor-not-allowed'
             }`}
           >
-            <MonitorPlay size={12} />
-            Onizleme
+            <MonitorPlay size={14} />
+            Gorsel Onizleme
             {canPreview && viewMode === 'preview' && (
-              <Sparkles size={9} className="text-green-400 animate-pulse" />
+              <Sparkles size={10} className="text-green-400 animate-pulse" />
             )}
           </button>
+          <div className="w-px bg-white/[0.04]" />
           <button
             onClick={() => { setViewMode('code'); setDesignMenu(null); }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium transition-all flex-1 justify-center ${
+            className={`flex items-center gap-2 px-5 py-2.5 font-medium transition-all flex-1 justify-center ${
+              maximized ? 'text-xs' : 'text-[11px]'
+            } ${
               viewMode === 'code'
-                ? 'text-blue-400 bg-blue-500/10 border-b-2 border-blue-400'
+                ? 'text-blue-400 bg-blue-500/8 border-b-2 border-blue-400'
                 : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]'
             }`}
           >
-            <Code size={12} />
-            Kod
+            <Code size={14} />
+            Kaynak Kod
           </button>
         </div>
 
-        {/* File path */}
-        <div className="px-3 py-1.5 text-[10px] font-mono text-slate-500 border-b border-white/[0.04]">
-          {node.filePath}
-        </div>
-
-        {/* Stats */}
-        <div className="flex items-center gap-4 px-3 py-1.5 border-b border-white/[0.04]">
-          <span className="text-[10px] text-slate-400">
-            {node.visits} {t('agent.visits')}
-          </span>
-          <span className="text-[10px]" style={{ color: ACTIVITY_COLORS[node.lastActivity] }}>
-            {node.lastActivity}
-          </span>
-          {canPreview && viewMode === 'preview' && (
-            <span className="text-[9px] text-green-500/60 ml-auto flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              Canli
-            </span>
-          )}
-        </div>
-
-        {/* Content area */}
-        <div ref={iframeContainerRef} className="flex-1 overflow-hidden relative">
-          {viewMode === 'preview' && canPreview ? (
-            /* Live Preview Mode */
-            <LivePreviewFrame
-              filePath={node.filePath}
-              projectId={projectId}
-              extension={node.extension}
-              content={content}
-              onContextMenu={handlePreviewContextMenu}
-            />
-          ) : (
-            /* Code Mode */
-            <div className="h-full overflow-auto">
-              {loading ? (
-                <div className="p-4 text-xs text-slate-500">{t('common.loading')}</div>
-              ) : content ? (
-                <pre
-                  className="p-3 text-[11px] leading-relaxed font-mono text-slate-300 whitespace-pre-wrap break-words"
-                  dangerouslySetInnerHTML={{ __html: highlightSyntax(content.slice(0, 5000)) }}
-                />
-              ) : (
-                <div className="p-4 text-xs text-slate-500">Preview not available</div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Activity history */}
-        {fileBreadcrumbs.length > 0 && (
-          <div className="border-t border-white/[0.06] max-h-[160px] overflow-auto">
-            <div className="px-3 py-1.5 flex items-center gap-1 text-[10px] text-slate-400 sticky top-0" style={{ background: 'rgba(10,15,30,0.95)', backdropFilter: 'blur(8px)' }}>
-              <Clock size={10} />
-              <span>Aktivite ({fileBreadcrumbs.length})</span>
-            </div>
-            {fileBreadcrumbs.slice(-20).reverse().map((bc, i) => (
-              <div key={i} className="px-3 py-1 flex items-center gap-2 hover:bg-slate-800/50">
-                <span
-                  className="w-1.5 h-1.5 rounded-full shrink-0"
-                  style={{ background: ACTIVITY_COLORS[bc.activity] }}
-                />
-                <span className="text-[10px] font-mono text-slate-400 flex-1">
-                  {bc.toolName ?? bc.activity}
-                </span>
-                <span className="text-[10px] text-slate-600">
-                  {new Date(bc.timestamp).toLocaleTimeString()}
-                </span>
+        {/* ─── Content ─── */}
+        <div className="flex flex-1 min-h-0">
+          {/* Preview / Code area */}
+          <div ref={iframeContainerRef} className="flex-1 overflow-hidden relative">
+            {viewMode === 'preview' && canPreview ? (
+              <LivePreviewFrame
+                filePath={node.filePath}
+                projectId={projectId}
+                extension={node.extension}
+                content={content}
+                onContextMenu={handlePreviewContextMenu}
+              />
+            ) : (
+              <div className="h-full overflow-auto">
+                {loading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-400 rounded-full animate-spin" />
+                      <span className="text-xs text-slate-500">{t('common.loading')}</span>
+                    </div>
+                  </div>
+                ) : content ? (
+                  <pre
+                    className={`p-4 font-mono text-slate-300 whitespace-pre-wrap break-words ${
+                      maximized ? 'text-[13px] leading-6' : 'text-[11px] leading-relaxed'
+                    }`}
+                    dangerouslySetInnerHTML={{ __html: highlightSyntax(content.slice(0, maximized ? 20000 : 5000)) }}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <span className="text-sm text-slate-500">Onizleme kullanilamiyor</span>
+                  </div>
+                )}
               </div>
-            ))}
+            )}
+
+            {/* Toast notifications */}
+            {toast && <ActionToast message={toast} onDone={() => setToast(null)} />}
           </div>
-        )}
+
+          {/* History sidebar */}
+          {historyVisible && fileBreadcrumbs.length > 0 && (
+            <div
+              className="overflow-auto shrink-0 border-l border-white/[0.06]"
+              style={{ width: maximized ? 280 : 200, background: 'rgba(6,10,20,0.5)' }}
+            >
+              <div className="px-3 py-2 flex items-center gap-2 text-xs text-slate-400 sticky top-0 border-b border-white/[0.04]" style={{ background: 'rgba(6,10,20,0.9)', backdropFilter: 'blur(8px)' }}>
+                <Clock size={12} />
+                <span className="font-medium">Aktivite</span>
+                <span className="ml-auto text-[10px] font-mono text-slate-600">{fileBreadcrumbs.length}</span>
+              </div>
+              {fileBreadcrumbs.slice(-30).reverse().map((bc, i) => (
+                <div key={i} className="px-3 py-1.5 flex items-center gap-2 hover:bg-white/[0.03] transition-colors">
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ background: ACTIVITY_COLORS[bc.activity], boxShadow: `0 0 6px ${ACTIVITY_COLORS[bc.activity]}40` }}
+                  />
+                  <span className="text-[11px] font-mono text-slate-400 flex-1 truncate">
+                    {bc.toolName ?? bc.activity}
+                  </span>
+                  <span className="text-[10px] text-slate-600 shrink-0">
+                    {new Date(bc.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ─── Bottom info bar ─── */}
+        <div className="flex items-center gap-3 px-4 py-2 border-t border-white/[0.06] shrink-0 text-[10px] text-slate-600">
+          <span className="font-mono">{node.extension}</span>
+          <span className="w-px h-3 bg-white/[0.06]" />
+          <span>{node.visits} ziyaret</span>
+          {viewMode === 'preview' && canPreview && (
+            <>
+              <span className="w-px h-3 bg-white/[0.06]" />
+              <span className="text-green-500/60">Sag tikla: Tasarim modu</span>
+            </>
+          )}
+          <span className="ml-auto">Esc: Kapat</span>
+        </div>
       </div>
 
-      {/* Design Context Menu — rendered outside the panel for proper positioning */}
+      {/* ═══ Design Context Menu ═══ */}
       <DesignContextMenu
         data={designMenu}
         frameOffset={getFrameOffset()}
@@ -291,6 +639,27 @@ export const GPSFilePreview = memo(function GPSFilePreview({
         onDuplicateElement={handleDuplicateElement}
         onToggleVisibility={handleToggleVisibility}
       />
+
+      {/* ═══ Premium Text Editor Modal ═══ */}
+      {textEditor && (
+        <PremiumTextEditor
+          selector={textEditor.selector}
+          currentText={textEditor.text}
+          onSubmit={handleTextSubmit}
+          onCancel={() => setTextEditor(null)}
+        />
+      )}
+
+      {/* ═══ Premium Confirm Dialog ═══ */}
+      {confirmDialog && (
+        <PremiumConfirm
+          title="Elementi Sil"
+          message="Bu element DOM'dan tamamen kaldirilacak. Bu islem geri alinamaz. Devam etmek istiyor musunuz?"
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setConfirmDialog(null)}
+          danger
+        />
+      )}
     </>
   );
 });
