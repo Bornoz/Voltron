@@ -88,15 +88,17 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   return (
     <div className="fixed inset-0 z-[300000] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-[440px] bg-gray-900/98 border border-gray-700/60 rounded-xl shadow-2xl shadow-black/60 backdrop-blur-xl overflow-hidden"
+        className="w-[440px] rounded-xl backdrop-blur-xl overflow-hidden"
+        style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', boxShadow: 'var(--shadow-elevated)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800/60">
-          <h2 className="text-sm font-semibold text-gray-200">{t('settings.title')}</h2>
+        <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>{t('settings.title')}</h2>
           <button
             onClick={onClose}
-            className="p-1 text-gray-500 hover:text-gray-300 hover:bg-gray-800/60 rounded transition-colors"
+            className="p-1 rounded transition-colors"
+            style={{ color: 'var(--color-text-muted)' }}
           >
             <X className="w-4 h-4" />
           </button>
@@ -108,26 +110,28 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Globe className="w-3.5 h-3.5 text-blue-400" />
-              <span className="text-xs font-medium text-gray-300">{t('settings.language')}</span>
+              <span className="text-xs font-medium" style={{ color: 'var(--color-text-primary)' }}>{t('settings.language')}</span>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => update({ language: 'en' })}
-                className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
-                  settings.language === 'en'
-                    ? 'bg-blue-600/20 border-blue-500/50 text-blue-300'
-                    : 'bg-gray-800/40 border-gray-700/50 text-gray-400 hover:border-gray-600'
-                }`}
+                className="flex-1 px-3 py-2 text-xs rounded-lg border transition-colors"
+                style={settings.language === 'en' ? {
+                  background: 'rgba(37,99,235,0.2)', borderColor: 'rgba(59,130,246,0.5)', color: 'rgb(147,197,253)'
+                } : {
+                  background: 'var(--color-bg-tertiary)', borderColor: 'var(--glass-border)', color: 'var(--color-text-secondary)'
+                }}
               >
                 English
               </button>
               <button
                 onClick={() => update({ language: 'tr' })}
-                className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
-                  settings.language === 'tr'
-                    ? 'bg-blue-600/20 border-blue-500/50 text-blue-300'
-                    : 'bg-gray-800/40 border-gray-700/50 text-gray-400 hover:border-gray-600'
-                }`}
+                className="flex-1 px-3 py-2 text-xs rounded-lg border transition-colors"
+                style={settings.language === 'tr' ? {
+                  background: 'rgba(37,99,235,0.2)', borderColor: 'rgba(59,130,246,0.5)', color: 'rgb(147,197,253)'
+                } : {
+                  background: 'var(--color-bg-tertiary)', borderColor: 'var(--glass-border)', color: 'var(--color-text-secondary)'
+                }}
               >
                 {t('settings.turkish')}
               </button>
@@ -138,12 +142,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Cpu className="w-3.5 h-3.5 text-purple-400" />
-              <span className="text-xs font-medium text-gray-300">{t('settings.defaultModel')}</span>
+              <span className="text-xs font-medium" style={{ color: 'var(--color-text-primary)' }}>{t('settings.defaultModel')}</span>
             </div>
             <select
               value={settings.defaultModel}
               onChange={(e) => update({ defaultModel: e.target.value })}
-              className="w-full px-3 py-2 text-xs bg-gray-800/60 border border-gray-700/50 rounded-lg text-gray-300 outline-none focus:border-blue-500/50"
+              className="w-full px-3 py-2 text-xs rounded-lg outline-none focus:border-blue-500/50"
+              style={{ background: 'var(--color-bg-tertiary)', border: '1px solid var(--glass-border)', color: 'var(--color-text-primary)' }}
             >
               <option value="claude-haiku-4-5-20251001">Haiku 4.5 ({t('settings.modelFast')})</option>
               <option value="claude-sonnet-4-6">Sonnet 4.6 ({t('settings.modelBalanced')})</option>
@@ -155,18 +160,19 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Layout className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-xs font-medium text-gray-300">{t('settings.defaultLayout')}</span>
+              <span className="text-xs font-medium" style={{ color: 'var(--color-text-primary)' }}>{t('settings.defaultLayout')}</span>
             </div>
             <div className="flex gap-2">
               {(['ide-style', 'gps-focus', 'monitor'] as const).map((preset) => (
                 <button
                   key={preset}
                   onClick={() => update({ defaultLayout: preset })}
-                  className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
-                    settings.defaultLayout === preset
-                      ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-300'
-                      : 'bg-gray-800/40 border-gray-700/50 text-gray-400 hover:border-gray-600'
-                  }`}
+                  className="flex-1 px-3 py-2 text-xs rounded-lg border transition-colors"
+                  style={settings.defaultLayout === preset ? {
+                    background: 'rgba(16,185,129,0.2)', borderColor: 'rgba(52,211,153,0.5)', color: 'rgb(110,231,183)'
+                  } : {
+                    background: 'var(--color-bg-tertiary)', borderColor: 'var(--glass-border)', color: 'var(--color-text-secondary)'
+                  }}
                 >
                   {preset === 'ide-style' ? 'IDE' : preset === 'gps-focus' ? 'GPS' : 'Monitor'}
                 </button>
@@ -179,7 +185,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Bell className="w-3.5 h-3.5 text-yellow-400" />
-                <span className="text-xs font-medium text-gray-300">{t('settings.notifications')}</span>
+                <span className="text-xs font-medium" style={{ color: 'var(--color-text-primary)' }}>{t('settings.notifications')}</span>
               </div>
               <button
                 onClick={() => update({ notifications: !settings.notifications })}

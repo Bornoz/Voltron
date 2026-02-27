@@ -15,16 +15,16 @@ export function Card({ title, children, padding = true, className, headerRight }
     <div
       className={twMerge(
         clsx(
-          'rounded-xl border border-white/[0.04] overflow-hidden transition-colors hover:border-white/[0.08]',
+          'rounded-xl overflow-hidden transition-colors',
           'bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)]',
         ),
         className,
       )}
-      style={{ boxShadow: 'var(--shadow-card)' }}
+      style={{ boxShadow: 'var(--shadow-card)', border: '1px solid var(--glass-border)' }}
     >
       {title && (
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.04]">
-          <h3 className="text-sm font-semibold text-gray-200 uppercase tracking-wider">
+        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+          <h3 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-primary)' }}>
             {title}
           </h3>
           {headerRight}

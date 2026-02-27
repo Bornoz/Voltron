@@ -45,8 +45,8 @@ export function Header({ projectName, executionState, connectionStatus, onOpenSe
           className="w-8 h-8 object-contain drop-shadow-[0_0_12px_rgba(59,130,246,0.3)]"
         />
         <div className="flex flex-col">
-          <span className="text-sm font-bold tracking-tight text-gray-100 leading-none">VOLTRON</span>
-          <span className="text-[9px] text-gray-500 tracking-widest uppercase leading-none mt-0.5">AI Operation Control Center</span>
+          <span className="text-sm font-bold tracking-tight leading-none" style={{ color: 'var(--color-text-primary)' }}>VOLTRON</span>
+          <span className="text-[9px] tracking-widest uppercase leading-none mt-0.5" style={{ color: 'var(--color-text-muted)' }}>AI Operation Control Center</span>
         </div>
       </div>
 
@@ -54,9 +54,9 @@ export function Header({ projectName, executionState, connectionStatus, onOpenSe
       <div className="flex items-center gap-2 ml-auto mr-4">
         {/* Execution state pill */}
         <div className={clsx(
-          'flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/[0.06]',
+          'flex items-center gap-1.5 px-2.5 py-1 rounded-full border',
           stateStyle.glow,
-        )}>
+        )} style={{ background: 'var(--color-bg-tertiary)', borderColor: 'var(--glass-border)' }}>
           <span className={clsx('w-2 h-2 rounded-full shrink-0', stateStyle.dot)} />
           <span className={clsx('text-[10px] font-bold uppercase tracking-wider', stateStyle.text)}>
             {stateLabels[executionState]}
@@ -64,7 +64,7 @@ export function Header({ projectName, executionState, connectionStatus, onOpenSe
         </div>
 
         {/* Connection pill */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/[0.06]">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border" style={{ background: 'var(--color-bg-tertiary)', borderColor: 'var(--glass-border)' }}>
           {isConnected ? (
             <>
               <Wifi className="w-3 h-3 text-green-400" />
@@ -87,7 +87,8 @@ export function Header({ projectName, executionState, connectionStatus, onOpenSe
         {onOpenSettings && (
           <button
             onClick={onOpenSettings}
-            className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-white/[0.04] transition-colors"
+            className="p-1.5 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
+            style={{ color: 'var(--color-text-muted)' }}
             title={t('settings.title')}
           >
             <Settings className="w-4 h-4" />
@@ -97,7 +98,8 @@ export function Header({ projectName, executionState, connectionStatus, onOpenSe
         {onLogout && (
           <button
             onClick={onLogout}
-            className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-white/[0.04] transition-colors"
+            className="p-1.5 rounded-lg hover:text-red-400 transition-colors hover:bg-[var(--color-bg-tertiary)]"
+            style={{ color: 'var(--color-text-muted)' }}
             title={t('login.signOut')}
           >
             <LogOut className="w-4 h-4" />

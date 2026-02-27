@@ -35,6 +35,10 @@
   --color-text-secondary: #a0a0d0;
   --color-text-muted: #6060a0;
   color-scheme: dark;
+
+  /* Midnight glass overrides */
+  --glass-bg: rgba(15, 15, 46, 0.7);
+  --glass-border: rgba(42, 42, 94, 0.4);
 }
 
 /* ── Theme: Light ────────────────────── */
@@ -48,6 +52,13 @@
   --color-text-secondary: #4b5563;
   --color-text-muted: #9ca3af;
   color-scheme: light;
+
+  /* Light glass overrides */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.1);
+  --glow-accent: 0 0 20px color-mix(in srgb, var(--color-accent) 10%, transparent);
 }
 
 /* ── Accent Colors (applied via data-accent) ── */
@@ -126,10 +137,7 @@
   animation: shimmer 2s linear infinite;
 }
 
-/* Base styles */
-html {
-  color-scheme: dark;
-}
+/* Base styles — color-scheme is set per theme above */
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -159,6 +167,14 @@ body::before {
   flex-direction: column;
   position: relative;
   z-index: 1;
+}
+
+/* Light theme: softer mesh gradient */
+[data-theme="light"] body::before {
+  background:
+    radial-gradient(ellipse at 20% 50%, color-mix(in srgb, var(--color-accent) 3%, transparent) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.02) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(6, 182, 212, 0.015) 0%, transparent 50%);
 }
 
 /* Scrollbar styling */

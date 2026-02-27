@@ -270,25 +270,27 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
     >
       <div
         ref={dialogRef}
-        className="w-[520px] max-h-[80vh] bg-gray-900/98 border border-gray-700/60 rounded-xl shadow-2xl shadow-black/60 backdrop-blur-xl overflow-hidden flex flex-col"
+        className="w-[520px] max-h-[80vh] rounded-xl backdrop-blur-xl overflow-hidden flex flex-col"
+        style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', boxShadow: 'var(--shadow-elevated)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800/60 flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--glass-border)' }}>
           <div className="flex items-center gap-2">
             <History className="w-4 h-4 text-blue-400" />
-            <h2 className="text-sm font-semibold text-gray-200">Prompt History</h2>
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>Prompt History</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-gray-500 hover:text-gray-300 hover:bg-gray-800/60 rounded transition-colors"
+            className="p-1 rounded transition-colors"
+            style={{ color: 'var(--color-text-muted)' }}
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* ── Tabs ── */}
-        <div className="flex border-b border-gray-800/60 flex-shrink-0" role="tablist">
+        <div className="flex flex-shrink-0" role="tablist" style={{ borderBottom: '1px solid var(--glass-border)' }}>
           <button
             role="tab"
             aria-selected={tab === 'history'}
@@ -296,13 +298,14 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
             className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium transition-colors border-b-2 ${
               tab === 'history'
                 ? 'text-blue-400 border-blue-500'
-                : 'text-gray-500 border-transparent hover:text-gray-300'
+                : 'border-transparent'
             }`}
+            style={tab !== 'history' ? { color: 'var(--color-text-muted)' } : undefined}
           >
             <Clock className="w-3.5 h-3.5" />
             History
             {history.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-gray-800 text-gray-500 rounded-full">
+              <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full" style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-muted)' }}>
                 {history.length}
               </span>
             )}
@@ -314,8 +317,9 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
             className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium transition-colors border-b-2 ${
               tab === 'templates'
                 ? 'text-blue-400 border-blue-500'
-                : 'text-gray-500 border-transparent hover:text-gray-300'
+                : 'border-transparent'
             }`}
+            style={tab !== 'templates' ? { color: 'var(--color-text-muted)' } : undefined}
           >
             <FileText className="w-3.5 h-3.5" />
             Templates
@@ -326,16 +330,17 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
         {tab === 'history' && (
           <div role="tabpanel" className="flex flex-col flex-1 min-h-0">
             {/* Search bar */}
-            <div className="px-4 py-2.5 border-b border-gray-800/40 flex-shrink-0">
+            <div className="px-4 py-2.5 flex-shrink-0" style={{ borderBottom: '1px solid var(--glass-border)' }}>
               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--color-text-muted)' }} />
                 <input
                   ref={searchRef}
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search history..."
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-800/60 border border-gray-700/50 rounded-lg text-gray-300 placeholder:text-gray-600 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all"
+                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all"
+                  style={{ background: 'var(--color-bg-tertiary)', border: '1px solid var(--glass-border)', color: 'var(--color-text-primary)' }}
                 />
               </div>
             </div>
@@ -343,14 +348,14 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
             {/* History list */}
             <div className="flex-1 overflow-y-auto">
               {filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-gray-600">
+                <div className="flex flex-col items-center justify-center py-12" style={{ color: 'var(--color-text-muted)' }}>
                   <History className="w-8 h-8 mb-2 opacity-40" />
                   <span className="text-xs">
                     {search.trim()
                       ? 'No matching prompts found'
                       : 'No prompt history yet'}
                   </span>
-                  <span className="text-[10px] mt-1 text-gray-700">
+                  <span className="text-[10px] mt-1" style={{ color: 'var(--color-text-muted)' }}>
                     {search.trim()
                       ? 'Try a different search term'
                       : 'Prompts will appear here after you spawn an agent'}
@@ -361,10 +366,11 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
                   <button
                     key={item.id}
                     onClick={() => handleSelect(item.prompt)}
-                    className="w-full text-left px-4 py-3 border-b border-gray-800/30 hover:bg-gray-800/40 transition-colors group"
+                    className="w-full text-left px-4 py-3 hover:bg-[var(--color-bg-tertiary)] transition-colors group"
+                    style={{ borderBottom: '1px solid var(--glass-border)' }}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-xs text-gray-300 line-clamp-2 leading-relaxed flex-1">
+                      <p className="text-xs line-clamp-2 leading-relaxed flex-1" style={{ color: 'var(--color-text-primary)' }}>
                         {item.prompt}
                       </p>
                       <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -417,8 +423,8 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
 
             {/* Footer: clear all */}
             {history.length > 0 && (
-              <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-800/40 flex-shrink-0">
-                <span className="text-[10px] text-gray-600">
+              <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderTop: '1px solid var(--glass-border)' }}>
+                <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
                   {filtered.length} of {history.length} prompts
                 </span>
                 <button
@@ -440,23 +446,24 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
                 <button
                   key={tpl.id}
                   onClick={() => handleSelect(tpl.prompt)}
-                  className="flex items-start gap-3 p-3 bg-gray-800/40 border border-gray-700/40 rounded-lg hover:bg-gray-800/70 hover:border-gray-600/60 transition-all text-left group"
+                  className="flex items-start gap-3 p-3 rounded-lg transition-all text-left group"
+                  style={{ background: 'var(--color-bg-tertiary)', border: '1px solid var(--glass-border)' }}
                 >
                   <div className="flex-shrink-0 mt-0.5">
                     <TemplateIcon type={tpl.icon} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-300 group-hover:text-gray-200 transition-colors">
+                    <p className="text-xs font-medium transition-colors" style={{ color: 'var(--color-text-primary)' }}>
                       {tpl.label}
                     </p>
-                    <p className="text-[10px] text-gray-600 mt-0.5">Click to use</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>Click to use</p>
                   </div>
                 </button>
               ))}
             </div>
 
             <div className="mt-4 px-1">
-              <p className="text-[10px] text-gray-700 text-center">
+              <p className="text-[10px] text-center" style={{ color: 'var(--color-text-muted)' }}>
                 Select a template to use as your prompt. You can edit it before spawning.
               </p>
             </div>

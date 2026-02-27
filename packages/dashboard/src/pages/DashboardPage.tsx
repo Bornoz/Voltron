@@ -192,10 +192,10 @@ export function DashboardPage() {
   // Loading screen
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-950">
+      <div className="flex items-center justify-center h-screen" style={{ background: 'var(--color-bg-primary)' }}>
         <div className="text-center">
           <Spinner size="lg" className="mb-4" />
-          <p className="text-gray-400 text-sm">{t('app.loadingVoltron')}</p>
+          <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{t('app.loadingVoltron')}</p>
         </div>
       </div>
     );
@@ -204,11 +204,11 @@ export function DashboardPage() {
   // Error screen
   if (error && projects.length === 0) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-950">
+      <div className="flex items-center justify-center h-screen" style={{ background: 'var(--color-bg-primary)' }}>
         <div className="text-center max-w-md">
           <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-gray-200 mb-2">{t('app.connectionError')}</h1>
-          <p className="text-gray-400 text-sm mb-4">{error}</p>
+          <h1 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>{t('app.connectionError')}</h1>
+          <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>{error}</p>
           <button
             onClick={loadProjects}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm"
@@ -279,18 +279,19 @@ export function DashboardPage() {
   const centerContent = (
     <div className="flex flex-col h-full">
       {/* Project selector bar */}
-      <div className="flex items-center gap-3 px-3 py-2 border-b border-white/[0.04] glass">
-        <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">{t('app.project')}</span>
+      <div className="flex items-center gap-3 px-3 py-2 glass" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+        <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--color-text-muted)' }}>{t('app.project')}</span>
         <div className="relative">
           <button
             onClick={() => setShowProjectDropdown(!showProjectDropdown)}
-            className="flex items-center gap-2 px-2.5 py-1 text-xs bg-white/[0.04] border border-white/[0.06] rounded-lg hover:border-white/[0.12] transition-colors"
+            className="flex items-center gap-2 px-2.5 py-1 text-xs rounded-lg transition-colors"
+            style={{ background: 'var(--color-bg-tertiary)', border: '1px solid var(--glass-border)' }}
           >
-            <span className="text-gray-300">{selectedProject?.name ?? t('app.select')}</span>
-            <ChevronDown className="w-3 h-3 text-gray-500" />
+            <span style={{ color: 'var(--color-text-primary)' }}>{selectedProject?.name ?? t('app.select')}</span>
+            <ChevronDown className="w-3 h-3" style={{ color: 'var(--color-text-muted)' }} />
           </button>
           {showProjectDropdown && (
-            <div className="absolute top-full left-0 mt-1 w-48 bg-gray-800/95 backdrop-blur-xl border border-white/[0.08] rounded-lg shadow-xl z-50">
+            <div className="absolute top-full left-0 mt-1 w-48 backdrop-blur-xl rounded-lg shadow-xl z-50" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
               {projects.map((p) => (
                 <button
                   key={p.id}
@@ -298,22 +299,21 @@ export function DashboardPage() {
                     setSelectedProject(p);
                     setShowProjectDropdown(false);
                   }}
-                  className={`w-full text-left px-3 py-2 text-xs hover:bg-white/[0.06] transition-colors ${
-                    p.id === selectedProject?.id ? 'text-[var(--color-accent)]' : 'text-gray-300'
-                  }`}
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--color-bg-tertiary)] transition-colors"
+                  style={{ color: p.id === selectedProject?.id ? 'var(--color-accent)' : 'var(--color-text-primary)' }}
                 >
                   {p.name}
                 </button>
               ))}
               {projects.length === 0 && (
-                <div className="px-3 py-2 text-xs text-gray-500">{t('app.noProjects')}</div>
+                <div className="px-3 py-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>{t('app.noProjects')}</div>
               )}
             </div>
           )}
         </div>
 
         {/* Center tabs */}
-        <div className="flex items-center gap-0.5 ml-auto bg-white/[0.02] border border-white/[0.04] rounded-lg p-0.5" role="tablist" aria-label="Dashboard tabs">
+        <div className="flex items-center gap-0.5 ml-auto rounded-lg p-0.5" role="tablist" aria-label="Dashboard tabs" style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--glass-border)' }}>
           {([
             { id: 'feed' as const, icon: null, label: t('app.actionFeed') },
             { id: 'github' as const, icon: <GitBranch className="w-3.5 h-3.5" />, label: t('app.github') },
@@ -327,11 +327,14 @@ export function DashboardPage() {
               role="tab"
               aria-selected={centerTab === tab.id}
               onClick={() => setCenterTab(tab.id)}
-              className={`relative px-2.5 py-1.5 text-xs rounded-md transition-all duration-150 flex items-center gap-1.5 ${
-                centerTab === tab.id
-                  ? 'bg-white/[0.06] text-[var(--color-accent)] shadow-[0_1px_4px_rgba(0,0,0,0.2)]'
-                  : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
-              }`}
+              className="relative px-2.5 py-1.5 text-xs rounded-md transition-all duration-150 flex items-center gap-1.5"
+              style={centerTab === tab.id ? {
+                background: 'var(--color-bg-tertiary)',
+                color: 'var(--color-accent)',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+              } : {
+                color: 'var(--color-text-muted)',
+              }}
             >
               {tab.icon}
               {tab.label}
@@ -348,12 +351,20 @@ export function DashboardPage() {
             aria-selected={centerTab === 'agent'}
             onClick={() => setCenterTab('agent')}
             className={`relative px-2.5 py-1.5 text-xs rounded-md transition-all duration-150 flex items-center gap-1.5 ${
-              centerTab === 'agent'
-                ? 'bg-green-500/10 text-green-400 shadow-[0_1px_4px_rgba(0,0,0,0.2)]'
-                : agentIsActive
-                  ? 'text-green-400/70 bg-green-500/5 border border-green-500/20 animate-glow-pulse'
-                  : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
+              agentIsActive && centerTab !== 'agent'
+                ? 'border border-green-500/20 animate-glow-pulse'
+                : ''
             }`}
+            style={centerTab === 'agent' ? {
+              background: 'rgba(34,197,94,0.1)',
+              color: '#4ade80',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+            } : agentIsActive ? {
+              color: 'rgba(74,222,128,0.7)',
+              background: 'rgba(34,197,94,0.05)',
+            } : {
+              color: 'var(--color-text-muted)',
+            }}
           >
             <Bot className="w-3.5 h-3.5" />
             {t('agent.tab')}
@@ -374,25 +385,25 @@ export function DashboardPage() {
             {centerTab === 'feed' && <ActionFeed />}
             {centerTab === 'github' && projectId && <RepoAnalyzer projectId={projectId} />}
             {centerTab === 'github' && !projectId && (
-              <div className="flex items-center justify-center h-full text-sm text-gray-500">
+              <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--color-text-muted)' }}>
                 {t('app.selectProjectFirst')}
               </div>
             )}
             {centerTab === 'snapshots' && projectId && <SnapshotBrowser projectId={projectId} />}
             {centerTab === 'snapshots' && !projectId && (
-              <div className="flex items-center justify-center h-full text-sm text-gray-500">
+              <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--color-text-muted)' }}>
                 {t('app.selectProjectFirst')}
               </div>
             )}
             {centerTab === 'behavior' && projectId && <BehaviorPanel projectId={projectId} />}
             {centerTab === 'behavior' && !projectId && (
-              <div className="flex items-center justify-center h-full text-sm text-gray-500">
+              <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--color-text-muted)' }}>
                 {t('app.selectProjectFirst')}
               </div>
             )}
             {centerTab === 'prompts' && projectId && <PromptManager projectId={projectId} />}
             {centerTab === 'prompts' && !projectId && (
-              <div className="flex items-center justify-center h-full text-sm text-gray-500">
+              <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--color-text-muted)' }}>
                 {t('app.selectProjectFirst')}
               </div>
             )}
@@ -410,7 +421,7 @@ export function DashboardPage() {
               />
             )}
             {centerTab === 'agent' && !projectId && (
-              <div className="flex items-center justify-center h-full text-sm text-gray-500">
+              <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--color-text-muted)' }}>
                 {t('app.selectProjectFirst')}
               </div>
             )}
@@ -425,7 +436,7 @@ export function DashboardPage() {
     <>
       {/* Agent Control - show mini widgets only when NOT on agent tab */}
       {projectId && centerTab !== 'agent' && (
-        <div className="space-y-2 p-2 border-b border-gray-800">
+        <div className="space-y-2 p-2" style={{ borderBottom: '1px solid var(--glass-border)' }}>
           <AgentControlBar
             onSpawn={() => { setSpawnDefaultConfig(undefined); setShowSpawnDialog(true); }}
             onPause={handleAgentPause}
@@ -435,11 +446,11 @@ export function DashboardPage() {
           {agentStatus !== 'IDLE' && agentStatus !== 'COMPLETED' && agentStatus !== 'CRASHED' && (
             <>
               <div className="px-1">
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">{t('agent.gpsTracker')}</div>
+                <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-muted)' }}>{t('agent.gpsTracker')}</div>
                 <GPSTracker />
               </div>
               <div className="px-1">
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">{t('agent.plan')}</div>
+                <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-muted)' }}>{t('agent.plan')}</div>
                 <PlanViewer />
               </div>
             </>
@@ -540,7 +551,7 @@ export function DashboardPage() {
                     ? 'bg-yellow-900/90 border-yellow-700 text-yellow-100'
                     : n.type === 'success'
                       ? 'bg-green-900/90 border-green-700 text-green-100'
-                      : 'bg-gray-800/90 border-gray-700 text-gray-100'
+                      : 'bg-[var(--color-bg-tertiary)] border-[var(--glass-border)] text-[var(--color-text-primary)]'
               }`}
             >
               <div className="flex-1">

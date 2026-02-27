@@ -71,7 +71,7 @@ export function StatusBar({ wsConnected, projectId }: StatusBarProps) {
   const totalTokens = tokenUsage.inputTokens + tokenUsage.outputTokens;
 
   return (
-    <div className="flex items-center gap-3 px-3 py-1 glass border-t border-white/[0.04] text-[9px] select-none shrink-0" style={{ height: 24 }}>
+    <div className="flex items-center gap-3 px-3 py-1 glass text-[9px] select-none shrink-0" style={{ height: 24, borderTop: '1px solid var(--glass-border)' }}>
       {/* Voltron logo */}
       <img src="/voltronlogo.png" alt="V" className="w-3.5 h-3.5 object-contain drop-shadow-[0_0_4px_rgba(59,130,246,0.3)]" />
 
@@ -87,30 +87,30 @@ export function StatusBar({ wsConnected, projectId }: StatusBarProps) {
         </span>
       </div>
 
-      <div className="w-px h-3 bg-white/[0.06]" />
+      <div className="w-px h-3" style={{ background: 'var(--glass-border)' }} />
 
       {/* Agent status */}
       <div className="flex items-center gap-1">
-        <Bot className="w-3 h-3 text-gray-600" />
+        <Bot className="w-3 h-3" style={{ color: 'var(--color-text-muted)' }} />
         <span className={`font-semibold uppercase ${statusColors[status] ?? 'text-gray-500'}`} style={{ textShadow: status === 'RUNNING' ? '0 0 8px rgba(34,197,94,0.4)' : 'none' }}>
           {status}
         </span>
       </div>
 
-      <div className="w-px h-3 bg-white/[0.06]" />
+      <div className="w-px h-3" style={{ background: 'var(--glass-border)' }} />
 
       {/* Token usage */}
       <div className="flex items-center gap-1" title={`Input: ${formatTokens(tokenUsage.inputTokens)} | Output: ${formatTokens(tokenUsage.outputTokens)}`}>
-        <Cpu className="w-3 h-3 text-gray-600" />
-        <span className="text-gray-500 font-mono">{formatTokens(totalTokens)}</span>
+        <Cpu className="w-3 h-3" style={{ color: 'var(--color-text-muted)' }} />
+        <span className="font-mono" style={{ color: 'var(--color-text-muted)' }}>{formatTokens(totalTokens)}</span>
       </div>
 
-      <div className="w-px h-3 bg-white/[0.06]" />
+      <div className="w-px h-3" style={{ background: 'var(--glass-border)' }} />
 
       {/* Event rate */}
       <div className="flex items-center gap-1" title={t('statusBar.eventRate')}>
-        <Activity className="w-3 h-3 text-gray-600" />
-        <span className={`font-mono ${eventRate > 40 ? 'text-red-400' : eventRate > 20 ? 'text-yellow-400' : 'text-gray-500'}`}>
+        <Activity className="w-3 h-3" style={{ color: 'var(--color-text-muted)' }} />
+        <span className={`font-mono ${eventRate > 40 ? 'text-red-400' : eventRate > 20 ? 'text-yellow-400' : ''}`} style={eventRate <= 20 ? { color: 'var(--color-text-muted)' } : undefined}>
           {eventRate}/m
         </span>
       </div>
@@ -121,14 +121,14 @@ export function StatusBar({ wsConnected, projectId }: StatusBarProps) {
       {/* Server uptime */}
       {serverUptime != null && (
         <div className="flex items-center gap-1" title={t('statusBar.uptime')}>
-          <Clock className="w-3 h-3 text-gray-600" />
-          <span className="text-gray-500 font-mono">{formatUptime(serverUptime)}</span>
+          <Clock className="w-3 h-3" style={{ color: 'var(--color-text-muted)' }} />
+          <span className="font-mono" style={{ color: 'var(--color-text-muted)' }}>{formatUptime(serverUptime)}</span>
         </div>
       )}
 
       {/* Keyboard shortcut hint */}
-      <div className="flex items-center gap-1 text-gray-700">
-        <kbd className="bg-gray-800/60 border border-gray-700/40 rounded px-1 py-0 text-[8px]">Ctrl+K</kbd>
+      <div className="flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
+        <kbd className="rounded px-1 py-0 text-[8px]" style={{ background: 'var(--color-bg-tertiary)', border: '1px solid var(--glass-border)' }}>Ctrl+K</kbd>
         <span>{t('statusBar.commandPalette')}</span>
       </div>
     </div>

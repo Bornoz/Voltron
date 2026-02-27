@@ -42,7 +42,7 @@ export function Taskbar() {
   if (minimizedPanels.length === 0) return null;
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-[99998] flex items-center gap-1 px-2 py-1 bg-gray-950/90 border-t border-gray-800/50 backdrop-blur-sm">
+    <div className="absolute bottom-0 left-0 right-0 z-[99998] flex items-center gap-1 px-2 py-1 backdrop-blur-sm" style={{ background: 'var(--glass-bg)', borderTop: '1px solid var(--glass-border)' }}>
       {minimizedPanels.map((p) => (
         <button
           key={p.id}
@@ -50,7 +50,8 @@ export function Taskbar() {
             toggleMinimize(p.id);
             bringToFront(p.id);
           }}
-          className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-400 hover:text-white bg-gray-800/60 hover:bg-gray-700/80 border border-gray-700/50 rounded transition-all"
+          className="flex items-center gap-1 px-2 py-1 text-[10px] rounded transition-all"
+          style={{ color: 'var(--color-text-secondary)', background: 'var(--color-bg-tertiary)', border: '1px solid var(--glass-border)' }}
         >
           {PANEL_ICONS[p.id]}
           <span>{SHORT_NAMES[p.id]}</span>

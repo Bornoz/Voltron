@@ -43,7 +43,7 @@ export function MainLayout({
   }, [agentFullscreen]);
 
   return (
-    <div className="flex flex-col h-screen bg-gray-950 text-gray-100">
+    <div className="flex flex-col h-screen" style={{ background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}>
       {/* Header */}
       <Header
         projectName={projectName}
@@ -57,9 +57,10 @@ export function MainLayout({
       <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar */}
         <div
-          className={`relative border-r border-white/[0.04] transition-all duration-300 ease-in-out ${
+          className={`relative transition-all duration-300 ease-in-out ${
             leftCollapsed ? 'w-0 overflow-hidden' : 'w-[280px]'
           }`}
+          style={{ borderRight: '1px solid var(--glass-border)' }}
         >
           <Sidebar projectId={projectId} />
         </div>
@@ -67,7 +68,8 @@ export function MainLayout({
         {/* Left toggle button */}
         <button
           onClick={() => setLeftCollapsed(!leftCollapsed)}
-          className="flex items-center justify-center w-5 shrink-0 hover:bg-white/[0.03] text-gray-600 hover:text-gray-400 transition-colors border-r border-white/[0.04]"
+          className="flex items-center justify-center w-5 shrink-0 transition-colors"
+          style={{ color: 'var(--color-text-muted)', borderRight: '1px solid var(--glass-border)' }}
           title={leftCollapsed ? t('layout.showSidebar') : t('layout.hideSidebar')}
         >
           {leftCollapsed ? (
@@ -85,7 +87,8 @@ export function MainLayout({
         {/* Right toggle button */}
         <button
           onClick={() => setRightCollapsed(!rightCollapsed)}
-          className="flex items-center justify-center w-5 shrink-0 hover:bg-white/[0.03] text-gray-600 hover:text-gray-400 transition-colors border-l border-white/[0.04]"
+          className="flex items-center justify-center w-5 shrink-0 transition-colors"
+          style={{ color: 'var(--color-text-muted)', borderLeft: '1px solid var(--glass-border)' }}
           title={rightCollapsed ? t('layout.showPanel') : t('layout.hidePanel')}
         >
           {rightCollapsed ? (
@@ -97,9 +100,10 @@ export function MainLayout({
 
         {/* Right Panel */}
         <div
-          className={`border-l border-white/[0.04] transition-all duration-300 ease-in-out overflow-y-auto ${
+          className={`transition-all duration-300 ease-in-out overflow-y-auto ${
             rightCollapsed ? 'w-0 overflow-hidden' : 'w-[320px]'
           }`}
+          style={{ borderLeft: '1px solid var(--glass-border)' }}
         >
           <div className="p-3 space-y-3">
             {rightContent}

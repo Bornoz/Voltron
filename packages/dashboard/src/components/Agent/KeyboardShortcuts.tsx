@@ -59,15 +59,17 @@ export function KeyboardShortcuts({ isOpen, onClose }: KeyboardShortcutsProps) {
   return (
     <div className="fixed inset-0 z-[300000] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-[560px] max-h-[80vh] bg-gray-900/98 border border-gray-700/60 rounded-xl shadow-2xl shadow-black/60 backdrop-blur-xl overflow-hidden flex flex-col"
+        className="w-[560px] max-h-[80vh] rounded-xl backdrop-blur-xl overflow-hidden flex flex-col"
+        style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', boxShadow: 'var(--shadow-elevated)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800/60">
-          <h2 className="text-sm font-semibold text-gray-200">{t('shortcuts.title')}</h2>
+        <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>{t('shortcuts.title')}</h2>
           <button
             onClick={onClose}
-            className="p-1 text-gray-500 hover:text-gray-300 hover:bg-gray-800/60 rounded transition-colors"
+            className="p-1 rounded transition-colors"
+            style={{ color: 'var(--color-text-muted)' }}
           >
             <X className="w-4 h-4" />
           </button>
@@ -77,18 +79,18 @@ export function KeyboardShortcuts({ isOpen, onClose }: KeyboardShortcutsProps) {
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
           {groups.map((group) => (
             <div key={group.title}>
-              <h3 className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-2">
+              <h3 className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-muted)' }}>
                 {group.title}
               </h3>
               <div className="space-y-1">
                 {group.shortcuts.map((shortcut, i) => (
-                  <div key={i} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-gray-800/30">
-                    <span className="text-xs text-gray-400">{shortcut.description}</span>
+                  <div key={i} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-[var(--color-bg-tertiary)]">
+                    <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{shortcut.description}</span>
                     <div className="flex items-center gap-1">
                       {shortcut.keys.map((key, ki) => (
                         <span key={ki}>
-                          {ki > 0 && <span className="text-gray-700 mx-0.5">+</span>}
-                          <kbd className="inline-block min-w-[24px] text-center text-[10px] text-gray-400 bg-gray-800/80 border border-gray-700/50 rounded px-1.5 py-0.5 font-mono">
+                          {ki > 0 && <span className="mx-0.5" style={{ color: 'var(--color-text-muted)' }}>+</span>}
+                          <kbd className="inline-block min-w-[24px] text-center text-[10px] rounded px-1.5 py-0.5 font-mono" style={{ color: 'var(--color-text-secondary)', background: 'var(--color-bg-tertiary)', border: '1px solid var(--glass-border)' }}>
                             {key}
                           </kbd>
                         </span>
@@ -102,7 +104,7 @@ export function KeyboardShortcuts({ isOpen, onClose }: KeyboardShortcutsProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-2.5 border-t border-gray-800/60 text-[9px] text-gray-600 text-center">
+        <div className="px-5 py-2.5 text-[9px] text-center" style={{ borderTop: '1px solid var(--glass-border)', color: 'var(--color-text-muted)' }}>
           {t('shortcuts.footer')}
         </div>
       </div>

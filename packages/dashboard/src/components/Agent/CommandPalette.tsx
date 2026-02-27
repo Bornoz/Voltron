@@ -266,12 +266,13 @@ export function CommandPalette({ isOpen, onClose, onAgentAction }: CommandPalett
   return (
     <div className="fixed inset-0 z-[300000] flex items-start justify-center pt-[15vh]" onClick={onClose}>
       <div
-        className="w-[520px] max-h-[420px] bg-gray-900/98 border border-gray-700/60 rounded-xl shadow-2xl shadow-black/60 backdrop-blur-xl overflow-hidden flex flex-col"
+        className="w-[520px] max-h-[420px] rounded-xl backdrop-blur-xl overflow-hidden flex flex-col"
+        style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', boxShadow: 'var(--shadow-elevated)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search input */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-800/60">
-          <Search className="w-4 h-4 text-gray-500 shrink-0" />
+        <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+          <Search className="w-4 h-4 shrink-0" style={{ color: 'var(--color-text-muted)' }} />
           <input
             ref={inputRef}
             type="text"
@@ -279,9 +280,10 @@ export function CommandPalette({ isOpen, onClose, onAgentAction }: CommandPalett
             onChange={(e) => { setQuery(e.target.value); setSelectedIndex(0); }}
             onKeyDown={handleKeyDown}
             placeholder={t('commandPalette.placeholder')}
-            className="flex-1 bg-transparent text-sm text-gray-200 placeholder-gray-600 outline-none"
+            className="flex-1 bg-transparent text-sm outline-none"
+            style={{ color: 'var(--color-text-primary)' }}
           />
-          <kbd className="text-[9px] text-gray-600 bg-gray-800/60 border border-gray-700/40 rounded px-1.5 py-0.5">
+          <kbd className="text-[9px] rounded px-1.5 py-0.5" style={{ color: 'var(--color-text-muted)', background: 'var(--color-bg-tertiary)', border: '1px solid var(--glass-border)' }}>
             ESC
           </kbd>
         </div>
@@ -289,14 +291,14 @@ export function CommandPalette({ isOpen, onClose, onAgentAction }: CommandPalett
         {/* Results */}
         <div ref={listRef} className="flex-1 overflow-y-auto py-1">
           {filtered.length === 0 && (
-            <div className="px-4 py-8 text-center text-sm text-gray-600">
+            <div className="px-4 py-8 text-center text-sm" style={{ color: 'var(--color-text-muted)' }}>
               {t('commandPalette.noResults')}
             </div>
           )}
 
           {grouped.map((group) => (
             <div key={group.category}>
-              <div className="px-4 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-gray-600">
+              <div className="px-4 py-1.5 text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
                 {group.category}
               </div>
               {group.items.map((item) => {
@@ -308,17 +310,18 @@ export function CommandPalette({ isOpen, onClose, onAgentAction }: CommandPalett
                     className={`flex items-center gap-3 w-full px-4 py-2 text-left transition-colors ${
                       idx === selectedIndex
                         ? 'bg-blue-600/20 text-blue-300'
-                        : 'text-gray-400 hover:bg-gray-800/40 hover:text-gray-200'
+                        : 'hover:bg-[var(--color-bg-tertiary)]'
                     }`}
+                    style={idx !== selectedIndex ? { color: 'var(--color-text-secondary)' } : undefined}
                     onClick={() => { item.action(); onClose(); }}
                     onMouseEnter={() => setSelectedIndex(idx)}
                   >
-                    <span className={idx === selectedIndex ? 'text-blue-400' : 'text-gray-600'}>
+                    <span style={{ color: idx === selectedIndex ? 'rgb(96,165,250)' : 'var(--color-text-muted)' }}>
                       {item.icon}
                     </span>
                     <span className="flex-1 text-xs">{item.label}</span>
                     {item.shortcut && (
-                      <kbd className="text-[9px] text-gray-600 bg-gray-800/60 border border-gray-700/40 rounded px-1.5 py-0.5">
+                      <kbd className="text-[9px] rounded px-1.5 py-0.5" style={{ color: 'var(--color-text-muted)', background: 'var(--color-bg-tertiary)', border: '1px solid var(--glass-border)' }}>
                         {item.shortcut}
                       </kbd>
                     )}
@@ -330,17 +333,17 @@ export function CommandPalette({ isOpen, onClose, onAgentAction }: CommandPalett
         </div>
 
         {/* Footer */}
-        <div className="flex items-center gap-4 px-4 py-2 border-t border-gray-800/60 text-[9px] text-gray-600">
+        <div className="flex items-center gap-4 px-4 py-2 text-[9px]" style={{ borderTop: '1px solid var(--glass-border)', color: 'var(--color-text-muted)' }}>
           <span className="flex items-center gap-1">
-            <kbd className="bg-gray-800/60 border border-gray-700/40 rounded px-1 py-0.5">↑↓</kbd>
+            <kbd style={{ background: 'var(--color-bg-tertiary)', border: '1px solid var(--glass-border)' }} className="rounded px-1 py-0.5">↑↓</kbd>
             {t('commandPalette.navigate')}
           </span>
           <span className="flex items-center gap-1">
-            <kbd className="bg-gray-800/60 border border-gray-700/40 rounded px-1 py-0.5">↵</kbd>
+            <kbd style={{ background: 'var(--color-bg-tertiary)', border: '1px solid var(--glass-border)' }} className="rounded px-1 py-0.5">↵</kbd>
             {t('commandPalette.execute')}
           </span>
           <span className="flex items-center gap-1">
-            <kbd className="bg-gray-800/60 border border-gray-700/40 rounded px-1 py-0.5">Esc</kbd>
+            <kbd style={{ background: 'var(--color-bg-tertiary)', border: '1px solid var(--glass-border)' }} className="rounded px-1 py-0.5">Esc</kbd>
             {t('commandPalette.close')}
           </span>
         </div>

@@ -223,13 +223,14 @@ export function WelcomeTour({ isOpen, onClose }: WelcomeTourProps) {
     >
       <div
         ref={dialogRef}
-        className="relative w-full max-w-md mx-4 bg-gray-900/95 border border-gray-700/60 rounded-2xl shadow-2xl shadow-blue-500/10 backdrop-blur-md overflow-hidden"
+        className="relative w-full max-w-md mx-4 rounded-2xl backdrop-blur-md overflow-hidden"
+        style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', boxShadow: 'var(--shadow-elevated)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
         <button
           onClick={handleSkip}
-          className="absolute top-3 right-3 p-1.5 hover:bg-gray-800 rounded-lg transition-colors z-10"
+          className="absolute top-3 right-3 p-1.5 hover:bg-[var(--color-bg-tertiary)] rounded-lg transition-colors z-10"
           aria-label={t('common.close')}
         >
           <X className="w-4 h-4 text-gray-500" />
@@ -245,10 +246,10 @@ export function WelcomeTour({ isOpen, onClose }: WelcomeTourProps) {
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/10 border border-green-500/30 mb-4">
               <CheckCircle className="w-8 h-8 text-green-400" />
             </div>
-            <h2 className="text-lg font-semibold text-gray-100 mb-2">
+            <h2 className="text-lg font-semibold mb-2" style={{ color: 'var(--color-text-primary)' }}>
               {t('tour.completedTitle')}
             </h2>
-            <p className="text-sm text-gray-400 mb-6 leading-relaxed">
+            <p className="text-sm mb-6 leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
               {t('tour.completedMessage')}
             </p>
             <button
@@ -271,7 +272,7 @@ export function WelcomeTour({ isOpen, onClose }: WelcomeTourProps) {
                   {t('tour.title')}
                 </span>
               </div>
-              <p className="text-[11px] text-gray-500">{t('tour.subtitle')}</p>
+              <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>{t('tour.subtitle')}</p>
             </div>
 
             {/* Progress bar */}
@@ -290,7 +291,7 @@ export function WelcomeTour({ isOpen, onClose }: WelcomeTourProps) {
                   />
                 ))}
               </div>
-              <div className="text-[10px] text-gray-500 mt-1.5 text-right">
+              <div className="text-[10px] mt-1.5 text-right" style={{ color: 'var(--color-text-muted)' }}>
                 {stepIndicator}
               </div>
             </div>
@@ -307,14 +308,14 @@ export function WelcomeTour({ isOpen, onClose }: WelcomeTourProps) {
             >
               <div className={`p-4 rounded-xl border ${step.accentColor} bg-gradient-to-br ${step.bgGradient}`}>
                 <div className="flex items-start gap-3">
-                  <div className={`flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-lg bg-gray-800/80 border border-gray-700/50`}>
+                  <div className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-lg" style={{ background: 'var(--color-bg-tertiary)', border: '1px solid var(--glass-border)' }}>
                     <StepIcon className={`w-5 h-5 ${step.iconColor}`} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-gray-100 mb-1.5">
+                    <h3 className="text-sm font-semibold mb-1.5" style={{ color: 'var(--color-text-primary)' }}>
                       {t(step.titleKey)}
                     </h3>
-                    <p className="text-xs text-gray-400 leading-relaxed">
+                    <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
                       {t(step.descKey)}
                     </p>
                   </div>
@@ -323,10 +324,11 @@ export function WelcomeTour({ isOpen, onClose }: WelcomeTourProps) {
             </div>
 
             {/* Footer navigation */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-800/60">
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderTop: '1px solid var(--glass-border)' }}>
               <button
                 onClick={handleSkip}
-                className="text-[11px] text-gray-500 hover:text-gray-300 transition-colors"
+                className="text-[11px] transition-colors"
+                style={{ color: 'var(--color-text-muted)' }}
               >
                 {t('tour.skipTour')}
               </button>
@@ -335,7 +337,8 @@ export function WelcomeTour({ isOpen, onClose }: WelcomeTourProps) {
                 <button
                   onClick={handlePrev}
                   disabled={currentStep === 0}
-                  className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 bg-gray-800 hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg transition-all"
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs disabled:opacity-30 disabled:cursor-not-allowed rounded-lg transition-all"
+                  style={{ color: 'var(--color-text-secondary)', background: 'var(--color-bg-tertiary)' }}
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                   {t('tour.previous')}

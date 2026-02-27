@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import {
   CheckCircle2, XCircle, FileText, Clock, Cpu,
+  Monitor, Map, Code2,
 } from 'lucide-react';
 import { useAgentStore } from '../../stores/agentStore';
-import { useWindowStore } from '../../stores/windowStore';
+import { useWindowStore, type WindowPreset } from '../../stores/windowStore';
 import { useTranslation } from '../../i18n';
 import * as api from '../../lib/api';
 import { AgentControlBar } from './AgentControlBar';
@@ -97,6 +98,27 @@ export function AgentWorkspace({
   const toggleVisibility = useWindowStore((s) => s.toggleVisibility);
   const cyclePanel = useWindowStore((s) => s.cyclePanel);
   const toggleMaximize = useWindowStore((s) => s.toggleMaximize);
+  const applyPreset = useWindowStore((s) => s.applyPreset);
+
+  // Track active view mode
+  const [viewMode, setViewMode] = useState<WindowPreset>(() => {
+    // Detect current preset from localStorage settings
+    try {
+      const settings = JSON.parse(localStorage.getItem('voltron_user_settings') ?? '{}');
+      return (settings.defaultLayout as WindowPreset) ?? 'ide-style';
+    } catch { return 'ide-style'; }
+  });
+
+  const switchViewMode = useCallback((preset: WindowPreset) => {
+    setViewMode(preset);
+    applyPreset(preset);
+    // Persist to user settings
+    try {
+      const settings = JSON.parse(localStorage.getItem('voltron_user_settings') ?? '{}');
+      settings.defaultLayout = preset;
+      localStorage.setItem('voltron_user_settings', JSON.stringify(settings));
+    } catch { /* ignore */ }
+  }, [applyPreset]);
 
   // Auto-show agent-output panel when agent becomes active
   useEffect(() => {
@@ -174,8 +196,8 @@ export function AgentWorkspace({
       {/* Toast notifications */}
       <AgentToasts />
 
-      {/* Top: AgentControlBar + PanelMenu + SessionExport */}
-      <div className="relative z-[100001] px-2 py-1.5 border-b border-gray-800/50 bg-gray-900/30 backdrop-blur-sm shrink-0">
+      {/* Top: AgentControlBar + View Mode Switcher + PanelMenu + SessionExport */}
+      <div className="relative z-[100001] px-2 py-1.5 border-b shrink-0" style={{ borderColor: 'var(--color-border)', background: 'var(--glass-bg)', backdropFilter: 'blur(12px)' }}>
         <div className="flex items-center gap-2">
           <AgentControlBar
             onSpawn={onSpawn}
@@ -183,6 +205,34 @@ export function AgentWorkspace({
             onResume={onResume}
             onKill={onKill}
           />
+
+          {/* ═══ View Mode Switcher — IDE / GPS / Monitor ═══ */}
+          <div className="flex items-center rounded-lg p-0.5 ml-2" style={{ background: 'var(--color-bg-tertiary)', border: '1px solid var(--glass-border)' }}>
+            {([
+              { id: 'ide-style' as WindowPreset, icon: Code2, label: 'IDE' },
+              { id: 'gps-focus' as WindowPreset, icon: Map, label: 'GPS' },
+              { id: 'monitor' as WindowPreset, icon: Monitor, label: 'Monitor' },
+            ]).map(({ id, icon: Icon, label }) => (
+              <button
+                key={id}
+                onClick={() => switchViewMode(id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all ${
+                  viewMode === id
+                    ? 'text-[var(--color-accent)] shadow-sm'
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+                }`}
+                style={viewMode === id ? {
+                  background: 'var(--color-bg-secondary)',
+                  boxShadow: `0 0 8px color-mix(in srgb, var(--color-accent) 15%, transparent)`,
+                } : undefined}
+                title={label}
+              >
+                <Icon size={14} />
+                {label}
+              </button>
+            ))}
+          </div>
+
           <div className="flex-1" />
           <PanelMenu />
           {(isActive || isFinished) && (

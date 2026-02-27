@@ -128,13 +128,15 @@ export function FloatingPanel({ panel, title, children }: FloatingPanelProps) {
     <div
       onMouseDown={handleMouseDown}
       className={`${isMaximized ? 'fixed inset-0' : 'absolute'} flex flex-col
-        bg-gray-900/95 backdrop-blur-md border
+        backdrop-blur-md
         ${isMaximized ? 'rounded-none' : 'rounded-lg'}
-        shadow-2xl shadow-black/50
-        ${isActive ? 'border-blue-500/40 ring-1 ring-blue-500/20' : 'border-gray-700/60'}
+        ${isActive ? 'ring-1 ring-blue-500/20' : ''}
       `}
       style={isMaximized ? {
         zIndex: 99999,
+        background: 'var(--glass-bg)',
+        border: `1px solid ${isActive ? 'rgba(59,130,246,0.4)' : 'var(--glass-border)'}`,
+        boxShadow: 'var(--shadow-elevated)',
       } : {
         left: panel.x,
         top: panel.y,
@@ -142,43 +144,50 @@ export function FloatingPanel({ panel, title, children }: FloatingPanelProps) {
         height: renderHeight,
         zIndex: panel.zIndex,
         transition: 'box-shadow 150ms ease-out',
+        background: 'var(--glass-bg)',
+        border: `1px solid ${isActive ? 'rgba(59,130,246,0.4)' : 'var(--glass-border)'}`,
+        boxShadow: 'var(--shadow-elevated)',
       }}
     >
       {/* ── Title Bar ── */}
       <div
         {...dragHandleProps}
         onDoubleClick={handleDoubleClickTitle}
-        className={`flex items-center gap-1 h-8 px-1.5 shrink-0 select-none
-          border-b border-gray-800/50 cursor-move
-          ${isActive ? 'bg-gray-800/80' : 'bg-gray-900/60'}
-        `}
+        className="flex items-center gap-1 h-8 px-1.5 shrink-0 select-none cursor-move"
+        style={{
+          borderBottom: '1px solid var(--glass-border)',
+          background: isActive ? 'var(--color-bg-tertiary)' : 'var(--color-bg-secondary)',
+        }}
       >
         {/* Drag grip indicator */}
-        <GripVertical className="w-3 h-3 text-gray-600 shrink-0" />
+        <GripVertical className="w-3 h-3 shrink-0" style={{ color: 'var(--color-text-muted)' }} />
         {/* Icon + Title */}
-        <span className="text-gray-400">{PANEL_ICONS[panel.id]}</span>
-        <span className="text-[10px] font-medium text-gray-300 truncate flex-1">
+        <span style={{ color: 'var(--color-text-secondary)' }}>{PANEL_ICONS[panel.id]}</span>
+        <span className="text-[10px] font-medium truncate flex-1" style={{ color: 'var(--color-text-primary)' }}>
           {title}
         </span>
 
         {/* Window Controls */}
         <button
           onClick={handleMinimize}
-          className="p-0.5 text-gray-500 hover:text-yellow-400 hover:bg-gray-700/60 rounded transition-colors"
+          className="p-0.5 hover:text-yellow-400 rounded transition-colors"
+          style={{ color: 'var(--color-text-muted)' }}
           title="Minimize"
         >
           <Minus className="w-3 h-3" />
         </button>
         <button
           onClick={handleMaximize}
-          className="p-0.5 text-gray-500 hover:text-green-400 hover:bg-gray-700/60 rounded transition-colors"
+          className="p-0.5 hover:text-green-400 rounded transition-colors"
+          style={{ color: 'var(--color-text-muted)' }}
           title={panel.maximized ? 'Restore' : 'Maximize'}
         >
           <Square className="w-2.5 h-2.5" />
         </button>
         <button
           onClick={handleClose}
-          className="p-0.5 text-gray-500 hover:text-red-400 hover:bg-red-500/20 rounded transition-colors"
+          className="p-0.5 hover:text-red-400 hover:bg-red-500/20 rounded transition-colors"
+          style={{ color: 'var(--color-text-muted)' }}
           title="Close"
         >
           <X className="w-3 h-3" />

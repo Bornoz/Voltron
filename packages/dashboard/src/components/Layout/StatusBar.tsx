@@ -29,7 +29,7 @@ export function StatusBar({ connectionStatus }: StatusBarProps) {
   const connectionLabel = t(`header.${connectionStatus}` as const);
 
   return (
-    <footer className="flex items-center justify-between h-7 px-4 border-t border-white/[0.04] glass text-xs text-gray-500 shrink-0">
+    <footer className="flex items-center justify-between h-7 px-4 glass text-xs shrink-0" style={{ borderTop: '1px solid var(--glass-border)', color: 'var(--color-text-muted)' }}>
       <div className="flex items-center gap-4">
         {/* Connection */}
         <div className="flex items-center gap-1.5">
@@ -62,7 +62,7 @@ export function StatusBar({ connectionStatus }: StatusBarProps) {
         </div>
 
         {/* Shortcut hint */}
-        <div className="flex items-center gap-1.5 text-gray-600">
+        <div className="flex items-center gap-1.5" style={{ color: 'var(--color-text-muted)' }}>
           <Activity className="w-3 h-3" />
           <span>{t('statusBar.emergencyStop')}</span>
         </div>
