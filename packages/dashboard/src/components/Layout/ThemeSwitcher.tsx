@@ -1,10 +1,9 @@
-import { Moon, Sun, Monitor } from 'lucide-react';
+import { Moon, Monitor } from 'lucide-react';
 import { useThemeStore, type ThemeMode } from '../../stores/themeStore';
 
 const MODES: { mode: ThemeMode; icon: typeof Moon; label: string }[] = [
   { mode: 'dark', icon: Moon, label: 'Dark' },
   { mode: 'midnight', icon: Monitor, label: 'Midnight' },
-  { mode: 'light', icon: Sun, label: 'Light' },
 ];
 
 export function ThemeSwitcher() {

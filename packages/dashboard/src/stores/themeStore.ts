@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type ThemeMode = 'dark' | 'midnight' | 'light';
+export type ThemeMode = 'dark' | 'midnight';
 
 export interface AccentColor {
   name: string;
@@ -36,6 +36,15 @@ export const useThemeStore = create<ThemeState>()(
     }),
     {
       name: 'voltron-theme',
+      // Migrate: if user had 'light' theme selected, fall back to 'dark'
+      merge: (persisted, current) => {
+        const p = persisted as Partial<ThemeState>;
+        return {
+          ...current,
+          ...p,
+          mode: (p.mode === 'light' || !p.mode) ? 'dark' : p.mode,
+        } as ThemeState;
+      },
     },
   ),
 );

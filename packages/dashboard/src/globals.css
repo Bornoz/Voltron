@@ -41,39 +41,6 @@
   --glass-border: rgba(42, 42, 94, 0.4);
 }
 
-/* ── Theme: Light ────────────────────── */
-[data-theme="light"] {
-  --color-bg-primary: #ffffff;
-  --color-bg-secondary: #f8fafc;
-  --color-bg-tertiary: #f1f5f9;
-  --color-border: #d1d5db;
-  --color-border-hover: #9ca3af;
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #334155;
-  --color-text-muted: #64748b;
-  --color-danger: #dc2626;
-  --color-success: #16a34a;
-  --color-warning: #ca8a04;
-  color-scheme: light;
-
-  /* Light glass: opaque, no fog */
-  --glass-bg: rgba(255, 255, 255, 0.97);
-  --glass-border: rgba(0, 0, 0, 0.12);
-  --glass-blur: 0px; /* No blur in light mode — prevents foggy glass effect */
-
-  /* Stronger shadows for light mode */
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
-  --shadow-elevated: 0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06);
-  --glow-accent: 0 0 12px color-mix(in srgb, var(--color-accent) 15%, transparent);
-
-  /* Risk colors — darker for readability */
-  --risk-none: #6b7280;
-  --risk-low: #16a34a;
-  --risk-medium: #ca8a04;
-  --risk-high: #ea580c;
-  --risk-critical: #dc2626;
-}
-
 /* ── Accent Colors (applied via data-accent) ── */
 [data-accent="blue"] { --color-accent: #3b82f6; --color-accent-hover: #2563eb; }
 [data-accent="purple"] { --color-accent: #a855f7; --color-accent-hover: #9333ea; }
@@ -180,36 +147,6 @@ body::before {
   flex-direction: column;
   position: relative;
   z-index: 1;
-}
-
-/* Light theme: no mesh gradient (clean white background) */
-[data-theme="light"] body::before {
-  display: none;
-}
-
-/* Light theme: override diff colors for readability */
-[data-theme="light"] .diff-add {
-  background-color: rgba(34, 197, 94, 0.12);
-  color: #15803d;
-}
-[data-theme="light"] .diff-remove {
-  background-color: rgba(239, 68, 68, 0.12);
-  color: #dc2626;
-}
-[data-theme="light"] .diff-header {
-  background-color: rgba(59, 130, 246, 0.1);
-  color: #1d4ed8;
-}
-
-/* Light theme: scrollbar */
-[data-theme="light"] ::-webkit-scrollbar-track {
-  background: #f8fafc;
-}
-[data-theme="light"] ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-}
-[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
 }
 
 /* Scrollbar styling */
