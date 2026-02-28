@@ -334,7 +334,7 @@ export const LivePreviewFrame = memo(function LivePreviewFrame({
   }
 
   return (
-    <div className="flex-1 relative overflow-hidden">
+    <div className="h-full w-full relative overflow-hidden">
       {/* Loading overlay */}
       {status === 'loading' && (
         <div className="absolute inset-0 flex items-center justify-center z-10" style={{ background: 'rgba(6,10,20,0.8)' }}>
