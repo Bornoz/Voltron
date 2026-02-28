@@ -305,6 +305,7 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
   const { t } = useTranslation();
   const status = useAgentStore((s) => s.status);
   const location = useAgentStore((s) => s.location);
+  const storeCurrentFile = useAgentStore((s) => s.currentFile);
   const devServer = useAgentStore((s) => s.devServer);
   const promptPins = useAgentStore((s) => s.promptPins);
   const addPromptPin = useAgentStore((s) => s.addPromptPin);
@@ -341,7 +342,9 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
   const isActive = !['IDLE'].includes(status);
   const canInject = ['RUNNING', 'PAUSED', 'COMPLETED', 'CRASHED'].includes(status);
   const isPreview = mode === 'preview';
-  const currentUrl = isPreview ? getPreviewUrl(projectId, devServer, location?.filePath) : getSimulatorUrl(projectId);
+  // Use location.filePath (live), fallback to storeCurrentFile (hydrated from breadcrumbs after page reload)
+  const activeFilePath = location?.filePath ?? storeCurrentFile;
+  const currentUrl = isPreview ? getPreviewUrl(projectId, devServer, activeFilePath) : getSimulatorUrl(projectId);
   const viewportWidth = viewportPreset === 'desktop' ? '100%' : viewportPreset === 'tablet' ? '768px' : '375px';
 
   // Keyboard shortcuts: Ctrl+Z / Ctrl+Y for undo/redo
@@ -593,7 +596,7 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
 
     const prompt = formatPhasePrompt(edits, promptPins, referenceImage);
 
-    const activeFile = location?.filePath ?? 'index.html';
+    const activeFile = location?.filePath ?? storeCurrentFile ?? 'index.html';
     onInject(prompt, {
       filePath: activeFile,
       constraints: [

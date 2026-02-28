@@ -127,12 +127,13 @@ export function FloatingPanel({ panel, title, children }: FloatingPanelProps) {
   return (
     <div
       onMouseDown={handleMouseDown}
-      className={`${isMaximized ? 'fixed inset-0' : 'absolute'} flex flex-col
+      className={`absolute flex flex-col
         backdrop-blur-md
         ${isMaximized ? 'rounded-none' : 'rounded-lg'}
         ${isActive ? 'ring-1 ring-blue-500/20' : ''}
       `}
       style={isMaximized ? {
+        inset: '0 0 0 0',
         zIndex: 99999,
         background: 'var(--glass-bg)',
         border: `1px solid ${isActive ? 'rgba(59,130,246,0.4)' : 'var(--glass-border)'}`,

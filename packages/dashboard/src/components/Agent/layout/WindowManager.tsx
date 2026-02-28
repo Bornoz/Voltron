@@ -278,7 +278,7 @@ export function WindowManager({ projectId, onInject, onAgentAction }: WindowMana
         ))}
       </div>
 
-      {/* Maximized panels — fixed position, outside canvas pan */}
+      {/* Maximized panels — absolute within workspace, outside canvas pan */}
       {maximizedPanels.map((panel) => (
         <FloatingPanel
           key={panel.id}

@@ -197,7 +197,7 @@ export function AgentWorkspace({
       <AgentToasts />
 
       {/* Top: AgentControlBar + View Mode Switcher + PanelMenu + SessionExport */}
-      <div className="relative z-[100001] px-2 py-1.5 border-b shrink-0" style={{ borderColor: 'var(--color-border)', background: 'var(--glass-bg)', backdropFilter: 'blur(12px)' }}>
+      <div className="relative z-10 px-2 py-1.5 border-b shrink-0" style={{ borderColor: 'var(--color-border)', background: 'var(--glass-bg)', backdropFilter: 'blur(12px)' }}>
         <div className="flex items-center gap-2">
           <AgentControlBar
             onSpawn={onSpawn}
