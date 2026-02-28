@@ -42,7 +42,7 @@ export const useThemeStore = create<ThemeState>()(
         return {
           ...current,
           ...p,
-          mode: (p.mode === 'light' || !p.mode) ? 'dark' : p.mode,
+          mode: ((p.mode as string) === 'light' || !p.mode) ? 'dark' : p.mode,
         } as ThemeState;
       },
     },

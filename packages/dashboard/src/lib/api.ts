@@ -46,9 +46,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
     try {
       const headers: Record<string, string> = {};
-      // Only set Content-Type for requests that have a body
-      if (options?.body) {
+      const method = (options?.method ?? 'GET').toUpperCase();
+      // Set Content-Type for all mutation methods (POST/PUT/PATCH/DELETE)
+      // Fastify rejects requests with content-type json but no/invalid body
+      if (method !== 'GET' && method !== 'HEAD') {
         headers['Content-Type'] = 'application/json';
+        // Ensure body is never undefined for mutation methods
+        if (!options) options = { body: '{}' };
+        else if (!options.body) options = { ...options, body: '{}' };
       }
       const token = localStorage.getItem('voltron_token');
       if (token) {
