@@ -85,6 +85,15 @@ export class AgentSessionRepository {
     return row ? this.mapRow(row) : null;
   }
 
+  /**
+   * Find the latest COMPLETED session for a project.
+   * Used for session resume — only resume sessions that had successful AI conversations.
+   */
+  findLatestCompletedByProject(projectId: string): AgentSessionRow | null {
+    const row = this.stmt('findLatestCompleted', `SELECT * FROM agent_sessions WHERE project_id = ? AND status = 'COMPLETED' ORDER BY started_at DESC LIMIT 1`).get(projectId) as Record<string, unknown> | undefined;
+    return row ? this.mapRow(row) : null;
+  }
+
   findRunningByProject(projectId: string): AgentSessionRow | null {
     const row = this.stmt('findRunning', `SELECT * FROM agent_sessions WHERE project_id = ? AND status IN ('RUNNING', 'PAUSED', 'SPAWNING', 'INJECTING') LIMIT 1`).get(projectId) as Record<string, unknown> | undefined;
     return row ? this.mapRow(row) : null;

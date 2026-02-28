@@ -91,9 +91,9 @@ export class AgentRunner extends EventEmitter {
       }
     }
 
-    // Check for existing session to RESUME (AI memory continuity)
-    // Only create a truly new session for brand new projects
-    const lastSession = this.sessionRepo.findLatestByProject(projectId);
+    // Check for existing COMPLETED session to RESUME (AI memory continuity)
+    // Only create a truly new session for brand new projects with no successful history
+    const lastSession = this.sessionRepo.findLatestCompletedByProject(projectId);
     const isResume = !!lastSession && !config.sessionId;
     const sessionId = config.sessionId ?? (lastSession?.sessionId ?? randomUUID());
 
@@ -335,9 +335,10 @@ export class AgentRunner extends EventEmitter {
   async injectPrompt(projectId: string, injection: PromptInjection): Promise<void> {
     let agent = this.agents.get(projectId) ?? null;
 
-    // If no active agent, try to re-spawn from last completed session
+    // If no active agent, try to resume from last COMPLETED session
     if (!agent) {
-      const lastSession = this.sessionRepo.findLatestByProject(projectId);
+      const lastSession = this.sessionRepo.findLatestCompletedByProject(projectId)
+        ?? this.sessionRepo.findLatestByProject(projectId);
       if (!lastSession) {
         throw new Error(`No agent running for project ${projectId}`);
       }
@@ -467,9 +468,11 @@ export class AgentRunner extends EventEmitter {
 
   /**
    * Get session from database.
+   * Prefers the latest COMPLETED session (real AI conversation) over CRASHED ones.
    */
   getSessionFromDb(projectId: string) {
-    return this.sessionRepo.findLatestByProject(projectId);
+    return this.sessionRepo.findLatestCompletedByProject(projectId)
+      ?? this.sessionRepo.findLatestByProject(projectId);
   }
 
   /**
@@ -485,7 +488,8 @@ export class AgentRunner extends EventEmitter {
   getBreadcrumbs(projectId: string) {
     const agent = this.agents.get(projectId);
     if (agent) return agent.breadcrumbs;
-    const session = this.sessionRepo.findLatestByProject(projectId);
+    const session = this.sessionRepo.findLatestCompletedByProject(projectId)
+      ?? this.sessionRepo.findLatestByProject(projectId);
     if (!session) return [];
     return this.breadcrumbRepo.findBySession(session.sessionId);
   }
@@ -496,7 +500,8 @@ export class AgentRunner extends EventEmitter {
   getPlan(projectId: string) {
     const agent = this.agents.get(projectId);
     if (agent?.plan) return agent.plan;
-    const session = this.sessionRepo.findLatestByProject(projectId);
+    const session = this.sessionRepo.findLatestCompletedByProject(projectId)
+      ?? this.sessionRepo.findLatestByProject(projectId);
     if (!session) return null;
     const planRow = this.planRepo.findActiveBySession(session.sessionId);
     if (!planRow) return null;
