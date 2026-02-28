@@ -220,12 +220,19 @@ export class StateMachineService {
     let actor = this.actors.get(projectId);
     if (actor) return actor;
 
-    // Try restoring from DB
+    // Try restoring from DB — but never restore into ERROR state
+    // (ERROR is transient; on restart, machine should reset to IDLE)
     const persisted = this.stateRepo.findByProject(projectId);
     if (persisted) {
       try {
         const snapshot = JSON.parse(persisted.stateJson);
-        actor = createActor(executionMachine, { snapshot });
+        const restoredState = typeof snapshot.value === 'string' ? snapshot.value.toUpperCase() : String(snapshot.value).toUpperCase();
+        if (restoredState === 'ERROR') {
+          // Don't restore ERROR state — start fresh in IDLE
+          actor = createActor(executionMachine);
+        } else {
+          actor = createActor(executionMachine, { snapshot });
+        }
       } catch {
         actor = createActor(executionMachine);
       }
