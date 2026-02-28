@@ -137,19 +137,9 @@ export const DesignContextMenu = memo(function DesignContextMenu({
   const [appliedAction, setAppliedAction] = useState<string | null>(null);
   const [activeSubPanel, setActiveSubPanel] = useState<'gradients' | 'shadows' | 'animations' | null>(null);
 
-  // Close on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [onClose]);
-
   // Close on Escape
   useEffect(() => {
+    if (!data) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (colorPickerTarget) setColorPickerTarget(null);
@@ -159,7 +149,21 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [onClose, colorPickerTarget, activeSubPanel]);
+  }, [data, onClose, colorPickerTarget, activeSubPanel]);
+
+  // Close on right-click anywhere (new right-click should dismiss current menu)
+  useEffect(() => {
+    if (!data) return;
+    const handler = (e: MouseEvent) => {
+      // If right-click is outside the menu, close it
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    // Use capture phase to intercept before iframe gets it
+    document.addEventListener('contextmenu', handler, true);
+    return () => document.removeEventListener('contextmenu', handler, true);
+  }, [data, onClose]);
 
   // Reset on new data
   useEffect(() => {
@@ -167,7 +171,44 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     setColorPickerTarget(null);
     setAppliedAction(null);
     setActiveSubPanel(null);
-  }, [data?.selector]);
+  }, [data?.selector, data?.x, data?.y]);
+
+  // Smart positioning: clamp to viewport boundaries
+  const [menuPos, setMenuPos] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
+  useEffect(() => {
+    if (!data) return;
+    const rawX = data.x + frameOffset.x;
+    const rawY = data.y + frameOffset.y;
+
+    // Menu dimensions (main panel + possible side panel)
+    const mainW = 320;
+    const sideW = 272; // 260 + 12px gap
+    const hasSide = !!(colorPickerTarget || activeSubPanel);
+    const totalW = hasSide ? mainW + sideW : mainW;
+
+    // Use actual menu height if available, else estimate
+    const menuH = menuRef.current?.offsetHeight ?? 500;
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const pad = 8; // minimum padding from viewport edge
+
+    // Horizontal: prefer right of cursor, flip left if overflows
+    let left = rawX;
+    if (left + totalW + pad > vw) {
+      left = rawX - mainW; // flip: show to the left of cursor
+    }
+    left = Math.max(pad, Math.min(left, vw - totalW - pad));
+
+    // Vertical: prefer below cursor, flip up if overflows
+    let top = rawY;
+    if (top + menuH + pad > vh) {
+      top = vh - menuH - pad;
+    }
+    top = Math.max(pad, top);
+
+    setMenuPos({ left, top });
+  }, [data, frameOffset, colorPickerTarget, activeSubPanel]);
 
   const trackChange = useCallback((prop: string, value: string) => {
     if (data && onDesignChange) {
@@ -196,9 +237,6 @@ export const DesignContextMenu = memo(function DesignContextMenu({
   }, []);
 
   if (!data) return null;
-
-  const menuX = data.x + frameOffset.x;
-  const menuY = data.y + frameOffset.y;
 
   /* ─── Build action list ─── */
   const actions: DesignAction[] = [
@@ -750,14 +788,23 @@ export const DesignContextMenu = memo(function DesignContextMenu({
   };
 
   return (
-    <div
-      ref={menuRef}
-      className="fixed z-[60] flex animate-fade-in-up"
-      style={{
-        left: Math.min(menuX, window.innerWidth - 460),
-        top: Math.min(menuY, window.innerHeight - 200),
-      }}
-    >
+    <>
+      {/* ═══ Backdrop — click to close ═══ */}
+      <div
+        className="fixed inset-0 z-[59]"
+        onClick={onClose}
+        onContextMenu={(e) => { e.preventDefault(); onClose(); }}
+      />
+
+      {/* ═══ Menu ═══ */}
+      <div
+        ref={menuRef}
+        className="fixed z-[60] flex animate-fade-in-up"
+        style={{
+          left: menuPos.left,
+          top: menuPos.top,
+        }}
+      >
       {/* ═══ Main menu ═══ */}
       <div
         className="flex flex-col rounded-2xl overflow-hidden"
@@ -1196,5 +1243,6 @@ export const DesignContextMenu = memo(function DesignContextMenu({
         </div>
       )}
     </div>
+    </>
   );
 });
