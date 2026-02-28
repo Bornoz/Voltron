@@ -313,6 +313,19 @@ CREATE TABLE IF NOT EXISTS project_memory (
 );
 CREATE INDEX IF NOT EXISTS idx_project_memory_project ON project_memory(project_id, pinned DESC, updated_at DESC);
 
+CREATE TABLE IF NOT EXISTS smart_setup_runs (
+    id              TEXT PRIMARY KEY,
+    project_id      TEXT NOT NULL REFERENCES projects(id),
+    status          TEXT NOT NULL DEFAULT 'analyzing',
+    profile_json    TEXT,
+    discoveries_json TEXT DEFAULT '[]',
+    applied_count   INTEGER NOT NULL DEFAULT 0,
+    error           TEXT,
+    created_at      INTEGER NOT NULL,
+    updated_at      INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_smart_setup_project ON smart_setup_runs(project_id, created_at);
+
 CREATE TABLE IF NOT EXISTS users (
     id              TEXT PRIMARY KEY,
     username        TEXT NOT NULL UNIQUE,

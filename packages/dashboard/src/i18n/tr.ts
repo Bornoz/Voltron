@@ -137,6 +137,7 @@ export const tr = {
     snapshots: 'Snapshot\'lar',
     behavior: 'Davranis',
     prompts: 'Promptlar',
+    smartSetup: 'Smart Setup',
   },
 
   // StatusBar (moved to end of file)
@@ -851,6 +852,31 @@ export const tr = {
     updatePassword: 'Sifreyi Guncelle',
     passwordChanged: 'Sifre basariyla degistirildi.',
     pwFieldsRequired: 'Mevcut ve yeni sifre alanlari zorunludur.',
+  },
+
+  // Smart Setup
+  smartSetup: {
+    title: 'Smart Setup',
+    subtitle: 'AI destekli proje yapilandirmasi — otonom kesfet, otomatik kur.',
+    startDiscovery: 'Kesfet',
+    applySelected: 'Secilenleri Kur',
+    analyzing: 'Proje analiz ediliyor...',
+    discovering: 'GitHub\'da araniyor...',
+    evaluating: 'Degerlendirilyor...',
+    ready: 'Hazir — repo secin ve kurun',
+    applying: 'Kurulum yapiliyor...',
+    completed: 'Kurulum tamamlandi',
+    failed: 'Kurulum basarisiz',
+    profileTitle: 'Proje Profili',
+    resultsTitle: 'Kesfedilen Repolar',
+    relevance: 'Uygunluk',
+    recommended: 'Onerilen',
+    noResults: 'Sonuc bulunamadi',
+    existingSetup: 'Mevcut Kurulum',
+    missingSetup: 'Eksik',
+    useGithub: 'GitHub\'da yararli repolar ara',
+    skipGithubHint: 'Sadece proje profili analiz edilecek, GitHub araması yapilmayacak.',
+    profileOnly: 'Proje profili analiz edildi. GitHub araması atlandı.',
   },
 
   // Durum Cubugu

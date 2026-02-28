@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, AlertCircle, GitBranch, GitCommit, Brain, FileText, Bot } from 'lucide-react';
+import { ChevronDown, AlertCircle, GitBranch, GitCommit, Brain, FileText, Bot, Sparkles } from 'lucide-react';
 import type { ProjectConfig } from '@voltron/shared';
 import * as api from '../lib/api';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -45,6 +45,7 @@ const BehaviorPanel = lazy(() => import('../components/BehaviorScore/BehaviorPan
 const PromptManager = lazy(() => import('../components/PromptVersioning/PromptManager').then(m => ({ default: m.PromptManager })));
 const AgentWorkspace = lazy(() => import('../components/Agent/AgentWorkspace').then(m => ({ default: m.AgentWorkspace })));
 const SpawnDialog = lazy(() => import('../components/Agent/SpawnDialog').then(m => ({ default: m.SpawnDialog })));
+const SmartSetupPanel = lazy(() => import('../components/SmartSetup/SmartSetupPanel').then(m => ({ default: m.SmartSetupPanel })));
 
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -54,7 +55,7 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
-  const [centerTab, setCenterTab] = useState<'feed' | 'github' | 'snapshots' | 'behavior' | 'prompts' | 'agent'>('feed');
+  const [centerTab, setCenterTab] = useState<'feed' | 'github' | 'snapshots' | 'behavior' | 'prompts' | 'agent' | 'smart-setup'>('feed');
   const [showSpawnDialog, setShowSpawnDialog] = useState(false);
   const [spawnDefaultConfig, setSpawnDefaultConfig] = useState<{ model?: string; prompt?: string; targetDir?: string } | undefined>();
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -320,6 +321,7 @@ export function DashboardPage() {
             { id: 'snapshots' as const, icon: <GitCommit className="w-3.5 h-3.5" />, label: t('app.snapshots') },
             { id: 'behavior' as const, icon: <Brain className="w-3.5 h-3.5" />, label: t('app.behavior') },
             { id: 'prompts' as const, icon: <FileText className="w-3.5 h-3.5" />, label: t('app.prompts') },
+            { id: 'smart-setup' as const, icon: <Sparkles className="w-3.5 h-3.5" />, label: t('app.smartSetup') },
           ]).map((tab) => (
             <button
               key={tab.id}
@@ -421,6 +423,12 @@ export function DashboardPage() {
               />
             )}
             {centerTab === 'agent' && !projectId && (
+              <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                {t('app.selectProjectFirst')}
+              </div>
+            )}
+            {centerTab === 'smart-setup' && projectId && <SmartSetupPanel projectId={projectId} />}
+            {centerTab === 'smart-setup' && !projectId && (
               <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--color-text-muted)' }}>
                 {t('app.selectProjectFirst')}
               </div>

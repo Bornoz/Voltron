@@ -139,6 +139,7 @@ export const en: TranslationKeys = {
     snapshots: 'Snapshots',
     behavior: 'Behavior',
     prompts: 'Prompts',
+    smartSetup: 'Smart Setup',
   },
 
   // StatusBar (moved to end of file)
@@ -853,6 +854,31 @@ export const en: TranslationKeys = {
     updatePassword: 'Update Password',
     passwordChanged: 'Password changed successfully.',
     pwFieldsRequired: 'Current and new password fields are required.',
+  },
+
+  // Smart Setup
+  smartSetup: {
+    title: 'Smart Setup',
+    subtitle: 'AI-powered project configuration — autonomous discovery, automatic setup.',
+    startDiscovery: 'Discover',
+    applySelected: 'Apply Selected',
+    analyzing: 'Analyzing project...',
+    discovering: 'Searching GitHub...',
+    evaluating: 'Evaluating...',
+    ready: 'Ready — select repos and install',
+    applying: 'Installing...',
+    completed: 'Setup completed',
+    failed: 'Setup failed',
+    profileTitle: 'Project Profile',
+    resultsTitle: 'Discovered Repos',
+    relevance: 'Relevance',
+    recommended: 'Recommended',
+    noResults: 'No results found',
+    existingSetup: 'Existing Setup',
+    missingSetup: 'Missing',
+    useGithub: 'Search GitHub for useful repos',
+    skipGithubHint: 'Only project profile will be analyzed, no GitHub search will be performed.',
+    profileOnly: 'Project profile analyzed. GitHub search was skipped.',
   },
 
   // Status Bar

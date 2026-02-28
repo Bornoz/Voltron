@@ -824,3 +824,73 @@ export function getUploads(projectId: string): Promise<UploadResult[]> {
 export function deleteUpload(id: string): Promise<void> {
   return request<void>(`/uploads/${id}`, { method: 'DELETE' });
 }
+
+// ── Smart Setup ─────────────────────────────────────────
+
+export function startSmartSetup(projectId: string, skipGithub = false): Promise<{ runId: string }> {
+  return request<{ runId: string }>(`/projects/${projectId}/smart-setup/run`, {
+    method: 'POST',
+    body: JSON.stringify({ skipGithub }),
+  });
+}
+
+export function getSmartSetupRuns(projectId: string): Promise<SmartSetupRunResponse[]> {
+  return request<SmartSetupRunResponse[]>(`/projects/${projectId}/smart-setup/runs`);
+}
+
+export function getSmartSetupRun(projectId: string, runId: string): Promise<SmartSetupRunResponse> {
+  return request<SmartSetupRunResponse>(`/projects/${projectId}/smart-setup/runs/${runId}`);
+}
+
+export function applySmartSetup(projectId: string, runId: string, repoIds: string[]): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/projects/${projectId}/smart-setup/runs/${runId}/apply`, {
+    method: 'POST',
+    body: JSON.stringify({ repoIds }),
+  });
+}
+
+export function getProjectProfile(projectId: string): Promise<ProjectProfileResponse> {
+  return request<ProjectProfileResponse>(`/projects/${projectId}/smart-setup/profile`);
+}
+
+export interface ProjectProfileResponse {
+  languages: string[];
+  frameworks: string[];
+  packageManager: string;
+  hasTests: boolean;
+  testFramework: string | null;
+  hasClaude: boolean;
+  hasClaudeSkills: boolean;
+  hasMcp: boolean;
+  hasHooks: boolean;
+  monorepo: boolean;
+  linesOfCode: number;
+  fileCount: number;
+  detectedPatterns: string[];
+}
+
+export interface DiscoveredRepoResponse {
+  id: string;
+  repoUrl: string;
+  repoName: string;
+  stars: number;
+  description: string;
+  category: string;
+  relevanceScore: number;
+  relevanceReason: string;
+  installCommand: string | null;
+  configSnippet: string | null;
+  selected: boolean;
+}
+
+export interface SmartSetupRunResponse {
+  id: string;
+  projectId: string;
+  status: string;
+  profile: ProjectProfileResponse | null;
+  discoveries: DiscoveredRepoResponse[];
+  appliedCount: number;
+  error: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
