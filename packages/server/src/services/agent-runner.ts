@@ -91,7 +91,12 @@ export class AgentRunner extends EventEmitter {
       }
     }
 
-    const sessionId = config.sessionId ?? randomUUID();
+    // Check for existing session to RESUME (AI memory continuity)
+    // Only create a truly new session for brand new projects
+    const lastSession = this.sessionRepo.findLatestByProject(projectId);
+    const isResume = !!lastSession && !config.sessionId;
+    const sessionId = config.sessionId ?? (lastSession?.sessionId ?? randomUUID());
+
     const sessionDbRow = this.sessionRepo.create({
       projectId,
       sessionId,
@@ -137,7 +142,12 @@ export class AgentRunner extends EventEmitter {
     };
 
     this.agents.set(projectId, agent);
-    console.log(`[AgentRunner] Spawning agent for project=${projectId}, model=${agent.model}, targetDir=${targetDir}`);
+
+    if (isResume) {
+      console.log(`[AgentRunner] Resuming existing session for project=${projectId}, session=${sessionId}, model=${agent.model}`);
+    } else {
+      console.log(`[AgentRunner] Spawning NEW agent for project=${projectId}, session=${sessionId}, model=${agent.model}, targetDir=${targetDir}`);
+    }
     this.emitStatus(projectId, 'SPAWNING');
 
     // Ensure targetDir exists before spawning
@@ -149,7 +159,13 @@ export class AgentRunner extends EventEmitter {
     const enrichedSpawnPrompt = this.buildSpawnPrompt(projectId, prompt);
 
     try {
-      this.spawnProcess(agent, enrichedSpawnPrompt);
+      if (isResume) {
+        // Resume existing session — AI remembers all previous work
+        this.spawnProcess(agent, enrichedSpawnPrompt, true, sessionId);
+      } else {
+        // Brand new project — fresh session
+        this.spawnProcess(agent, enrichedSpawnPrompt);
+      }
     } catch (err) {
       this.setStatus(agent, 'CRASHED');
       this.sessionRepo.setCrashed(sessionDbRow.id, err instanceof Error ? err.message : 'Spawn failed');
@@ -260,11 +276,10 @@ export class AgentRunner extends EventEmitter {
     contextParts.push('Continue where you left off.');
     const enrichedPrompt = contextParts.join('\n');
 
-    const oldSessionId = agent.sessionId;
-    agent.sessionId = randomUUID();
+    // Keep same session ID — AI retains full conversation memory
     this.setStatus(agent, 'RUNNING');
     this.sessionRepo.updateStatus(agent.sessionDbId, 'RUNNING');
-    this.spawnProcess(agent, enrichedPrompt, true, oldSessionId);
+    this.spawnProcess(agent, enrichedPrompt, true, agent.sessionId);
   }
 
   /**
@@ -327,13 +342,11 @@ export class AgentRunner extends EventEmitter {
         throw new Error(`No agent running for project ${projectId}`);
       }
 
-      // Re-create agent entry from last session for --continue
-      // CRITICAL: Use a NEW sessionId for the new run, keep old one for --continue reference
-      const oldSessionId = lastSession.sessionId;
-      const newSessionId = randomUUID();
+      // Re-create agent entry — SAME session ID for AI memory continuity
+      const sessionId = lastSession.sessionId;
       const newSessionRow = this.sessionRepo.create({
         projectId,
-        sessionId: newSessionId,
+        sessionId, // Same Claude CLI session — AI remembers everything
         status: 'INJECTING',
         model: lastSession.model ?? AGENT_CONSTANTS.DEFAULT_MODEL,
         prompt: injection.prompt,
@@ -347,7 +360,7 @@ export class AgentRunner extends EventEmitter {
         parser: new AgentStreamParser(),
         projectId,
         sessionDbId: newSessionRow.id,
-        sessionId: newSessionId,
+        sessionId, // Same session ID — AI keeps full conversation history
         status: 'INJECTING' as AgentStatus,
         model: lastSession.model ?? AGENT_CONSTANTS.DEFAULT_MODEL,
         prompt: injection.prompt,
@@ -376,12 +389,12 @@ export class AgentRunner extends EventEmitter {
       };
       this.agents.set(projectId, agent);
 
-      console.log(`[AgentRunner] Re-spawning completed agent for inject (project=${projectId}, newSession=${newSessionId}, continueFrom=${oldSessionId})`);
+      console.log(`[AgentRunner] Resuming completed agent session for inject (project=${projectId}, session=${sessionId})`);
       this.emitStatus(projectId, 'INJECTING');
 
       // Record injection in DB
       this.injectionRepo.insert({
-        sessionId: newSessionId,
+        sessionId,
         projectId,
         prompt: injection.prompt,
         contextFile: injection.context?.filePath ?? null,
@@ -393,9 +406,9 @@ export class AgentRunner extends EventEmitter {
         agentStatusBefore: 'COMPLETED',
       });
 
-      // Build enriched prompt and spawn with --continue from OLD session
+      // Build enriched prompt and --resume same session (AI keeps memory)
       const enrichedPrompt = this.buildEnrichedPrompt(agent, injection, projectId);
-      this.spawnProcess(agent, enrichedPrompt, true, oldSessionId);
+      this.spawnProcess(agent, enrichedPrompt, true, sessionId);
       return;
     }
 
@@ -416,21 +429,19 @@ export class AgentRunner extends EventEmitter {
     });
 
     this.sessionRepo.incrementInjections(agent.sessionDbId);
-    const oldSessionId = agent.sessionId;
     this.setStatus(agent, 'INJECTING');
 
     // Kill current process
     await this.killProcess(agent);
 
-    // Generate new session ID for the forked session
-    const newSessionId = randomUUID();
-    agent.sessionId = newSessionId;
+    // Keep SAME session ID — AI retains full conversation memory
+    // No new session ID generation — continuity is critical
 
     // Build enriched prompt
     const enrichedPrompt = this.buildEnrichedPrompt(agent, injection, projectId);
 
-    // Respawn with --continue from old session, forking into new
-    this.spawnProcess(agent, enrichedPrompt, true, oldSessionId);
+    // Resume same session — AI keeps all context and memory
+    this.spawnProcess(agent, enrichedPrompt, true, agent.sessionId);
   }
 
   /**
@@ -535,12 +546,9 @@ export class AgentRunner extends EventEmitter {
       '--allowedTools', 'Read,Write,Edit,Bash,Glob,Grep,NotebookEdit',
     ];
 
-    if (isContinue) {
-      args.push('--continue');
-      // Use the original session ID to continue from (not the new agent's session ID)
-      const refSessionId = continueFromSessionId ?? agent.sessionId;
-      args.push('--session-id', refSessionId);
-      args.push('--fork-session');
+    if (isContinue && continueFromSessionId) {
+      // Resume existing session — AI keeps full conversation history & memory
+      args.push('--resume', continueFromSessionId);
     }
 
     // Use explicit -p flag to prevent --allowedTools from swallowing the prompt
