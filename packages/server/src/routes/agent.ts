@@ -10,6 +10,85 @@ import { ProjectRepository } from '../db/repositories/projects.js';
 
 import { EDITOR_SCRIPT } from './editor-script.js';
 
+/* ─── JSX/TSX → Renderable HTML wrapper (server-side) ─── */
+function wrapJSXForPreview(source: string, ext: string): string {
+  const isTS = ext === '.tsx';
+  const exportMatch = source.match(/export\s+(?:default\s+)?function\s+(\w+)/);
+  const componentName = exportMatch?.[1] ?? 'App';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; min-height: 100vh; }
+  #root { min-height: 100vh; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js" crossorigin><\/script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js" crossorigin><\/script>
+<script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7/babel.min.js" crossorigin><\/script>
+<script src="https://cdn.tailwindcss.com"><\/script>
+<script>tailwind.config = { darkMode: 'class', theme: { extend: {} } }<\/script>
+</head>
+<body class="dark">
+<div id="root"></div>
+<script type="text/babel" data-presets="react${isTS ? ',typescript' : ''}">
+const { useState, useEffect, useRef, useMemo, useCallback, useContext, createContext, Fragment } = React;
+const lucideReact = new Proxy({}, { get: (_, name) => {
+  if (typeof name === 'string' && name[0] === name[0]?.toUpperCase()) {
+    return (props) => React.createElement('span', { className: 'inline-flex items-center justify-center w-4 h-4 text-current opacity-60', title: name, ...props }, '[' + name + ']');
+  }
+  return undefined;
+}});
+${source
+    .replace(/^import\s+.*?from\s+['"].*?['"];?\s*$/gm, '// [import removed for preview]')
+    .replace(/^export\s+default\s+/gm, 'const __DefaultExport__ = ')
+    .replace(/^export\s+/gm, '')}
+const __Component__ = typeof __DefaultExport__ !== 'undefined' ? __DefaultExport__ : (typeof ${componentName} !== 'undefined' ? ${componentName} : () => React.createElement('div', {style:{padding:'2rem',color:'#94a3b8'}}, 'Component rendered'));
+const __root__ = ReactDOM.createRoot(document.getElementById('root'));
+__root__.render(React.createElement(__Component__));
+<\/script>
+${EDITOR_SCRIPT}
+</body>
+</html>`;
+}
+
+/* ─── CSS → Visual Preview wrapper ─── */
+function wrapCSSForPreview(source: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  body { background: #0f172a; color: #e2e8f0; font-family: system-ui, sans-serif; padding: 2rem; min-height: 100vh; }
+  .preview-section { margin-bottom: 2rem; }
+  .preview-section h3 { font-size: 0.75rem; color: #64748b; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .sample-elements { display: flex; flex-wrap: wrap; gap: 1rem; }
+  .sample { padding: 1rem 1.5rem; border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); }
+  ${source}
+</style>
+</head>
+<body>
+<div class="preview-section">
+  <h3>CSS Preview</h3>
+  <div class="sample-elements">
+    <div class="sample"><h1>Heading 1</h1></div>
+    <div class="sample"><h2>Heading 2</h2></div>
+    <div class="sample"><p>Paragraph text</p></div>
+    <div class="sample"><button>Button</button></div>
+    <div class="sample"><a href="#">Link</a></div>
+    <div class="sample"><input type="text" placeholder="Input" /></div>
+  </div>
+</div>
+${EDITOR_SCRIPT}
+</body>
+</html>`;
+}
+
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -385,9 +464,56 @@ export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner, devS
           }
         }
         return reply
-          .header('Content-Type', contentType)
+          .header('Content-Type', 'text/html; charset=utf-8')
           .header('Cache-Control', 'no-cache')
           .send(html);
+      }
+
+      // For JSX/TSX files, wrap in renderable HTML with React + Babel
+      if (ext === '.jsx' || ext === '.tsx') {
+        const source = await readFile(requested, 'utf-8');
+        const html = wrapJSXForPreview(source, ext);
+        return reply
+          .header('Content-Type', 'text/html; charset=utf-8')
+          .header('Cache-Control', 'no-cache')
+          .send(html);
+      }
+
+      // For CSS files, wrap in HTML with sample elements
+      if (ext === '.css') {
+        const source = await readFile(requested, 'utf-8');
+        const html = wrapCSSForPreview(source);
+        return reply
+          .header('Content-Type', 'text/html; charset=utf-8')
+          .header('Cache-Control', 'no-cache')
+          .send(html);
+      }
+
+      // For SVG files, wrap in HTML
+      if (ext === '.svg') {
+        const source = await readFile(requested, 'utf-8');
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a}</style></head><body>${source}\n${EDITOR_SCRIPT}</body></html>`;
+        return reply
+          .header('Content-Type', 'text/html; charset=utf-8')
+          .header('Cache-Control', 'no-cache')
+          .send(html);
+      }
+
+      // For PHP files, strip PHP tags and serve as HTML
+      if (ext === '.php') {
+        let source = await readFile(requested, 'utf-8');
+        source = source.replace(/<\?php[\s\S]*?\?>/g, '').replace(/<\?=[\s\S]*?\?>/g, '');
+        if (!source.includes('data-voltron-editor')) {
+          if (source.includes('</body>')) {
+            source = source.replace('</body>', EDITOR_SCRIPT + '\n</body>');
+          } else {
+            source += EDITOR_SCRIPT;
+          }
+        }
+        return reply
+          .header('Content-Type', 'text/html; charset=utf-8')
+          .header('Cache-Control', 'no-cache')
+          .send(source);
       }
 
       const content = await readFile(requested);

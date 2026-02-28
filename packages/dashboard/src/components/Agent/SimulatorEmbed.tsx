@@ -149,17 +149,20 @@ interface DevServerInfo {
   url: string;
 }
 
+/** File extensions that can be previewed (rendered in iframe) */
+const PREVIEWABLE_EXTS = new Set(['html', 'htm', 'jsx', 'tsx', 'vue', 'svelte', 'php', 'css', 'svg']);
+
 function getPreviewUrl(projectId: string, _devServer?: DevServerInfo | null, currentFile?: string | null): string {
   // Route through Voltron server proxy to ensure editor script injection
   // Server will proxy to dev server when available, falling back to static files
   const isDev = window.location.port === '6400' || window.location.hostname === 'localhost';
   const base = isDev ? 'http://localhost:8600' : '';
 
-  // Use agent's current HTML file if available, otherwise fall back to index.html
+  // Use agent's current file if it's previewable, otherwise fall back to index.html
   let previewFile = 'index.html';
   if (currentFile) {
-    const ext = currentFile.split('.').pop()?.toLowerCase();
-    if (ext === 'html' || ext === 'htm') {
+    const ext = currentFile.split('.').pop()?.toLowerCase() ?? '';
+    if (PREVIEWABLE_EXTS.has(ext)) {
       previewFile = currentFile;
     }
   }
@@ -590,8 +593,7 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
 
     const prompt = formatPhasePrompt(edits, promptPins, referenceImage);
 
-    const ext = location?.filePath?.split('.').pop()?.toLowerCase();
-    const activeFile = (ext === 'html' || ext === 'htm') ? location?.filePath ?? 'index.html' : 'index.html';
+    const activeFile = location?.filePath ?? 'index.html';
     onInject(prompt, {
       filePath: activeFile,
       constraints: [
