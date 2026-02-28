@@ -255,13 +255,14 @@ export function WindowManager({ projectId, onInject, onAgentAction }: WindowMana
       ref={containerRef}
       className="flex-1 relative overflow-hidden bg-gray-950/20"
     >
-      {/* Pannable canvas — holds non-maximized panels */}
+      {/* Pannable canvas — holds non-maximized panels (right 40px reserved for dock) */}
       <div
         ref={canvasRef}
         onPointerDown={handleCanvasPointerDown}
         onDoubleClick={handleCanvasDoubleClick}
         className="absolute inset-0"
         style={{
+          right: 40,
           transform: `translate(${panX}px, ${panY}px)`,
           cursor: isPanning ? 'grabbing' : 'grab',
         }}
@@ -306,7 +307,7 @@ export function WindowManager({ projectId, onInject, onAgentAction }: WindowMana
         />
       )}
 
-      {/* Taskbar for minimized panels */}
+      {/* Panel Dock — categorized panel launcher on right edge */}
       <Taskbar />
     </div>
   );

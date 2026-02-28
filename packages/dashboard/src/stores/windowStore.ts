@@ -74,70 +74,74 @@ interface WindowState {
 /* ─── Defaults (percentage → computed on first render) ─── */
 
 const STORAGE_KEY = 'voltron_window_layout_v1';
-const SCHEMA_VERSION = 3; // Bumped to force layout recalculation
+const SCHEMA_VERSION = 4; // Bumped: only visual-editor visible by default + panel dock
 
 function buildDefaultPanels(vw: number, vh: number): Record<PanelId, PanelState> {
+  // DOCK_WIDTH (40px) is reserved for the panel dock on the right
+  const dw = 40;
+  const aw = vw - dw; // available width
+
   return {
     'visual-editor': {
       id: 'visual-editor',
       title: 'agent.windowManager.panelVisualEditor',
       x: 0, y: 0,
-      width: Math.round(vw * 0.55), height: vh,
+      width: aw, height: vh,
       minWidth: 400, minHeight: 300,
       zIndex: 10, visible: true, minimized: false, maximized: false, preMaximize: null,
     },
     'gps-navigator': {
       id: 'gps-navigator',
       title: 'agent.windowManager.panelGpsNavigator',
-      x: Math.round(vw * 0.56), y: 0,
-      width: Math.round(vw * 0.44), height: Math.round(vh * 0.45),
+      x: Math.round(aw * 0.5), y: 0,
+      width: Math.round(aw * 0.5), height: Math.round(vh * 0.6),
       minWidth: 300, minHeight: 250,
-      zIndex: 11, visible: true, minimized: false, maximized: false, preMaximize: null,
+      zIndex: 11, visible: false, minimized: false, maximized: false, preMaximize: null,
     },
     'agent-tracker': {
       id: 'agent-tracker',
       title: 'agent.windowManager.panelAgentTracker',
-      x: Math.round(vw * 0.56), y: Math.round(vh * 0.46),
-      width: Math.round(vw * 0.44), height: Math.round(vh * 0.14),
+      x: Math.round(aw * 0.5), y: Math.round(vh * 0.6),
+      width: Math.round(aw * 0.5), height: Math.round(vh * 0.4),
       minWidth: 300, minHeight: 100,
-      zIndex: 12, visible: true, minimized: false, maximized: false, preMaximize: null,
+      zIndex: 12, visible: false, minimized: false, maximized: false, preMaximize: null,
     },
     'phase-viewer': {
       id: 'phase-viewer',
       title: 'agent.windowManager.panelPhaseViewer',
-      x: Math.round(vw * 0.56), y: Math.round(vh * 0.61),
-      width: Math.round(vw * 0.44), height: Math.round(vh * 0.19),
+      x: Math.round(aw * 0.6), y: Math.round(vh * 0.3),
+      width: Math.round(aw * 0.4), height: Math.round(vh * 0.35),
       minWidth: 300, minHeight: 150,
-      zIndex: 13, visible: true, minimized: false, maximized: false, preMaximize: null,
+      zIndex: 13, visible: false, minimized: false, maximized: false, preMaximize: null,
     },
     'prompt-injector': {
       id: 'prompt-injector',
       title: 'agent.windowManager.panelPromptInjector',
-      x: Math.round(vw * 0.56), y: Math.round(vh * 0.81),
-      width: Math.round(vw * 0.44), height: Math.round(vh * 0.19),
+      x: Math.round(aw * 0.6), y: Math.round(vh * 0.65),
+      width: Math.round(aw * 0.4), height: Math.round(vh * 0.35),
       minWidth: 300, minHeight: 120,
-      zIndex: 14, visible: true, minimized: false, maximized: false, preMaximize: null,
+      zIndex: 14, visible: false, minimized: false, maximized: false, preMaximize: null,
     },
     'activity-timeline': {
       id: 'activity-timeline',
       title: 'agent.windowManager.panelActivityTimeline',
-      x: Math.round(vw * 0.3), y: Math.round(vh * 0.2),
-      width: 350, height: 400,
+      x: Math.round((aw - 400) / 2), y: Math.round((vh - 450) / 2),
+      width: 400, height: 450,
       minWidth: 250, minHeight: 200,
       zIndex: 15, visible: false, minimized: false, maximized: false, preMaximize: null,
     },
     'agent-output': {
       id: 'agent-output',
       title: 'agent.windowManager.panelAgentOutput',
-      x: 0, y: Math.round(vh - 250),
-      width: vw, height: 250,
+      x: 0, y: Math.round(vh - 280),
+      width: aw, height: 280,
       minWidth: 300, minHeight: 150,
       zIndex: 16, visible: false, minimized: false, maximized: false, preMaximize: null,
     },
     'rules-editor': {
       id: 'rules-editor',
       title: 'agent.windowManager.panelRulesEditor',
-      x: Math.round((vw - 450) / 2), y: Math.round((vh - 500) / 2),
+      x: Math.round((aw - 450) / 2), y: Math.round((vh - 500) / 2),
       width: 450, height: 500,
       minWidth: 300, minHeight: 250,
       zIndex: 17, visible: false, minimized: false, maximized: false, preMaximize: null,
@@ -145,7 +149,7 @@ function buildDefaultPanels(vw: number, vh: number): Record<PanelId, PanelState>
     'memory-manager': {
       id: 'memory-manager',
       title: 'agent.windowManager.panelMemoryManager',
-      x: Math.round((vw - 450) / 2) + 30, y: Math.round((vh - 550) / 2) + 30,
+      x: Math.round((aw - 450) / 2) + 20, y: Math.round((vh - 550) / 2) + 20,
       width: 450, height: 550,
       minWidth: 300, minHeight: 300,
       zIndex: 18, visible: false, minimized: false, maximized: false, preMaximize: null,
@@ -153,7 +157,7 @@ function buildDefaultPanels(vw: number, vh: number): Record<PanelId, PanelState>
     'session-history': {
       id: 'session-history',
       title: 'agent.windowManager.panelSessionHistory',
-      x: Math.round((vw - 420) / 2) + 60, y: Math.round((vh - 600) / 2) + 60,
+      x: Math.round((aw - 420) / 2) + 40, y: Math.round((vh - 600) / 2) + 40,
       width: 420, height: 600,
       minWidth: 280, minHeight: 300,
       zIndex: 19, visible: false, minimized: false, maximized: false, preMaximize: null,
@@ -163,45 +167,75 @@ function buildDefaultPanels(vw: number, vh: number): Record<PanelId, PanelState>
 
 function buildPresetPanels(preset: WindowPreset, vw: number, vh: number): Record<PanelId, PanelState> {
   const base = buildDefaultPanels(vw, vh);
+  const dw = 40; // dock width
+  const aw = vw - dw;
 
   switch (preset) {
-    case 'ide-style':
-      return base; // default is already IDE style
+    case 'ide-style': {
+      // Editor left 55%, GPS + tracker + plan right 45%
+      const leftW = Math.round(aw * 0.55);
+      const rightW = aw - leftW - 4;
+      const rightX = leftW + 4;
+
+      base['visual-editor'].visible = true;
+      base['visual-editor'].width = leftW;
+      base['visual-editor'].height = vh;
+
+      base['gps-navigator'].visible = true;
+      base['gps-navigator'].x = rightX;
+      base['gps-navigator'].y = 0;
+      base['gps-navigator'].width = rightW;
+      base['gps-navigator'].height = Math.round(vh * 0.5);
+
+      base['agent-tracker'].visible = true;
+      base['agent-tracker'].x = rightX;
+      base['agent-tracker'].y = Math.round(vh * 0.51);
+      base['agent-tracker'].width = rightW;
+      base['agent-tracker'].height = Math.round(vh * 0.24);
+
+      base['phase-viewer'].visible = true;
+      base['phase-viewer'].x = rightX;
+      base['phase-viewer'].y = Math.round(vh * 0.76);
+      base['phase-viewer'].width = rightW;
+      base['phase-viewer'].height = Math.round(vh * 0.24);
+      return base;
+    }
 
     case 'gps-focus': {
-      const gpsW = Math.round(vw * 0.6);
-      const sideW = vw - gpsW - 8;
+      const gpsW = Math.round(aw * 0.6);
+      const sideW = aw - gpsW - 4;
+      const sideX = gpsW + 4;
+
+      base['gps-navigator'].visible = true;
       base['gps-navigator'].x = 0;
       base['gps-navigator'].y = 0;
       base['gps-navigator'].width = gpsW;
       base['gps-navigator'].height = vh;
 
-      base['visual-editor'].x = gpsW + 8;
+      base['visual-editor'].visible = true;
+      base['visual-editor'].x = sideX;
       base['visual-editor'].y = 0;
       base['visual-editor'].width = sideW;
       base['visual-editor'].height = Math.round(vh * 0.5);
 
-      base['agent-tracker'].x = gpsW + 8;
+      base['agent-tracker'].visible = true;
+      base['agent-tracker'].x = sideX;
       base['agent-tracker'].y = Math.round(vh * 0.51);
       base['agent-tracker'].width = sideW;
-      base['agent-tracker'].height = Math.round(vh * 0.14);
+      base['agent-tracker'].height = Math.round(vh * 0.24);
 
-      base['phase-viewer'].x = gpsW + 8;
-      base['phase-viewer'].y = Math.round(vh * 0.66);
-      base['phase-viewer'].width = sideW;
-      base['phase-viewer'].height = Math.round(vh * 0.17);
-
-      base['prompt-injector'].x = gpsW + 8;
-      base['prompt-injector'].y = Math.round(vh * 0.84);
+      base['prompt-injector'].visible = true;
+      base['prompt-injector'].x = sideX;
+      base['prompt-injector'].y = Math.round(vh * 0.76);
       base['prompt-injector'].width = sideW;
-      base['prompt-injector'].height = Math.round(vh * 0.16);
+      base['prompt-injector'].height = Math.round(vh * 0.24);
       return base;
     }
 
     case 'monitor': {
       const cols = 3;
       const rows = 4;
-      const cellW = Math.floor(vw / cols);
+      const cellW = Math.floor(aw / cols);
       const cellH = Math.floor(vh / rows);
       const allIds: PanelId[] = [
         'visual-editor', 'gps-navigator', 'agent-tracker',
