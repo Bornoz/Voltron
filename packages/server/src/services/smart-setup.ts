@@ -152,22 +152,82 @@ export class SmartSetupService {
       }
     }
 
-    // Count lines of code and files (src/ or root *.ts/*.js)
+    // Monorepo: scan sub-package package.json files for frameworks + patterns
+    if (monorepo) {
+      const subDirs = ['packages', 'apps', 'libs', 'modules'];
+      for (const sub of subDirs) {
+        const subPath = join(targetDir, sub);
+        if (!existsSync(subPath)) continue;
+        try {
+          const entries = readdirSync(subPath);
+          for (const entry of entries) {
+            const subPkg = join(subPath, entry, 'package.json');
+            if (!existsSync(subPkg)) continue;
+            try {
+              const pkg = JSON.parse(readFileSync(subPkg, 'utf-8'));
+              const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+              // Frameworks
+              if (allDeps.react && !frameworks.includes('React')) frameworks.push('React');
+              if (allDeps.vue && !frameworks.includes('Vue')) frameworks.push('Vue');
+              if (allDeps.svelte && !frameworks.includes('Svelte')) frameworks.push('Svelte');
+              if (allDeps.next && !frameworks.includes('Next.js')) frameworks.push('Next.js');
+              if (allDeps.nuxt && !frameworks.includes('Nuxt')) frameworks.push('Nuxt');
+              if (allDeps.fastify && !frameworks.includes('Fastify')) frameworks.push('Fastify');
+              if (allDeps.express && !frameworks.includes('Express')) frameworks.push('Express');
+              if ((allDeps.nestjs || allDeps['@nestjs/core']) && !frameworks.includes('NestJS')) frameworks.push('NestJS');
+              // Test framework (from sub-packages if root didn't detect)
+              if (!hasTests) {
+                if (allDeps.vitest) { hasTests = true; testFramework = 'vitest'; }
+                else if (allDeps.jest) { hasTests = true; testFramework = 'jest'; }
+                else if (allDeps.playwright || allDeps['@playwright/test']) { hasTests = true; testFramework = 'playwright'; }
+              }
+              // Patterns
+              for (const [dep, pattern] of Object.entries(PATTERN_MAP)) {
+                if (allDeps[dep] && !detectedPatterns.includes(pattern)) {
+                  detectedPatterns.push(pattern);
+                }
+              }
+            } catch { /* skip malformed */ }
+          }
+        } catch { /* skip unreadable dir */ }
+      }
+    }
+
+    // Count lines of code and files
     let linesOfCode = 0;
     let fileCount = 0;
     const codeExts = new Set(['.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.rs', '.java']);
+    const countCallback = (filePath: string) => {
+      const ext = extname(filePath);
+      if (codeExts.has(ext)) {
+        fileCount++;
+        try {
+          const content = readFileSync(filePath, 'utf-8');
+          linesOfCode += content.split('\n').length;
+        } catch { /* skip unreadable */ }
+      }
+    };
     try {
-      const countDir = existsSync(join(targetDir, 'src')) ? join(targetDir, 'src') : targetDir;
-      this.walkDir(countDir, (filePath) => {
-        const ext = extname(filePath);
-        if (codeExts.has(ext)) {
-          fileCount++;
+      if (monorepo) {
+        // Monorepo: scan packages/*/src/ directories
+        for (const sub of ['packages', 'apps', 'libs']) {
+          const subPath = join(targetDir, sub);
+          if (!existsSync(subPath)) continue;
           try {
-            const content = readFileSync(filePath, 'utf-8');
-            linesOfCode += content.split('\n').length;
-          } catch { /* skip unreadable */ }
+            for (const entry of readdirSync(subPath)) {
+              const srcDir = join(subPath, entry, 'src');
+              if (existsSync(srcDir)) this.walkDir(srcDir, countCallback, 4);
+            }
+          } catch { /* skip */ }
         }
-      }, 3); // max depth 3
+        // Fallback: also scan root src/ if sub-packages yielded nothing
+        if (fileCount === 0 && existsSync(join(targetDir, 'src'))) {
+          this.walkDir(join(targetDir, 'src'), countCallback, 3);
+        }
+      } else {
+        const countDir = existsSync(join(targetDir, 'src')) ? join(targetDir, 'src') : targetDir;
+        this.walkDir(countDir, countCallback, 3);
+      }
     } catch { /* dir walk fail */ }
 
     return {
