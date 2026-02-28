@@ -86,8 +86,24 @@ async function main() {
     shutdown('UNHANDLED_REJECTION').catch(() => process.exit(1));
   });
 
+  // Listen with retry for EADDRINUSE (port still in TIME_WAIT from previous process)
+  const MAX_LISTEN_RETRIES = 5;
+  const LISTEN_RETRY_DELAY_MS = 3000;
   try {
-    await app.listen({ port: config.port, host: config.host });
+    for (let attempt = 1; attempt <= MAX_LISTEN_RETRIES; attempt++) {
+      try {
+        await app.listen({ port: config.port, host: config.host });
+        break; // success
+      } catch (listenErr: unknown) {
+        const isAddrInUse = listenErr instanceof Error && 'code' in listenErr && (listenErr as NodeJS.ErrnoException).code === 'EADDRINUSE';
+        if (isAddrInUse && attempt < MAX_LISTEN_RETRIES) {
+          app.log.warn(`Port ${config.port} in use (attempt ${attempt}/${MAX_LISTEN_RETRIES}), retrying in ${LISTEN_RETRY_DELAY_MS}ms...`);
+          await new Promise((r) => setTimeout(r, LISTEN_RETRY_DELAY_MS));
+        } else {
+          throw listenErr;
+        }
+      }
+    }
 
     // Startup banner
     const banner = [

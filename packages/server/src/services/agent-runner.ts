@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { openSync, existsSync, mkdirSync } from 'node:fs';
@@ -584,15 +584,43 @@ export class AgentRunner extends EventEmitter {
     delete cleanEnv.CLAUDE_CODE_ENTRYPOINT;
     delete cleanEnv.CLAUDE_DEV;
 
-    // Validate binary exists before spawning
+    // Validate binary exists before spawning — try fallback paths
     if (!existsSync(this.claudeBinary)) {
-      const errorMsg = `Claude CLI binary not found: ${this.claudeBinary}`;
-      console.error(`[AgentRunner] ${errorMsg} (project=${agent.projectId})`);
-      this.setStatus(agent, 'CRASHED');
-      this.sessionRepo.setCrashed(agent.sessionDbId, errorMsg);
-      this.eventBus.emit('AGENT_ERROR', { projectId: agent.projectId, error: errorMsg, timestamp: Date.now() });
-      this.agents.delete(agent.projectId);
-      return;
+      // Try common fallback locations
+      const fallbacks = [
+        '/usr/bin/claude',
+        '/usr/local/bin/claude',
+        '/usr/lib/node_modules/@anthropic-ai/claude-code/cli.js',
+      ];
+      let resolved = false;
+      for (const fb of fallbacks) {
+        if (fb !== this.claudeBinary && existsSync(fb)) {
+          console.warn(`[AgentRunner] Primary binary not found (${this.claudeBinary}), using fallback: ${fb} (project=${agent.projectId})`);
+          this.claudeBinary = fb;
+          resolved = true;
+          break;
+        }
+      }
+      if (!resolved) {
+        // Also try `which claude`
+        try {
+          const whichResult = execSync('which claude', { encoding: 'utf-8' }).trim();
+          if (whichResult && existsSync(whichResult)) {
+            console.warn(`[AgentRunner] Primary binary not found, using 'which claude': ${whichResult} (project=${agent.projectId})`);
+            this.claudeBinary = whichResult;
+            resolved = true;
+          }
+        } catch { /* which failed */ }
+      }
+      if (!resolved) {
+        const errorMsg = `Claude CLI binary not found: ${this.claudeBinary}. Tried fallbacks: ${fallbacks.join(', ')}`;
+        console.error(`[AgentRunner] ${errorMsg} (project=${agent.projectId})`);
+        this.setStatus(agent, 'CRASHED');
+        this.sessionRepo.setCrashed(agent.sessionDbId, errorMsg);
+        this.eventBus.emit('AGENT_ERROR', { projectId: agent.projectId, error: errorMsg, timestamp: Date.now() });
+        this.agents.delete(agent.projectId);
+        return;
+      }
     }
 
     // CRITICAL: Claude CLI hangs when stdin is a Node.js pipe (socketpair).
