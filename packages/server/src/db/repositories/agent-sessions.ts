@@ -59,6 +59,10 @@ export class AgentSessionRepository {
     this.stmt('incInjections', `UPDATE agent_sessions SET injection_count = injection_count + 1 WHERE id = ?`).run(id);
   }
 
+  updateSessionId(id: string, sessionId: string): void {
+    this.stmt('updateSessionId', `UPDATE agent_sessions SET session_id = ? WHERE id = ?`).run(sessionId, id);
+  }
+
   setError(id: string, error: string): void {
     this.stmt('setError', `UPDATE agent_sessions SET last_error = ? WHERE id = ?`).run(error, id);
   }

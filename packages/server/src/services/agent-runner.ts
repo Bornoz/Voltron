@@ -54,6 +54,12 @@ interface RunningAgent {
   _sessionEndError: boolean;
   // Agent timeout timer
   _timeoutTimer: ReturnType<typeof setTimeout> | null;
+  // Resume retry tracking
+  _isResume: boolean;
+  _resumeRetried: boolean;
+  _spawnPrompt: string;
+  _eventsReceived: number;
+  _stderrBuffer: string;
 }
 
 export class AgentRunner extends EventEmitter {
@@ -139,6 +145,11 @@ export class AgentRunner extends EventEmitter {
       _sessionEnded: false,
       _sessionEndError: false,
       _timeoutTimer: null,
+      _isResume: isResume,
+      _resumeRetried: false,
+      _spawnPrompt: '',
+      _eventsReceived: 0,
+      _stderrBuffer: '',
     };
 
     this.agents.set(projectId, agent);
@@ -157,6 +168,7 @@ export class AgentRunner extends EventEmitter {
 
     // Enrich prompt with project rules + pinned memory
     const enrichedSpawnPrompt = this.buildSpawnPrompt(projectId, prompt);
+    agent._spawnPrompt = enrichedSpawnPrompt;
 
     try {
       if (isResume) {
@@ -387,6 +399,11 @@ export class AgentRunner extends EventEmitter {
         _sessionEnded: false,
         _sessionEndError: false,
         _timeoutTimer: null,
+        _isResume: true,
+        _resumeRetried: false,
+        _spawnPrompt: '',
+        _eventsReceived: 0,
+        _stderrBuffer: '',
       };
       this.agents.set(projectId, agent);
 
@@ -409,6 +426,7 @@ export class AgentRunner extends EventEmitter {
 
       // Build enriched prompt and --resume same session (AI keeps memory)
       const enrichedPrompt = this.buildEnrichedPrompt(agent, injection, projectId);
+      agent._spawnPrompt = enrichedPrompt;
       this.spawnProcess(agent, enrichedPrompt, true, sessionId);
       return;
     }
@@ -440,6 +458,7 @@ export class AgentRunner extends EventEmitter {
 
     // Build enriched prompt
     const enrichedPrompt = this.buildEnrichedPrompt(agent, injection, projectId);
+    agent._spawnPrompt = enrichedPrompt;
 
     // Resume same session — AI keeps all context and memory
     this.spawnProcess(agent, enrichedPrompt, true, agent.sessionId);
@@ -597,12 +616,14 @@ export class AgentRunner extends EventEmitter {
     this.wireParser(agent);
 
     proc.stdout?.on('data', (data: Buffer) => {
+      agent._eventsReceived++;
       agent.parser.feed(data.toString());
     });
 
     proc.stderr?.on('data', (data: Buffer) => {
       const text = data.toString();
-      console.error(`[AgentRunner] STDERR (project=${agent.projectId}): ${text.substring(0, 200)}`);
+      agent._stderrBuffer += text;
+      console.error(`[AgentRunner] STDERR (project=${agent.projectId}): ${text.substring(0, 500)}`);
       this.eventBus.emit('AGENT_ERROR', {
         projectId: agent.projectId,
         error: text,
@@ -611,8 +632,38 @@ export class AgentRunner extends EventEmitter {
     });
 
     proc.on('exit', (code, signal) => {
-      console.log(`[AgentRunner] Process exited: code=${code}, signal=${signal}, status=${agent.status} (project=${agent.projectId})`);
+      console.log(`[AgentRunner] Process exited: code=${code}, signal=${signal}, status=${agent.status}, eventsReceived=${agent._eventsReceived}, isResume=${agent._isResume}, retried=${agent._resumeRetried} (project=${agent.projectId})`);
+      if (agent._stderrBuffer) {
+        console.error(`[AgentRunner] Full STDERR on exit (project=${agent.projectId}): ${agent._stderrBuffer.substring(0, 1000)}`);
+      }
       agent.parser.flush();
+
+      // RESUME FALLBACK: If this was a --resume spawn that crashed immediately
+      // (0 events, non-zero exit, not already retried), retry WITHOUT --resume
+      if (agent._isResume && !agent._resumeRetried && agent._eventsReceived === 0 &&
+          code !== null && code !== 0 && signal !== 'SIGTERM' &&
+          agent.status !== 'STOPPING' && agent.status !== 'INJECTING') {
+        console.warn(`[AgentRunner] Resume failed immediately (code=${code}, stderr=${agent._stderrBuffer.substring(0, 200)}). Retrying WITHOUT --resume (project=${agent.projectId})`);
+        agent._resumeRetried = true;
+        agent._isResume = false;
+        agent._stderrBuffer = '';
+        agent._eventsReceived = 0;
+        agent._sessionEnded = false;
+        agent._sessionEndError = false;
+
+        // Generate a new session ID for fresh spawn
+        const newSessionId = randomUUID();
+        agent.sessionId = newSessionId;
+        this.sessionRepo.updateSessionId(agent.sessionDbId, newSessionId);
+
+        try {
+          this.spawnProcess(agent, agent._spawnPrompt, false);
+          return; // Don't process exit further — new process started
+        } catch (retryErr) {
+          console.error(`[AgentRunner] Resume fallback spawn also failed: ${retryErr instanceof Error ? retryErr.message : retryErr} (project=${agent.projectId})`);
+          // Fall through to normal crash handling
+        }
+      }
 
       // Flush paused events before processing exit so UI receives final updates
       if (agent.pausedEventQueue.length > 0) {
