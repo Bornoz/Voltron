@@ -1865,15 +1865,17 @@ export const EDITOR_SCRIPT = `
   });
 
   /* ═══ INIT ═══ */
-  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
-  else { init(); }
-
-  document.addEventListener('mousemove', onMouseMove, true);
-  document.addEventListener('mousedown', onMouseDown, true);
-  document.addEventListener('mouseup', onMouseUp, true);
-  document.addEventListener('click', onClick, true);
-  document.addEventListener('dblclick', onDblClick, true);
-  document.addEventListener('contextmenu', onContextMenu, true);
-  document.addEventListener('keydown', onKeyDown, true);
+  function initAndBind() {
+    init();
+    document.addEventListener('mousemove', onMouseMove, true);
+    document.addEventListener('mousedown', onMouseDown, true);
+    document.addEventListener('mouseup', onMouseUp, true);
+    document.addEventListener('click', onClick, true);
+    document.addEventListener('dblclick', onDblClick, true);
+    document.addEventListener('contextmenu', onContextMenu, true);
+    document.addEventListener('keydown', onKeyDown, true);
+  }
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initAndBind); }
+  else { initAndBind(); }
 })();
 </script>`;
