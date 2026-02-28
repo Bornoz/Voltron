@@ -1952,6 +1952,12 @@ export const EDITOR_SCRIPT = `
     var el = document.elementFromPoint(e.clientX, e.clientY);
     if (!el || isOurs(el)) return;
 
+    /* Click on body/html = deselect current element */
+    if (el === document.body || el === document.documentElement) {
+      if (S.selected) { select(null); }
+      return;
+    }
+
     if (el !== S.selected) {
       select(el);
     }
@@ -1997,6 +2003,9 @@ export const EDITOR_SCRIPT = `
     var el = document.elementFromPoint(e.clientX, e.clientY);
     if (el && !isOurs(el) && el !== document.body && el !== document.documentElement) {
       select(el);
+    } else if (el === document.body || el === document.documentElement) {
+      /* Right-click on empty area: deselect, still show minimal menu */
+      if (S.selected) select(null);
     }
     showContextMenu(e.clientX, e.clientY);
   }
