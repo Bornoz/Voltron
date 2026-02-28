@@ -45,7 +45,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const headers: Record<string, string> = {};
+      // Only set Content-Type for requests that have a body
+      if (options?.body) {
+        headers['Content-Type'] = 'application/json';
+      }
       const token = localStorage.getItem('voltron_token');
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
