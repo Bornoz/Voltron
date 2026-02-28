@@ -293,6 +293,23 @@ export const EDITOR_SCRIPT = `
     var langAttr = document.documentElement.getAttribute('data-voltron-lang');
     if (langAttr) S.lang = langAttr;
 
+    /* ═══ INJECT ANIMATION KEYFRAMES ═══ */
+    var styleSheet = document.createElement('style');
+    styleSheet.dataset.ve = '1';
+    styleSheet.textContent = [
+      '@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }',
+      '@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }',
+      '@keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }',
+      '@keyframes scaleIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }',
+      '@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }',
+      '@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }',
+      '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }',
+      '@keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }',
+      '@keyframes wiggle { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } }',
+      '@keyframes glowPulse { 0%, 100% { box-shadow: 0 0 8px rgba(59,130,246,0.4); } 50% { box-shadow: 0 0 20px rgba(59,130,246,0.8), 0 0 40px rgba(59,130,246,0.3); } }',
+    ].join('\\n');
+    document.head.appendChild(styleSheet);
+
     emit('VOLTRON_INSPECTOR_READY', {});
   }
 
@@ -1872,6 +1889,14 @@ export const EDITOR_SCRIPT = `
     if (edit.type==='refont') { var fel = document.querySelector(edit.selector); if(fel) { fel.style.fontSize=''; fel.style.fontFamily=''; fel.style.fontWeight=''; } }
     if (edit.type==='retext' && edit.from) { var tel = document.querySelector(edit.selector); if(tel) tel.textContent = edit.from.text; }
     if (edit.type==='effect' && edit.from) { var eel = document.querySelector(edit.selector); if(eel) { var keys = Object.keys(edit.from); for (var k = 0; k < keys.length; k++) { eel.style[keys[k]] = edit.from[keys[k]]; } } }
+    /* Undo restyle — restore all original style properties */
+    if (edit.type==='restyle' && edit.from) { var rsel = document.querySelector(edit.selector); if(rsel) { var rkeys = Object.keys(edit.from); for (var rk = 0; rk < rkeys.length; rk++) { try { rsel.style[rkeys[rk]] = edit.from[rkeys[rk]]; } catch(e){} } } }
+    /* Undo delete — restore element visibility */
+    if (edit.type==='delete' && edit.from) { var del = document.querySelector(edit.selector); if(del) { del.style.display = edit.from.display || ''; del.style.opacity = edit.from.opacity || '1'; } }
+    /* Undo duplicate — remove cloned element */
+    if (edit.type==='duplicate' && edit.to && edit.to.cloneSelector) { var dup = document.querySelector(edit.to.cloneSelector); if(dup && dup.parentElement) dup.parentElement.removeChild(dup); }
+    /* Undo visibility toggle — restore original visibility/opacity */
+    if (edit.type==='visibility' && edit.from) { var vel = document.querySelector(edit.selector); if(vel) { vel.style.visibility = edit.from.visibility || ''; vel.style.opacity = edit.from.opacity || '1'; } }
     S.edits.splice(idx, 1);
     emit('VOLTRON_EDIT_REMOVED', { editId: editId });
     updateSel();
@@ -2113,6 +2138,158 @@ export const EDITOR_SCRIPT = `
           }
         }
         break;
+      /* ═══ UNIVERSAL STYLE APPLICATION (from DesignContextMenu) ═══ */
+      case 'VOLTRON_APPLY_STYLE':
+        (function() {
+          var target = null;
+          if (d.selector) target = document.querySelector(d.selector);
+          if (!target) target = S.selected;
+          if (!target || !d.styles || typeof d.styles !== 'object') return;
+          var cs = window.getComputedStyle(target);
+          var from = {}, to = {};
+          var keys = Object.keys(d.styles);
+          for (var si = 0; si < keys.length; si++) {
+            var prop = keys[si];
+            var val = d.styles[prop];
+            try {
+              from[prop] = cs[prop] || target.style[prop] || '';
+              target.style[prop] = val;
+              to[prop] = val;
+            } catch(e) { /* skip invalid props */ }
+          }
+          if (Object.keys(to).length > 0) {
+            var r = target.getBoundingClientRect();
+            addEdit({
+              id: uid(), type: 'restyle', selector: getSelector(target),
+              desc: 'Style: ' + Object.keys(to).join(', '),
+              coords: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
+              from: from, to: to
+            });
+            updateSel();
+            /* Flash feedback on element */
+            var origOutline = target.style.outline;
+            target.style.outline = '2px solid rgba(59,130,246,0.6)';
+            setTimeout(function() { target.style.outline = origOutline || ''; }, 150);
+          }
+          emit('VOLTRON_STYLE_APPLIED', { selector: getSelector(target), styles: to });
+        })();
+        break;
+
+      /* ═══ TEXT EDITING (from context menu "Edit Text") ═══ */
+      case 'VOLTRON_EDIT_TEXT':
+        (function() {
+          var target = null;
+          if (d.selector) target = document.querySelector(d.selector);
+          if (!target) target = S.selected;
+          if (!target || d.text == null) return;
+          var oldText = target.textContent || '';
+          target.textContent = d.text;
+          var r = target.getBoundingClientRect();
+          addEdit({
+            id: uid(), type: 'retext', selector: getSelector(target),
+            desc: 'Text: ' + d.text.substring(0, 60),
+            coords: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
+            from: { text: oldText }, to: { text: d.text }
+          });
+          updateSel();
+          emit('VOLTRON_TEXT_EDITED', { selector: getSelector(target), oldText: oldText, newText: d.text });
+        })();
+        break;
+
+      /* ═══ DELETE ELEMENT (visual hide + record) ═══ */
+      case 'VOLTRON_DELETE_ELEMENT':
+        (function() {
+          var target = null;
+          if (d.selector) target = document.querySelector(d.selector);
+          if (!target) target = S.selected;
+          if (!target || target === document.body || target === document.documentElement) return;
+          var cs = window.getComputedStyle(target);
+          var r = target.getBoundingClientRect();
+          var oldDisplay = cs.display;
+          var oldOpacity = cs.opacity;
+          /* Animate out then hide */
+          target.style.transition = 'opacity 0.15s ease, transform 0.15s ease';
+          target.style.opacity = '0';
+          target.style.transform = 'scale(0.95)';
+          var sel = getSelector(target);
+          setTimeout(function() {
+            target.style.display = 'none';
+            target.style.transition = '';
+            target.style.transform = '';
+            if (S.selected === target) { S.selected = null; updateSel(); }
+          }, 160);
+          addEdit({
+            id: uid(), type: 'delete', selector: sel,
+            desc: 'Delete: ' + target.tagName.toLowerCase(),
+            coords: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
+            from: { display: oldDisplay, opacity: oldOpacity }, to: { display: 'none' }
+          });
+          emit('VOLTRON_ELEMENT_DELETED', { selector: sel });
+        })();
+        break;
+
+      /* ═══ DUPLICATE ELEMENT ═══ */
+      case 'VOLTRON_DUPLICATE_ELEMENT':
+        (function() {
+          var target = null;
+          if (d.selector) target = document.querySelector(d.selector);
+          if (!target) target = S.selected;
+          if (!target || target === document.body || target === document.documentElement) return;
+          var clone = target.cloneNode(true);
+          /* Remove any voltron internal attributes from clone */
+          clone.removeAttribute('id');
+          if (target.parentElement) {
+            target.parentElement.insertBefore(clone, target.nextSibling);
+            /* Animate in */
+            clone.style.opacity = '0';
+            clone.style.transition = 'opacity 0.2s ease';
+            setTimeout(function() { clone.style.opacity = '1'; }, 10);
+            setTimeout(function() { clone.style.transition = ''; }, 250);
+          }
+          var r = target.getBoundingClientRect();
+          var cloneSel = getSelector(clone);
+          addEdit({
+            id: uid(), type: 'duplicate', selector: getSelector(target),
+            desc: 'Duplicate: ' + target.tagName.toLowerCase(),
+            coords: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
+            from: null, to: { cloneSelector: cloneSel }
+          });
+          /* Select the clone */
+          S.selected = clone;
+          updateSel();
+          emit('VOLTRON_ELEMENT_DUPLICATED', { originalSelector: getSelector(target), cloneSelector: cloneSel });
+        })();
+        break;
+
+      /* ═══ TOGGLE VISIBILITY ═══ */
+      case 'VOLTRON_TOGGLE_VISIBILITY':
+        (function() {
+          var target = null;
+          if (d.selector) target = document.querySelector(d.selector);
+          if (!target) target = S.selected;
+          if (!target) return;
+          var cs = window.getComputedStyle(target);
+          var isHidden = cs.visibility === 'hidden' || cs.opacity === '0';
+          var r = target.getBoundingClientRect();
+          if (isHidden) {
+            target.style.visibility = 'visible';
+            target.style.opacity = '1';
+          } else {
+            target.style.visibility = 'hidden';
+            target.style.opacity = '0';
+          }
+          addEdit({
+            id: uid(), type: 'visibility', selector: getSelector(target),
+            desc: (isHidden ? 'Show' : 'Hide') + ': ' + target.tagName.toLowerCase(),
+            coords: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
+            from: { visibility: cs.visibility, opacity: cs.opacity },
+            to: { visibility: isHidden ? 'visible' : 'hidden', opacity: isHidden ? '1' : '0' }
+          });
+          updateSel();
+          emit('VOLTRON_VISIBILITY_TOGGLED', { selector: getSelector(target), visible: isHidden });
+        })();
+        break;
+
       case 'VOLTRON_SET_TOOL': break;
       case 'VOLTRON_INSPECT_MODE': break;
       case 'VOLTRON_GET_DOM_TREE':
