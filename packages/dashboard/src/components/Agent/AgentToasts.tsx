@@ -50,18 +50,28 @@ export function AgentToasts() {
     return () => clearInterval(timer);
   }, [toasts.length]);
 
-  // Status change toasts
+  // Status change toasts — only show for REAL-TIME transitions, not hydration
+  const isHydratedRef = useRef(false);
   useEffect(() => {
+    // Mark first render as hydration — don't show toasts for historical state
+    if (!isHydratedRef.current) {
+      isHydratedRef.current = true;
+      prevStatusRef.current = status;
+      return;
+    }
+
     const prev = prevStatusRef.current;
     prevStatusRef.current = status;
 
     if (prev === status) return;
 
+    // Only show crash toast if it was an active agent that crashed (prev was RUNNING/SPAWNING/INJECTING)
+    // Not from hydrating a stale CRASHED session on page load
     if (status === 'RUNNING' && (prev === 'SPAWNING' || prev === 'IDLE')) {
       addToast('success', t('agent.toast.agentStarted'));
-    } else if (status === 'COMPLETED') {
+    } else if (status === 'COMPLETED' && prev !== 'IDLE') {
       addToast('success', t('agent.toast.agentCompleted'));
-    } else if (status === 'CRASHED') {
+    } else if (status === 'CRASHED' && ['RUNNING', 'SPAWNING', 'INJECTING'].includes(prev)) {
       addToast('error', t('agent.toast.agentCrashed'), lastError ?? undefined);
     } else if (status === 'PAUSED' && prev === 'RUNNING') {
       addToast('info', t('agent.toast.agentPaused'));

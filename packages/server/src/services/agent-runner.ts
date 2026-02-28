@@ -584,6 +584,17 @@ export class AgentRunner extends EventEmitter {
     delete cleanEnv.CLAUDE_CODE_ENTRYPOINT;
     delete cleanEnv.CLAUDE_DEV;
 
+    // Validate binary exists before spawning
+    if (!existsSync(this.claudeBinary)) {
+      const errorMsg = `Claude CLI binary not found: ${this.claudeBinary}`;
+      console.error(`[AgentRunner] ${errorMsg} (project=${agent.projectId})`);
+      this.setStatus(agent, 'CRASHED');
+      this.sessionRepo.setCrashed(agent.sessionDbId, errorMsg);
+      this.eventBus.emit('AGENT_ERROR', { projectId: agent.projectId, error: errorMsg, timestamp: Date.now() });
+      this.agents.delete(agent.projectId);
+      return;
+    }
+
     // CRITICAL: Claude CLI hangs when stdin is a Node.js pipe (socketpair).
     // Known bug: https://github.com/anthropics/claude-code/issues/771
     // Fix: Use /dev/null for stdin since we don't need to write to it.

@@ -66,9 +66,14 @@ export function AgentWorkspace({
         if (!session || typeof session !== 'object') return;
         const s = session as Record<string, unknown>;
         if (s.sessionId && s.status && s.status !== 'IDLE') {
+          // Don't hydrate stale CRASHED status — show as IDLE instead
+          const serverStatus = s.status as string;
+          const isActiveOnServer = ['RUNNING', 'PAUSED', 'SPAWNING', 'INJECTING'].includes(serverStatus);
+          const resolvedStatus = isActiveOnServer ? serverStatus : (serverStatus === 'COMPLETED' ? 'COMPLETED' : 'IDLE');
+          if (resolvedStatus === 'IDLE') return; // Nothing to hydrate
           hydrate({
             sessionId: s.sessionId as string,
-            status: s.status as any,
+            status: resolvedStatus as any,
             model: (s.model as string) ?? undefined,
             startedAt: (s.startedAt as number) ?? undefined,
           });

@@ -26,9 +26,13 @@ export function useAgentHydration(projectId: string | null): void {
           if (!session || typeof session !== 'object') return;
           const s = session as Record<string, unknown>;
           if (s.sessionId && s.status) {
+            // Don't hydrate stale CRASHED status — show as IDLE instead
+            const serverStatus = s.status as string;
+            const isActive = ['RUNNING', 'PAUSED', 'SPAWNING', 'INJECTING'].includes(serverStatus);
+            const resolvedStatus = isActive ? serverStatus : (serverStatus === 'COMPLETED' ? 'COMPLETED' : 'IDLE');
             hydrate({
               sessionId: s.sessionId as string,
-              status: s.status as any,
+              status: resolvedStatus as any,
               model: (s.model as string) ?? undefined,
               startedAt: (s.startedAt as number) ?? undefined,
               tokenUsage: typeof s.inputTokens === 'number' && typeof s.outputTokens === 'number'
@@ -98,8 +102,9 @@ export function useAgentHydration(projectId: string | null): void {
           if (isActiveOnServer) {
             hydrateData.status = serverStatus as any;
           } else {
-            // Session exists but is not active — show as completed or idle
-            hydrateData.status = (serverStatus === 'COMPLETED' ? 'COMPLETED' : serverStatus === 'CRASHED' ? 'CRASHED' : 'IDLE') as any;
+            // Session exists but is not active — show as COMPLETED or IDLE
+            // CRASHED sessions are shown as IDLE on page load to avoid persistent error state
+            hydrateData.status = (serverStatus === 'COMPLETED' ? 'COMPLETED' : 'IDLE') as any;
           }
         } else {
           // No session at all — reset to idle
