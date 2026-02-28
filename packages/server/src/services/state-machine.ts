@@ -183,6 +183,27 @@ export const executionMachine = setup({
           }),
         },
         CONTINUE_CMD: { target: 'resuming' },
+        AGENT_SPAWNED: {
+          target: 'running',
+          actions: assign({
+            agentSessionId: ({ event }) => event.sessionId,
+            sessionStartedAt: () => Date.now(),
+            errorMessage: null,
+            errorTimestamp: null,
+          }),
+        },
+        ACTION_EVENT: {
+          target: 'running',
+          actions: assign({
+            lastSnapshotId: ({ event }) => event.snapshotId,
+            lastActionEventId: ({ event }) => event.eventId,
+            pendingActions: 1,
+            totalActionsProcessed: ({ context }) => context.totalActionsProcessed + 1,
+            sessionStartedAt: () => Date.now(),
+            errorMessage: null,
+            errorTimestamp: null,
+          }),
+        },
       },
     },
   },
