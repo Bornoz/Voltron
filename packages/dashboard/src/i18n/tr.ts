@@ -729,10 +729,19 @@ export const tr = {
     subtitle: 'AI Operasyon Kontrol Merkezi',
     username: 'Kullanici Adi',
     password: 'Sifre',
+    newPassword: 'Yeni Sifre',
+    confirmPassword: 'Sifre Tekrar',
     signIn: 'Giris Yap',
     invalidCredentials: 'Kullanici adi ve sifre bos birakilamaz.',
     signOut: 'Cikis Yap',
     welcomeBack: 'Tekrar Hosgeldiniz',
+    firstTimeSetup: 'Ilk Kurulum',
+    createAdminDesc: 'Sisteme erisim icin bir admin hesabi olusturun.',
+    createAdmin: 'Admin Hesabi Olustur',
+    usernameMin: 'Kullanici adi en az 3 karakter olmalidir.',
+    passwordMin: 'Sifre en az 6 karakter olmalidir.',
+    passwordMismatch: 'Sifreler eslesmiyor.',
+    passwordRequirements: 'Kullanici adi min. 3, sifre min. 6 karakter.',
   },
 
   // Not Found
@@ -837,6 +846,11 @@ export const tr = {
     modelFast: 'Hizli',
     modelBalanced: 'Dengeli',
     modelPowerful: 'Guclu',
+    changePassword: 'Sifre Degistir',
+    currentPassword: 'Mevcut Sifre',
+    updatePassword: 'Sifreyi Guncelle',
+    passwordChanged: 'Sifre basariyla degistirildi.',
+    pwFieldsRequired: 'Mevcut ve yeni sifre alanlari zorunludur.',
   },
 
   // Durum Cubugu

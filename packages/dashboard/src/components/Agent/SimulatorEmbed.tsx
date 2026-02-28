@@ -167,7 +167,10 @@ function getPreviewUrl(projectId: string, _devServer?: DevServerInfo | null, cur
     }
   }
 
-  return `${base}/api/projects/${encodeURIComponent(projectId)}/agent/preview/${encodeURIComponent(previewFile)}`;
+  // Append auth token as query param — iframes can't send Authorization headers
+  const token = localStorage.getItem('voltron_token') || '';
+  const qs = token ? `?token=${encodeURIComponent(token)}` : '';
+  return `${base}/api/projects/${encodeURIComponent(projectId)}/agent/preview/${encodeURIComponent(previewFile)}${qs}`;
 }
 
 /* ─── Phase Formatter ─────────────────────────────────── */

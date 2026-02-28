@@ -731,10 +731,19 @@ export const en: TranslationKeys = {
     subtitle: 'AI Operation Control Center',
     username: 'Username',
     password: 'Password',
+    newPassword: 'New Password',
+    confirmPassword: 'Confirm Password',
     signIn: 'Sign In',
     invalidCredentials: 'Username and password cannot be empty.',
     signOut: 'Sign Out',
     welcomeBack: 'Welcome Back',
+    firstTimeSetup: 'First Time Setup',
+    createAdminDesc: 'Create an admin account to access the system.',
+    createAdmin: 'Create Admin Account',
+    usernameMin: 'Username must be at least 3 characters.',
+    passwordMin: 'Password must be at least 6 characters.',
+    passwordMismatch: 'Passwords do not match.',
+    passwordRequirements: 'Username min. 3 chars, password min. 6 chars.',
   },
 
   // Not Found
@@ -839,6 +848,11 @@ export const en: TranslationKeys = {
     modelFast: 'Fast',
     modelBalanced: 'Balanced',
     modelPowerful: 'Powerful',
+    changePassword: 'Change Password',
+    currentPassword: 'Current Password',
+    updatePassword: 'Update Password',
+    passwordChanged: 'Password changed successfully.',
+    pwFieldsRequired: 'Current and new password fields are required.',
   },
 
   // Status Bar

@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { ServerConfig } from '../config.js';
 
-const PUBLIC_PATHS = new Set(['/api/health', '/api/ready', '/api/auth/login', '/api/auth/whoami', '/api/stats', '/health']);
+const PUBLIC_PATHS = new Set(['/api/health', '/api/ready', '/api/auth/login', '/api/auth/register', '/api/auth/setup-required', '/api/auth/whoami', '/api/stats', '/health']);
 
 interface TokenPayload {
   username: string;
@@ -71,11 +71,21 @@ export function registerAuth(app: FastifyInstance, config: ServerConfig): void {
     if (!path.startsWith('/api/')) return;
 
     const authHeader = request.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      return reply.status(401).send({ error: 'Authentication required' });
+    let token: string | undefined;
+
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.slice(7);
+    } else {
+      // Fallback: accept token from query parameter (needed for iframe src loads)
+      const queryToken = (request.query as Record<string, unknown>)?.token;
+      if (typeof queryToken === 'string' && queryToken.length > 0) {
+        token = queryToken;
+      }
     }
 
-    const token = authHeader.slice(7);
+    if (!token) {
+      return reply.status(401).send({ error: 'Authentication required' });
+    }
     const payload = verifyToken(token, config.authSecret);
     if (!payload) {
       return reply.status(401).send({ error: 'Invalid or expired token' });

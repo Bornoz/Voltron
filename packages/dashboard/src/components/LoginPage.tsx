@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, AlertCircle, Loader2 } from 'lucide-react';
+import { User, Lock, AlertCircle, Loader2, UserPlus, LogIn } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { useTranslation } from '../i18n';
 import type { Language } from '../i18n';
@@ -9,14 +9,24 @@ export function LoginPage() {
   const { t, language, setLanguage } = useTranslation();
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const register = useAuthStore((s) => s.register);
+  const checkSetup = useAuthStore((s) => s.checkSetup);
   const loading = useAuthStore((s) => s.loading);
   const storeError = useAuthStore((s) => s.error);
+  const setupRequired = useAuthStore((s) => s.setupRequired);
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
 
   const error = localError ?? storeError;
+  const isSetup = setupRequired === true;
+
+  // Check if first-time setup is needed
+  useEffect(() => {
+    checkSetup();
+  }, [checkSetup]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -27,9 +37,30 @@ export function LoginPage() {
       return;
     }
 
-    const success = await login(username, password);
-    if (success) {
-      navigate('/dashboard', { replace: true });
+    if (isSetup) {
+      // Registration mode
+      if (username.trim().length < 3) {
+        setLocalError(t('login.usernameMin'));
+        return;
+      }
+      if (password.length < 6) {
+        setLocalError(t('login.passwordMin'));
+        return;
+      }
+      if (password !== confirmPassword) {
+        setLocalError(t('login.passwordMismatch'));
+        return;
+      }
+      const success = await register(username, password);
+      if (success) {
+        navigate('/dashboard', { replace: true });
+      }
+    } else {
+      // Login mode
+      const success = await login(username, password);
+      if (success) {
+        navigate('/dashboard', { replace: true });
+      }
     }
   };
 
@@ -86,6 +117,17 @@ export function LoginPage() {
             </p>
           </div>
 
+          {/* Setup banner */}
+          {isSetup && (
+            <div className="mb-4 px-3 py-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <UserPlus className="w-4 h-4 text-blue-400" />
+                <span className="text-xs font-semibold text-blue-400">{t('login.firstTimeSetup')}</span>
+              </div>
+              <p className="text-[10px] text-blue-300/70">{t('login.createAdminDesc')}</p>
+            </div>
+          )}
+
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Username */}
@@ -109,12 +151,28 @@ export function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setLocalError(null); }}
-                placeholder={t('login.password')}
-                autoComplete="current-password"
+                placeholder={isSetup ? t('login.newPassword') : t('login.password')}
+                autoComplete={isSetup ? 'new-password' : 'current-password'}
                 disabled={loading}
                 className="w-full pl-10 pr-4 py-2.5 text-sm bg-white/[0.03] border border-white/[0.06] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20 transition-all disabled:opacity-50"
               />
             </div>
+
+            {/* Confirm Password (only in setup mode) */}
+            {isSetup && (
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => { setConfirmPassword(e.target.value); setLocalError(null); }}
+                  placeholder={t('login.confirmPassword')}
+                  autoComplete="new-password"
+                  disabled={loading}
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-white/[0.03] border border-white/[0.06] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20 transition-all disabled:opacity-50"
+                />
+              </div>
+            )}
 
             {/* Error */}
             {error && (
@@ -132,9 +190,26 @@ export function LoginPage() {
               style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15), 0 4px 16px color-mix(in srgb, var(--color-accent) 25%, transparent)' }}
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              {t('login.signIn')}
+              {isSetup ? (
+                <>
+                  <UserPlus className="w-4 h-4" />
+                  {t('login.createAdmin')}
+                </>
+              ) : (
+                <>
+                  <LogIn className="w-4 h-4" />
+                  {t('login.signIn')}
+                </>
+              )}
             </button>
           </form>
+
+          {/* Password requirements hint (setup mode) */}
+          {isSetup && (
+            <p className="mt-3 text-[10px] text-center text-[var(--color-text-muted)]">
+              {t('login.passwordRequirements')}
+            </p>
+          )}
         </div>
       </div>
 
