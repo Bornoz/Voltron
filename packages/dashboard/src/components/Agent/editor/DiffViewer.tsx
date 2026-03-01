@@ -24,13 +24,13 @@ export const DiffViewer = memo(function DiffViewer({ edits, visible, onClose }: 
       lines.push({ type: 'header', text: `--- ${edit.selector} (${edit.type})` });
       lines.push({ type: 'header', text: `+++ ${edit.desc}` });
 
-      const fromKeys = Object.keys(edit.from);
-      const toKeys = Object.keys(edit.to);
+      const fromKeys = Object.keys(edit.from ?? {});
+      const toKeys = Object.keys(edit.to ?? {});
       const allKeys = [...new Set([...fromKeys, ...toKeys])];
 
       for (const key of allKeys) {
-        const fromVal = edit.from[key];
-        const toVal = edit.to[key];
+        const fromVal = (edit.from ?? {})[key];
+        const toVal = (edit.to ?? {})[key];
         if (fromVal !== undefined && fromVal !== toVal) {
           lines.push({ type: 'remove', text: `  ${key}: ${String(fromVal)}` });
         }
