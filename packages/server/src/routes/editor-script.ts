@@ -1066,8 +1066,15 @@ export const EDITOR_SCRIPT = `
 
       if (item.type === 'separator') {
         var sep = document.createElement('div');
-        sep.style.cssText = 'height:1px;background:rgba(51,65,85,0.6);margin:3px 10px;';
+        sep.style.cssText = 'height:1px;background:rgba(51,65,85,0.6);margin:3px 10px;padding:2px 0;';
         sep.dataset.ve = '1';
+        /* Close submenus when mouse passes through separator */
+        sep.addEventListener('mouseenter', function() {
+          clearSubmenuTimer();
+          clearSubSubmenuTimer();
+          hideSubSubmenu();
+          hideSubmenu();
+        });
         menu.appendChild(sep);
         continue;
       }
@@ -1124,12 +1131,18 @@ export const EDITOR_SCRIPT = `
         return function() {
           btnEl.style.background = it.highlight ? 'linear-gradient(135deg,rgba(59,130,246,0.3),rgba(139,92,246,0.3))' : 'rgba(51,65,85,0.5)';
           if (it.action === 'submenu') {
+            clearSubSubmenuTimer();
+            hideSubSubmenu();
             clearSubmenuTimer();
             S.submenuTimer = setTimeout(function() {
               showSubmenu(btnEl, it.submenuType);
             }, 150);
           } else {
+            /* Close ALL submenus immediately when hovering non-submenu items */
+            clearSubSubmenuTimer();
+            hideSubSubmenu();
             clearSubmenuTimer();
+            hideSubmenu();
           }
         };
       })(item, btn));
@@ -1372,6 +1385,8 @@ export const EDITOR_SCRIPT = `
 
   /* ═══ SUBMENUS ═══ */
   function showSubmenu(parentBtn, submenuType) {
+    clearSubSubmenuTimer();
+    hideSubSubmenu();
     hideSubmenu();
 
     var parentRect = parentBtn.getBoundingClientRect();
@@ -1420,15 +1435,17 @@ export const EDITOR_SCRIPT = `
 
     document.body.appendChild(sub);
 
-    /* Position submenu to the right of parent item */
+    /* Position submenu — overlap slightly with parent to prevent gap */
     var subW = sub.offsetWidth || 200;
     var subH = sub.offsetHeight || 200;
-    var subX = parentRect.right + 4;
+    var subX = parentRect.right - 2; /* 2px overlap instead of 4px gap */
     var subY = parentRect.top - 4;
+    var flippedLeft = false;
 
     /* Smart positioning: if goes off-screen right, show left */
     if (subX + subW > window.innerWidth - 8) {
-      subX = parentRect.left - subW - 4;
+      subX = parentRect.left - subW + 2; /* 2px overlap on left side too */
+      flippedLeft = true;
     }
     /* If goes off-screen bottom */
     if (subY + subH > window.innerHeight - 8) {
@@ -1439,6 +1456,22 @@ export const EDITOR_SCRIPT = `
 
     sub.style.left = subX + 'px';
     sub.style.top = subY + 'px';
+
+    /* Add invisible bridge between parent menu and submenu to prevent gap-hover-loss */
+    var bridge = document.createElement('div');
+    bridge.dataset.ve = '1';
+    if (flippedLeft) {
+      bridge.style.cssText = 'position:fixed;z-index:2147483646;left:' + (subX + subW - 4) + 'px;top:' + (parentRect.top - 4) + 'px;width:8px;height:' + Math.max(parentRect.height + 8, 32) + 'px;pointer-events:auto;';
+    } else {
+      bridge.style.cssText = 'position:fixed;z-index:2147483646;left:' + (parentRect.right - 4) + 'px;top:' + (parentRect.top - 4) + 'px;width:8px;height:' + Math.max(parentRect.height + 8, 32) + 'px;pointer-events:auto;';
+    }
+    bridge.addEventListener('mouseenter', function() { clearSubmenuTimer(); });
+    bridge.addEventListener('mouseleave', function() {
+      clearSubmenuTimer();
+      S.submenuTimer = setTimeout(function() { hideSubmenu(); }, 200);
+    });
+    document.body.appendChild(bridge);
+    sub._bridge = bridge;
 
     S.activeSubmenu = sub;
     S.activeSubmenuItem = parentBtn;
@@ -1452,7 +1485,7 @@ export const EDITOR_SCRIPT = `
       clearSubmenuTimer();
       S.submenuTimer = setTimeout(function() {
         hideSubmenu();
-      }, 300);
+      }, 200);
     });
   }
 
@@ -2178,8 +2211,14 @@ export const EDITOR_SCRIPT = `
   }
 
   function hideSubmenu() {
-    if (S.activeSubmenu && S.activeSubmenu.parentElement) {
-      S.activeSubmenu.parentElement.removeChild(S.activeSubmenu);
+    if (S.activeSubmenu) {
+      /* Remove bridge element */
+      if (S.activeSubmenu._bridge && S.activeSubmenu._bridge.parentElement) {
+        S.activeSubmenu._bridge.parentElement.removeChild(S.activeSubmenu._bridge);
+      }
+      if (S.activeSubmenu.parentElement) {
+        S.activeSubmenu.parentElement.removeChild(S.activeSubmenu);
+      }
     }
     S.activeSubmenu = null;
     S.activeSubmenuItem = null;
@@ -2230,14 +2269,26 @@ export const EDITOR_SCRIPT = `
 
     var subW = sub.offsetWidth || 200;
     var subH = sub.offsetHeight || 200;
-    var subX = parentRect.right + 4;
+    var subX = parentRect.right - 2;
     var subY = parentRect.top - 4;
-    if (subX + subW > window.innerWidth - 8) subX = parentRect.left - subW - 4;
+    if (subX + subW > window.innerWidth - 8) subX = parentRect.left - subW + 2;
     if (subY + subH > window.innerHeight - 8) subY = Math.max(8, window.innerHeight - subH - 8);
     if (subX < 8) subX = 8;
     if (subY < 8) subY = 8;
     sub.style.left = subX + 'px';
     sub.style.top = subY + 'px';
+
+    /* Bridge between parent submenu and sub-submenu */
+    var bridge2 = document.createElement('div');
+    bridge2.dataset.ve = '1';
+    bridge2.style.cssText = 'position:fixed;z-index:2147483647;left:' + (parentRect.right - 4) + 'px;top:' + (parentRect.top - 4) + 'px;width:8px;height:' + Math.max(parentRect.height + 8, 32) + 'px;pointer-events:auto;';
+    bridge2.addEventListener('mouseenter', function() { clearSubSubmenuTimer(); });
+    bridge2.addEventListener('mouseleave', function() {
+      clearSubSubmenuTimer();
+      S.subSubmenuTimer = setTimeout(function() { hideSubSubmenu(); }, 200);
+    });
+    document.body.appendChild(bridge2);
+    sub._bridge = bridge2;
 
     S.activeSubSubmenu = sub;
     S.activeSubSubmenuItem = parentBtn;
@@ -2245,13 +2296,18 @@ export const EDITOR_SCRIPT = `
     sub.addEventListener('mouseenter', function() { clearSubSubmenuTimer(); });
     sub.addEventListener('mouseleave', function() {
       clearSubSubmenuTimer();
-      S.subSubmenuTimer = setTimeout(function() { hideSubSubmenu(); }, 300);
+      S.subSubmenuTimer = setTimeout(function() { hideSubSubmenu(); }, 200);
     });
   }
 
   function hideSubSubmenu() {
-    if (S.activeSubSubmenu && S.activeSubSubmenu.parentElement) {
-      S.activeSubSubmenu.parentElement.removeChild(S.activeSubSubmenu);
+    if (S.activeSubSubmenu) {
+      if (S.activeSubSubmenu._bridge && S.activeSubSubmenu._bridge.parentElement) {
+        S.activeSubSubmenu._bridge.parentElement.removeChild(S.activeSubSubmenu._bridge);
+      }
+      if (S.activeSubSubmenu.parentElement) {
+        S.activeSubSubmenu.parentElement.removeChild(S.activeSubSubmenu);
+      }
     }
     S.activeSubSubmenu = null;
     S.activeSubSubmenuItem = null;
