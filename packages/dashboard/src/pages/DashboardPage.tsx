@@ -285,22 +285,29 @@ export function DashboardPage() {
 
   const handleAgentInject = async (prompt: string, context?: { filePath?: string; constraints?: string[]; attachmentUrls?: string[] }) => {
     if (!projectId) return;
+
+    // ÖNCE: Maximize paneli hemen restore et (kullanıcı sıkışmasın)
+    const windowState = useWindowStore.getState();
+    if (windowState.panels['visual-editor']?.maximized) {
+      windowState.toggleMaximize('visual-editor');
+    }
+
+    // ÖNCE: Agent output panelini hemen aç
+    if (!windowState.panels['agent-output']?.visible) {
+      windowState.toggleVisibility('agent-output');
+    }
+    windowState.bringToFront('agent-output');
+
+    // ÖNCE: Anında bildirim göster (API çağrısından ÖNCE)
+    useNotificationStore.getState().addNotification({
+      type: 'info',
+      title: 'Gönderiliyor...',
+      message: 'Değişiklikler yapay zekaya iletiliyor...',
+    });
+
     try {
       await api.agentInject(projectId, { prompt, context });
 
-      // 1. Visual editor maximize ise restore et
-      const windowState = useWindowStore.getState();
-      if (windowState.panels['visual-editor']?.maximized) {
-        windowState.toggleMaximize('visual-editor');
-      }
-
-      // 2. Agent output panelini aç ve öne getir
-      if (!windowState.panels['agent-output']?.visible) {
-        windowState.toggleVisibility('agent-output');
-      }
-      windowState.bringToFront('agent-output');
-
-      // 3. Bildirim göster
       useNotificationStore.getState().addNotification({
         type: 'success',
         title: 'Düzenlemeler gönderildi',
@@ -612,9 +619,9 @@ export function DashboardPage() {
 
       {/* Notification toasts — repositioned for mobile */}
       {notifications.length > 0 && (
-        <div className={`fixed z-50 space-y-2 max-w-sm ${
+        <div className={`fixed space-y-2 max-w-sm ${
           isMobile ? 'bottom-[72px] left-4 right-4' : 'bottom-10 right-4'
-        }`}>
+        }`} style={{ zIndex: 200000 }}>
           {notifications.slice(0, 5).map((n) => (
             <div
               key={n.id}

@@ -2,6 +2,7 @@ import { memo, useState, useEffect, useCallback, useRef } from 'react';
 import {
   X, Clock, Eye, Navigation, Code, MonitorPlay, Sparkles,
   Maximize2, Minimize2, PanelRightClose, History, Send, Trash2,
+  FileText, ChevronDown, Layers,
 } from 'lucide-react';
 import type { ForceNode } from './types';
 import { ACTIVITY_COLORS, SYNTAX } from './constants';
@@ -10,69 +11,104 @@ import { useTranslation } from '../../../i18n';
 import { LivePreviewFrame, isRenderable } from './LivePreviewFrame';
 import { DesignContextMenu } from './DesignContextMenu';
 import type { ContextMenuEventData } from './LivePreviewFrame';
+import { useVisualEditStore, type DesignChange, generateMultiFilePrompt } from '../../../stores/visualEditStore';
 
-/* ═══ Change Tracker ═══ */
-interface DesignChange {
-  selector: string;
-  tagName: string;
-  property: string;
-  value: string;
-  timestamp: number;
-}
+/* ═══ Multi-File Change Indicator ═══ */
+function MultiFileIndicator({ changesByFile, currentFilePath, onClearFile, onClearAll, onSendAll }: {
+  changesByFile: Record<string, DesignChange[]>;
+  currentFilePath: string;
+  onClearFile: (filePath: string) => void;
+  onClearAll: () => void;
+  onSendAll?: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const files = Object.entries(changesByFile).filter(([, c]) => c.length > 0);
+  const totalCount = files.reduce((sum, [, c]) => sum + c.length, 0);
 
-function generateDesignPrompt(filePath: string, changes: DesignChange[]): string {
-  if (changes.length === 0) return '';
+  if (files.length === 0) return null;
 
-  // Group changes by selector
-  const grouped: Record<string, { tagName: string; styles: Record<string, string>; textChange?: string }> = {};
-  for (const ch of changes) {
-    if (!grouped[ch.selector]) {
-      grouped[ch.selector] = { tagName: ch.tagName, styles: {} };
-    }
-    if (ch.property === '__textContent') {
-      grouped[ch.selector].textChange = ch.value;
-    } else if (ch.property === '__delete') {
-      grouped[ch.selector].styles['__action'] = 'DELETE';
-    } else if (ch.property === '__duplicate') {
-      grouped[ch.selector].styles['__action'] = 'DUPLICATE';
-    } else {
-      grouped[ch.selector].styles[ch.property] = ch.value;
-    }
-  }
+  return (
+    <div className="absolute top-3 right-3 z-20" style={{ maxWidth: 320 }}>
+      {/* Collapsed badge */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
+        style={{
+          background: 'rgba(10,15,30,0.92)',
+          border: '1px solid rgba(139,92,246,0.25)',
+          backdropFilter: 'blur(16px)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.4), 0 0 12px rgba(139,92,246,0.1)',
+        }}
+      >
+        <Layers size={12} className="text-purple-400" />
+        <span className="text-purple-300">{totalCount} degisiklik</span>
+        <span className="text-slate-500">· {files.length} dosya</span>
+        <ChevronDown size={10} className={`text-slate-500 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+      </button>
 
-  const lines: string[] = [
-    `"${filePath}" dosyasında aşağıdaki tasarım değişikliklerini uygula:`,
-    '',
-  ];
+      {/* Expanded panel */}
+      {expanded && (
+        <div
+          className="mt-1.5 rounded-xl overflow-hidden animate-fade-in-up"
+          style={{
+            background: 'rgba(10,15,30,0.96)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 12px 48px rgba(0,0,0,0.5), 0 0 20px rgba(139,92,246,0.06)',
+          }}
+        >
+          {/* File list */}
+          <div className="max-h-48 overflow-auto">
+            {files.map(([fp, changes]) => (
+              <div
+                key={fp}
+                className={`flex items-center gap-2 px-3 py-2 border-b border-white/[0.04] last:border-0 ${
+                  fp === currentFilePath ? 'bg-blue-500/[0.06]' : 'hover:bg-white/[0.03]'
+                }`}
+              >
+                <FileText size={11} className={fp === currentFilePath ? 'text-blue-400' : 'text-slate-500'} />
+                <span className="flex-1 text-[10px] font-mono text-slate-400 truncate" title={fp}>
+                  {fp.split('/').pop()}
+                </span>
+                <span className="text-[9px] text-purple-400 font-semibold shrink-0">{changes.length}</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onClearFile(fp); }}
+                  className="p-0.5 rounded hover:bg-white/[0.06] text-slate-600 hover:text-red-400 transition-colors"
+                  title="Bu dosyanin degisikliklerini temizle"
+                >
+                  <Trash2 size={9} />
+                </button>
+              </div>
+            ))}
+          </div>
 
-  for (const [selector, data] of Object.entries(grouped)) {
-    lines.push(`## Element: <${data.tagName}> — Selector: "${selector}"`);
-
-    if (data.styles['__action'] === 'DELETE') {
-      lines.push('  - Bu elementi tamamen sil');
-    } else if (data.styles['__action'] === 'DUPLICATE') {
-      lines.push('  - Bu elementi kopyala (clone edip hemen sonrasına ekle)');
-    }
-
-    if (data.textChange !== undefined) {
-      lines.push(`  - Metin içeriğini değiştir: "${data.textChange}"`);
-    }
-
-    const styleEntries = Object.entries(data.styles).filter(([k]) => !k.startsWith('__'));
-    if (styleEntries.length > 0) {
-      lines.push('  CSS Stilleri:');
-      for (const [prop, val] of styleEntries) {
-        // Convert camelCase to kebab-case for CSS
-        const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
-        lines.push(`    - ${cssProp}: ${val}`);
-      }
-    }
-    lines.push('');
-  }
-
-  lines.push('Bu değişiklikleri doğrudan kaynak kodda uygula. Inline style yerine mümkünse Tailwind class veya CSS class kullan.');
-
-  return lines.join('\n');
+          {/* Actions */}
+          <div className="flex items-center gap-2 px-3 py-2 border-t border-white/[0.06]">
+            <button
+              onClick={onClearAll}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-medium text-slate-500 hover:text-red-400 hover:bg-red-500/[0.06] border border-white/[0.06] transition-all"
+            >
+              <Trash2 size={9} />
+              Tumunu Temizle
+            </button>
+            {onSendAll && (
+              <button
+                onClick={onSendAll}
+                className="ml-auto flex items-center gap-1.5 px-3 py-1 rounded-lg text-[9px] font-semibold text-white transition-all active:scale-[0.97]"
+                style={{
+                  background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                  boxShadow: '0 2px 12px rgba(59,130,246,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+                }}
+              >
+                <Send size={9} />
+                Tumunu AI'ye Gonder ({totalCount})
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface GPSFilePreviewProps {
@@ -334,8 +370,11 @@ export const GPSFilePreview = memo(function GPSFilePreview({
   const [confirmDialog, setConfirmDialog] = useState<{ selector: string; type: 'delete' } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  // Design change tracking
-  const [designChanges, setDesignChanges] = useState<DesignChange[]>([]);
+  // Design change tracking (multi-file store — survives file navigation)
+  const currentFilePath = node?.filePath ?? '';
+  const changesByFile = useVisualEditStore((s) => s.changesByFile);
+  const designChanges = changesByFile[currentFilePath] ?? [];
+  const totalChanges = Object.values(changesByFile).reduce((sum, c) => sum + c.length, 0);
 
   // Reset states when node changes
   useEffect(() => {
@@ -344,7 +383,6 @@ export const GPSFilePreview = memo(function GPSFilePreview({
       setDesignMenu(null);
       setTextEditor(null);
       setConfirmDialog(null);
-      setDesignChanges([]);
     }
   }, [node?.id]);
 
@@ -381,28 +419,31 @@ export const GPSFilePreview = memo(function GPSFilePreview({
 
   // ─── Design change tracker ───
   const handleDesignChange = useCallback((selector: string, tagName: string, property: string, value: string) => {
-    setDesignChanges((prev) => [...prev, { selector, tagName, property, value, timestamp: Date.now() }]);
-  }, []);
+    if (!node) return;
+    useVisualEditStore.getState().addChange(node.filePath, { selector, tagName, property, value, timestamp: Date.now() });
+  }, [node]);
 
   const handleSendToAI = useCallback(() => {
-    if (!node || designChanges.length === 0 || !onInject) return;
-    const prompt = generateDesignPrompt(node.filePath, designChanges);
-    onInject(prompt, { filePath: node.filePath });
-    setToast(`${designChanges.length} degisiklik AI'ye gonderildi`);
-    setDesignChanges([]);
-  }, [node, designChanges, onInject]);
+    if (!onInject) return;
+    const store = useVisualEditStore.getState();
+    const total = store.totalCount();
+    if (total === 0) return;
+    const prompt = generateMultiFilePrompt(store.changesByFile);
+    onInject(prompt, { filePath: node?.filePath });
+    setToast(`${total} degisiklik AI'ye gonderildi`);
+    store.clearAll();
+  }, [onInject, node]);
 
   const handleClearChanges = useCallback(() => {
-    setDesignChanges([]);
+    if (!node) return;
+    useVisualEditStore.getState().clearFile(node.filePath);
     setToast('Degisiklik gecmisi temizlendi');
-  }, []);
+  }, [node]);
 
   const handleUndo = useCallback(() => {
-    setDesignChanges((prev) => {
-      if (prev.length === 0) return prev;
-      return prev.slice(0, -1);
-    });
-  }, []);
+    if (!node) return;
+    useVisualEditStore.getState().undoLastChange(node.filePath);
+  }, [node]);
 
   const handleAskAI = useCallback((selector: string, elementInfo: string) => {
     if (!onInject || !node) return;
@@ -432,8 +473,8 @@ export const GPSFilePreview = memo(function GPSFilePreview({
     sendToIframe({ type: 'VOLTRON_EDIT_TEXT', selector, text });
     setTextEditor(null);
     setToast('Metin guncellendi');
-    setDesignChanges((prev) => [...prev, { selector, tagName: 'unknown', property: '__textContent', value: text, timestamp: Date.now() }]);
-  }, [sendToIframe]);
+    if (node) useVisualEditStore.getState().addChange(node.filePath, { selector, tagName: 'unknown', property: '__textContent', value: text, timestamp: Date.now() });
+  }, [sendToIframe, node]);
 
   const handleDeleteElement = useCallback((selector: string) => {
     // Open premium confirm dialog
@@ -446,16 +487,16 @@ export const GPSFilePreview = memo(function GPSFilePreview({
       sendToIframe({ type: 'VOLTRON_DELETE_ELEMENT', selector: confirmDialog.selector });
       setConfirmDialog(null);
       setToast('Element silindi');
-      setDesignChanges((prev) => [...prev, { selector: confirmDialog.selector, tagName: 'unknown', property: '__delete', value: 'true', timestamp: Date.now() }]);
+      if (node) useVisualEditStore.getState().addChange(node.filePath, { selector: confirmDialog.selector, tagName: 'unknown', property: '__delete', value: 'true', timestamp: Date.now() });
     }
-  }, [confirmDialog, sendToIframe]);
+  }, [confirmDialog, sendToIframe, node]);
 
   const handleDuplicateElement = useCallback((selector: string) => {
     sendToIframe({ type: 'VOLTRON_DUPLICATE_ELEMENT', selector });
     setDesignMenu(null);
     setToast('Element kopyalandi');
-    setDesignChanges((prev) => [...prev, { selector, tagName: 'unknown', property: '__duplicate', value: 'true', timestamp: Date.now() }]);
-  }, [sendToIframe]);
+    if (node) useVisualEditStore.getState().addChange(node.filePath, { selector, tagName: 'unknown', property: '__duplicate', value: 'true', timestamp: Date.now() });
+  }, [sendToIframe, node]);
 
   const handleToggleVisibility = useCallback((selector: string) => {
     sendToIframe({ type: 'VOLTRON_TOGGLE_VISIBILITY', selector });
@@ -684,6 +725,17 @@ export const GPSFilePreview = memo(function GPSFilePreview({
               </div>
             )}
 
+            {/* ─── Floating multi-file change indicator ─── */}
+            {totalChanges > 0 && Object.keys(changesByFile).filter((f) => changesByFile[f].length > 0).length > 0 && (
+              <MultiFileIndicator
+                changesByFile={changesByFile}
+                currentFilePath={currentFilePath}
+                onClearFile={(fp) => useVisualEditStore.getState().clearFile(fp)}
+                onClearAll={() => useVisualEditStore.getState().clearAll()}
+                onSendAll={onInject ? handleSendToAI : undefined}
+              />
+            )}
+
             {/* Toast notifications */}
             {toast && <ActionToast message={toast} onDone={() => setToast(null)} />}
           </div>
@@ -730,20 +782,29 @@ export const GPSFilePreview = memo(function GPSFilePreview({
           )}
 
           {/* Design changes indicator + AI send */}
-          {designChanges.length > 0 && (
+          {totalChanges > 0 && (
             <>
               <span className="w-px h-3 bg-white/[0.06]" />
               <span className="flex items-center gap-1.5 text-blue-400 font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-                {designChanges.length} degisiklik
+                {designChanges.length > 0
+                  ? `${designChanges.length} degisiklik`
+                  : null}
+                {totalChanges > designChanges.length && (
+                  <span className="text-purple-400/80 text-[9px]">
+                    {designChanges.length > 0 ? '· ' : ''}toplam {totalChanges} ({Object.keys(changesByFile).filter((f) => changesByFile[f].length > 0).length} dosya)
+                  </span>
+                )}
               </span>
-              <button
-                onClick={handleClearChanges}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-red-400 transition-all"
-                title="Degisiklikleri temizle"
-              >
-                <Trash2 size={10} />
-              </button>
+              {designChanges.length > 0 && (
+                <button
+                  onClick={handleClearChanges}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-red-400 transition-all"
+                  title="Bu dosyanin degisikliklerini temizle"
+                >
+                  <Trash2 size={10} />
+                </button>
+              )}
               {onInject && (
                 <button
                   onClick={handleSendToAI}
@@ -752,16 +813,16 @@ export const GPSFilePreview = memo(function GPSFilePreview({
                     background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
                     boxShadow: '0 2px 12px rgba(59,130,246,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
                   }}
-                  title="Tum degisiklikleri AI'ye prompt olarak gonder"
+                  title="Tum dosyalardaki degisiklikleri AI'ye gonder"
                 >
                   <Send size={11} />
-                  AI'ye Gonder ({designChanges.length})
+                  AI'ye Gonder ({totalChanges})
                 </button>
               )}
             </>
           )}
 
-          {designChanges.length === 0 && <span className="ml-auto">Esc: Kapat</span>}
+          {totalChanges === 0 && <span className="ml-auto">Esc: Kapat</span>}
         </div>
       </div>
 

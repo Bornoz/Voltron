@@ -340,7 +340,6 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
   // Prompt pin modal state
   const [pinCreateReq, setPinCreateReq] = useState<PinCreateRequest | null>(null);
   const [editingPinId, setEditingPinId] = useState<string | null>(null);
-  const [showSendConfirm, setShowSendConfirm] = useState(false);
 
   const isActive = !['IDLE'].includes(status);
   const canInject = ['RUNNING', 'PAUSED', 'COMPLETED', 'CRASHED'].includes(status);
@@ -611,20 +610,11 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
     clearPromptPins();
   }, [edits, promptPins, referenceImage, onInject, clearEdits, clearPromptPins]);
 
-  const requestSend = useCallback(() => {
-    setShowSendConfirm(true);
-  }, []);
-
-  const confirmSend = useCallback(() => {
-    setShowSendConfirm(false);
-    handleSaveAndSend();
-  }, [handleSaveAndSend]);
-
   const editingPin = editingPinId ? promptPins.find((p) => p.id === editingPinId) : null;
   const totalChanges = edits.length + promptPins.length;
 
   return (
-    <div className="flex flex-col h-full rounded-lg overflow-hidden" style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--glass-border)', boxShadow: 'var(--shadow-card)' }}>
+    <div className="relative flex flex-col h-full rounded-lg overflow-hidden" style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--glass-border)', boxShadow: 'var(--shadow-card)' }}>
       {/* Hidden file input for reference image */}
       <input
         ref={fileInputRef}
@@ -761,7 +751,7 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
           onRedo={() => dispatchEdit({ type: 'REDO' })}
           onToggleTree={() => setShowComponentTree(!showComponentTree)}
           onToggleDiff={() => setShowDiffView(!showDiffView)}
-          onSave={requestSend}
+          onSave={handleSaveAndSend}
           editCount={edits.length}
           treeVisible={showComponentTree}
           diffVisible={showDiffView}
@@ -815,7 +805,7 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
             canInject={canInject && !!onInject}
             onRemove={removeEdit}
             onClear={clearEdits}
-            onSaveAndSend={requestSend}
+            onSaveAndSend={handleSaveAndSend}
             onClose={() => setShowEditList(false)}
           />
         )}
@@ -847,7 +837,7 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
             {showEditList ? t('agent.hideEdits') : t('agent.showEdits')}
           </button>
           <button
-            onClick={requestSend}
+            onClick={handleSaveAndSend}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-orange-600 hover:bg-orange-500 rounded-lg shadow-lg shadow-orange-600/20 transition-all hover:scale-105"
           >
             <Send className="w-3.5 h-3.5" />
@@ -887,34 +877,6 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
         />
       )}
 
-      {/* Send confirmation dialog */}
-      {showSendConfirm && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl p-4 max-w-xs w-full mx-4">
-            <div className="flex items-center gap-2 mb-3">
-              <AlertTriangle className="w-5 h-5 text-orange-400" />
-              <h3 className="text-sm font-semibold text-gray-200">{t('agent.sendConfirm.title')}</h3>
-            </div>
-            <p className="text-[11px] text-gray-400 mb-4">
-              {t('agent.sendConfirm.message', { count: edits.length + promptPins.length })}
-            </p>
-            <div className="flex items-center gap-2 justify-end">
-              <button
-                onClick={() => setShowSendConfirm(false)}
-                className="px-3 py-1.5 text-[11px] text-gray-400 hover:text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                {t('agent.sendConfirm.cancel')}
-              </button>
-              <button
-                onClick={confirmSend}
-                className="px-3 py-1.5 text-[11px] font-medium text-white bg-orange-600 hover:bg-orange-500 rounded-lg transition-colors"
-              >
-                {t('agent.sendConfirm.confirm')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
