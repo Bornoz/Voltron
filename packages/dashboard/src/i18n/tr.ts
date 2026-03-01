@@ -879,6 +879,25 @@ export const tr = {
     profileOnly: 'Proje profili analiz edildi. GitHub araması atlandı.',
   },
 
+  // Mobil UI
+  mobile: {
+    more: 'Daha Fazla',
+    menu: 'Menu',
+    showPanel: 'Paneli Goster',
+    hidePanel: 'Paneli Gizle',
+    feed: 'Akis',
+    github: 'GitHub',
+    agent: 'Agent',
+    setup: 'Setup',
+    snapshots: 'Snapshots',
+    behavior: 'Davranis',
+    prompts: 'Promptlar',
+    monitoring: 'Izleme Paneli',
+    theme: 'Tema',
+    toggleSidebar: 'Kenar cubugunu ac/kapat',
+    bottomNav: 'Alt navigasyon',
+  },
+
   // Durum Cubugu
   statusBar: {
     events: 'olay',

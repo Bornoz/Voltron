@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, AlertCircle, GitBranch, GitCommit, Brain, FileText, Bot, Sparkles } from 'lucide-react';
 import type { ProjectConfig } from '@voltron/shared';
@@ -6,6 +6,7 @@ import * as api from '../lib/api';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useEventStream } from '../hooks/useEventStream';
 import { useKeyboard } from '../hooks/useKeyboard';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 import { useControlStore } from '../stores/controlStore';
 import { useEventStore } from '../stores/eventStore';
 import { useNotificationStore } from '../stores/notificationStore';
@@ -16,6 +17,7 @@ import { useFileTreeStore } from '../stores/fileTreeStore';
 import { useAuthStore } from '../stores/authStore';
 import { useLanguageStore } from '../stores/languageStore';
 import { MainLayout } from '../components/Layout/MainLayout';
+import { MobileBottomNav } from '../components/Layout/MobileBottomNav';
 import { ActionFeed } from '../components/ActionFeed/ActionFeed';
 import { InterceptorStatus } from '../components/InterceptorStatus/InterceptorStatus';
 import { ExecutionControls } from '../components/ControlPanel/ExecutionControls';
@@ -50,6 +52,9 @@ const SmartSetupPanel = lazy(() => import('../components/SmartSetup/SmartSetupPa
 export function DashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const bp = useBreakpoint();
+  const isMobile = bp === 'mobile';
+  const isTablet = bp === 'tablet';
   const [projects, setProjects] = useState<ProjectConfig[]>([]);
   const [selectedProject, setSelectedProject] = useState<ProjectConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,6 +70,7 @@ export function DashboardPage() {
   const [showWelcomeTour, setShowWelcomeTour] = useState(() => !localStorage.getItem('voltron_tour_completed'));
 
   const projectId = selectedProject?.id ?? null;
+  const activeTabRef = useRef<HTMLButtonElement>(null);
 
   // Hooks
   const { status, client } = useWebSocket(projectId);
@@ -126,15 +132,13 @@ export function DashboardPage() {
       setError(null);
       const data = await api.getProjects();
       setProjects(data);
-      if (data.length > 0 && !selectedProject) {
-        setSelectedProject(data[0]);
-      }
+      setSelectedProject((prev) => prev ?? data[0] ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('app.failedToLoadProjects'));
     } finally {
       setLoading(false);
     }
-  }, [selectedProject, t]);
+  }, [t]);
 
   useEffect(() => {
     loadProjects();
@@ -176,6 +180,13 @@ export function DashboardPage() {
   const currentLang = useLanguageStore((s) => s.language);
 
   const agentIsActive = !['IDLE', 'COMPLETED', 'CRASHED'].includes(agentStatus);
+
+  // Tablet: auto-scroll active tab into view
+  useEffect(() => {
+    if (isTablet && activeTabRef.current) {
+      activeTabRef.current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, [centerTab, isTablet]);
 
   const handleCommandPaletteAction = useCallback((action: string, _data?: Record<string, unknown>) => {
     switch (action) {
@@ -276,12 +287,22 @@ export function DashboardPage() {
     api.agentInject(projectId, { prompt, context }).catch(() => {});
   };
 
+  // Tab definitions
+  const tabs = [
+    { id: 'feed' as const, icon: null, label: t('app.actionFeed') },
+    { id: 'github' as const, icon: <GitBranch className="w-3.5 h-3.5" />, label: t('app.github') },
+    { id: 'snapshots' as const, icon: <GitCommit className="w-3.5 h-3.5" />, label: t('app.snapshots') },
+    { id: 'behavior' as const, icon: <Brain className="w-3.5 h-3.5" />, label: t('app.behavior') },
+    { id: 'prompts' as const, icon: <FileText className="w-3.5 h-3.5" />, label: t('app.prompts') },
+    { id: 'smart-setup' as const, icon: <Sparkles className="w-3.5 h-3.5" />, label: t('app.smartSetup') },
+  ];
+
   // Center content
   const centerContent = (
     <div className="flex flex-col h-full">
       {/* Project selector bar */}
       <div className="flex items-center gap-3 px-3 py-2 glass" style={{ borderBottom: '1px solid var(--glass-border)' }}>
-        <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--color-text-muted)' }}>{t('app.project')}</span>
+        <span className="text-[10px] uppercase tracking-wider font-semibold shrink-0" style={{ color: 'var(--color-text-muted)' }}>{t('app.project')}</span>
         <div className="relative">
           <button
             onClick={() => setShowProjectDropdown(!showProjectDropdown)}
@@ -313,71 +334,75 @@ export function DashboardPage() {
           )}
         </div>
 
-        {/* Center tabs */}
-        <div className="flex items-center gap-0.5 ml-auto rounded-lg p-0.5" role="tablist" aria-label="Dashboard tabs" style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--glass-border)' }}>
-          {([
-            { id: 'feed' as const, icon: null, label: t('app.actionFeed') },
-            { id: 'github' as const, icon: <GitBranch className="w-3.5 h-3.5" />, label: t('app.github') },
-            { id: 'snapshots' as const, icon: <GitCommit className="w-3.5 h-3.5" />, label: t('app.snapshots') },
-            { id: 'behavior' as const, icon: <Brain className="w-3.5 h-3.5" />, label: t('app.behavior') },
-            { id: 'prompts' as const, icon: <FileText className="w-3.5 h-3.5" />, label: t('app.prompts') },
-            { id: 'smart-setup' as const, icon: <Sparkles className="w-3.5 h-3.5" />, label: t('app.smartSetup') },
-          ]).map((tab) => (
+        {/* Center tabs — hidden on mobile (bottom nav replaces them) */}
+        {!isMobile && (
+          <div
+            className={`flex items-center gap-0.5 ml-auto rounded-lg p-0.5 ${
+              isTablet ? 'overflow-x-auto scrollbar-hide' : ''
+            }`}
+            role="tablist"
+            aria-label="Dashboard tabs"
+            style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--glass-border)' }}
+          >
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                id={`tab-${tab.id}`}
+                role="tab"
+                ref={centerTab === tab.id ? activeTabRef : undefined}
+                aria-selected={centerTab === tab.id}
+                onClick={() => setCenterTab(tab.id)}
+                className="relative px-2.5 py-1.5 text-xs rounded-md transition-all duration-150 flex items-center gap-1.5 whitespace-nowrap shrink-0"
+                style={centerTab === tab.id ? {
+                  background: 'var(--color-bg-tertiary)',
+                  color: 'var(--color-accent)',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+                } : {
+                  color: 'var(--color-text-muted)',
+                }}
+              >
+                {tab.icon}
+                {tab.label}
+                {centerTab === tab.id && (
+                  <span className="absolute bottom-0 left-1/4 right-1/4 h-px bg-[var(--color-accent)] shadow-[0_1px_6px_var(--color-accent)]" />
+                )}
+              </button>
+            ))}
+
+            {/* Agent tab — special styling */}
             <button
-              key={tab.id}
-              id={`tab-${tab.id}`}
+              id="tab-agent"
               role="tab"
-              aria-selected={centerTab === tab.id}
-              onClick={() => setCenterTab(tab.id)}
-              className="relative px-2.5 py-1.5 text-xs rounded-md transition-all duration-150 flex items-center gap-1.5"
-              style={centerTab === tab.id ? {
-                background: 'var(--color-bg-tertiary)',
-                color: 'var(--color-accent)',
+              ref={centerTab === 'agent' ? activeTabRef : undefined}
+              aria-selected={centerTab === 'agent'}
+              onClick={() => setCenterTab('agent')}
+              className={`relative px-2.5 py-1.5 text-xs rounded-md transition-all duration-150 flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+                agentIsActive && centerTab !== 'agent'
+                  ? 'border border-green-500/20 animate-glow-pulse'
+                  : ''
+              }`}
+              style={centerTab === 'agent' ? {
+                background: 'rgba(34,197,94,0.1)',
+                color: '#4ade80',
                 boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+              } : agentIsActive ? {
+                color: 'rgba(74,222,128,0.7)',
+                background: 'rgba(34,197,94,0.05)',
               } : {
                 color: 'var(--color-text-muted)',
               }}
             >
-              {tab.icon}
-              {tab.label}
-              {centerTab === tab.id && (
-                <span className="absolute bottom-0 left-1/4 right-1/4 h-px bg-[var(--color-accent)] shadow-[0_1px_6px_var(--color-accent)]" />
+              <Bot className="w-3.5 h-3.5" />
+              {t('agent.tab')}
+              {agentIsActive && (
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+              )}
+              {centerTab === 'agent' && (
+                <span className="absolute bottom-0 left-1/4 right-1/4 h-px bg-green-400 shadow-[0_1px_6px_rgba(34,197,94,0.6)]" />
               )}
             </button>
-          ))}
-
-          {/* Agent tab — special styling */}
-          <button
-            id="tab-agent"
-            role="tab"
-            aria-selected={centerTab === 'agent'}
-            onClick={() => setCenterTab('agent')}
-            className={`relative px-2.5 py-1.5 text-xs rounded-md transition-all duration-150 flex items-center gap-1.5 ${
-              agentIsActive && centerTab !== 'agent'
-                ? 'border border-green-500/20 animate-glow-pulse'
-                : ''
-            }`}
-            style={centerTab === 'agent' ? {
-              background: 'rgba(34,197,94,0.1)',
-              color: '#4ade80',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
-            } : agentIsActive ? {
-              color: 'rgba(74,222,128,0.7)',
-              background: 'rgba(34,197,94,0.05)',
-            } : {
-              color: 'var(--color-text-muted)',
-            }}
-          >
-            <Bot className="w-3.5 h-3.5" />
-            {t('agent.tab')}
-            {agentIsActive && (
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            )}
-            {centerTab === 'agent' && (
-              <span className="absolute bottom-0 left-1/4 right-1/4 h-px bg-green-400 shadow-[0_1px_6px_rgba(34,197,94,0.6)]" />
-            )}
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Tab content */}
@@ -493,8 +518,19 @@ export function DashboardPage() {
         />
       </div>
 
-      {/* Status Bar */}
-      <StatusBar wsConnected={status === 'connected'} projectId={projectId} />
+      {/* Agent Status Bar — hidden on mobile */}
+      {!isMobile && (
+        <StatusBar wsConnected={status === 'connected'} projectId={projectId} />
+      )}
+
+      {/* Mobile Bottom Nav */}
+      {isMobile && (
+        <MobileBottomNav
+          activeTab={centerTab}
+          onTabChange={setCenterTab}
+          agentActive={agentIsActive}
+        />
+      )}
 
       {/* Spawn Dialog */}
       {showSpawnDialog && projectId && (
@@ -546,9 +582,11 @@ export function DashboardPage() {
         onClose={() => setShowWelcomeTour(false)}
       />
 
-      {/* Notification toasts */}
+      {/* Notification toasts — repositioned for mobile */}
       {notifications.length > 0 && (
-        <div className="fixed bottom-10 right-4 z-50 space-y-2 max-w-sm">
+        <div className={`fixed z-50 space-y-2 max-w-sm ${
+          isMobile ? 'bottom-[72px] left-4 right-4' : 'bottom-10 right-4'
+        }`}>
           {notifications.slice(0, 5).map((n) => (
             <div
               key={n.id}

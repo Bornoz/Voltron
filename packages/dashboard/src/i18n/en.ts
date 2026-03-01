@@ -881,6 +881,25 @@ export const en: TranslationKeys = {
     profileOnly: 'Project profile analyzed. GitHub search was skipped.',
   },
 
+  // Mobile UI
+  mobile: {
+    more: 'More',
+    menu: 'Menu',
+    showPanel: 'Show Panel',
+    hidePanel: 'Hide Panel',
+    feed: 'Feed',
+    github: 'GitHub',
+    agent: 'Agent',
+    setup: 'Setup',
+    snapshots: 'Snapshots',
+    behavior: 'Behavior',
+    prompts: 'Prompts',
+    monitoring: 'Monitoring',
+    theme: 'Theme',
+    toggleSidebar: 'Toggle sidebar',
+    bottomNav: 'Bottom navigation',
+  },
+
   // Status Bar
   statusBar: {
     events: 'events',

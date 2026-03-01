@@ -1,10 +1,12 @@
-import { Wifi, WifiOff, Settings, LogOut } from 'lucide-react';
+import { Wifi, WifiOff, Settings, LogOut, Menu } from 'lucide-react';
 import { clsx } from 'clsx';
 import type { ConnectionStatus } from '../../lib/ws';
 import type { ExecutionState } from '@voltron/shared';
 import { useTranslation } from '../../i18n';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ThemeSwitcher } from './ThemeSwitcher';
+import { MobileHeaderMenu } from './MobileHeaderMenu';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 
 const stateColors: Record<ExecutionState, { dot: string; text: string; glow: string }> = {
   IDLE: { dot: 'bg-gray-500', text: 'text-gray-400', glow: '' },
@@ -28,13 +30,57 @@ interface HeaderProps {
   connectionStatus: ConnectionStatus;
   onOpenSettings?: () => void;
   onLogout?: () => void;
+  onToggleSidebar?: () => void;
 }
 
-export function Header({ projectName, executionState, connectionStatus, onOpenSettings, onLogout }: HeaderProps) {
+export function Header({ projectName, executionState, connectionStatus, onOpenSettings, onLogout, onToggleSidebar }: HeaderProps) {
   const { t } = useTranslation();
+  const bp = useBreakpoint();
+  const isMobile = bp === 'mobile';
   const isConnected = connectionStatus === 'connected';
   const stateStyle = stateColors[executionState] ?? stateColors.IDLE;
 
+  if (isMobile) {
+    return (
+      <header className="glass relative flex items-center h-[48px] px-3 shrink-0 border-b-0" style={{ borderBottom: 'none' }}>
+        {/* Left: Hamburger */}
+        <button
+          onClick={onToggleSidebar}
+          className="flex items-center justify-center w-10 h-10 -ml-1 rounded-lg transition-colors"
+          style={{ color: 'var(--color-text-muted)' }}
+          aria-label={t('mobile.toggleSidebar')}
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        {/* Center: Logo + Title */}
+        <div className="flex items-center gap-2 mx-auto">
+          <img
+            src="/voltronlogo.png"
+            alt="Voltron"
+            className="w-7 h-7 object-contain drop-shadow-[0_0_12px_rgba(59,130,246,0.3)]"
+          />
+          <span className="text-sm font-bold tracking-tight" style={{ color: 'var(--color-text-primary)' }}>VOLTRON</span>
+        </div>
+
+        {/* Right: State dot + overflow menu */}
+        <div className="flex items-center gap-1">
+          <span className={clsx('w-2.5 h-2.5 rounded-full shrink-0', stateStyle.dot, stateStyle.glow)} />
+          <MobileHeaderMenu onOpenSettings={onOpenSettings} onLogout={onLogout} />
+        </div>
+
+        {/* Bottom accent glow line */}
+        <div
+          className="absolute bottom-0 left-0 right-0 h-px"
+          style={{
+            background: `linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--color-accent) 30%, transparent) 50%, transparent 100%)`,
+          }}
+        />
+      </header>
+    );
+  }
+
+  // Desktop / Tablet layout (unchanged)
   return (
     <header className="glass relative flex items-center h-[52px] px-4 shrink-0 border-b-0" style={{ borderBottom: 'none' }}>
       {/* Left: Logo + Title */}

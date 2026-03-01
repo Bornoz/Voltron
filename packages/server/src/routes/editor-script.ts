@@ -58,7 +58,10 @@ export const EDITOR_SCRIPT = `
     refImageOrigH: 0,
     submenuTimer: null,
     activeSubmenu: null,
-    activeSubmenuItem: null
+    activeSubmenuItem: null,
+    subSubmenuTimer: null,
+    activeSubSubmenu: null,
+    activeSubSubmenuItem: null
   };
 
   function uid() { return 've_' + (++S.editIdCounter) + '_' + Math.random().toString(36).slice(2,6); }
@@ -92,8 +95,35 @@ export const EDITOR_SCRIPT = `
       shadowMd: 'Orta G\\u00F6lge',
       shadowLg: 'B\\u00FCy\\u00FCk G\\u00F6lge',
       shadowXl: '\\u00C7ok B\\u00FCy\\u00FCk G\\u00F6lge',
+      shadow2xl: 'Dev G\\u00F6lge',
       shadowInner: '\\u0130\\u00E7 G\\u00F6lge',
+      shadowGlow: 'Mavi Parlama',
+      shadowNeon: 'Neon Ye\\u015Fil',
       shadowNone: 'G\\u00F6lge Kald\\u0131r',
+      secShadows: 'G\\u00F6lgeler',
+      secFilters: 'CSS Filtreler',
+      secTextShadow: 'Metin G\\u00F6lgesi',
+      filterBlurSm: 'Hafif Bulan\\u0131k',
+      filterBlurMd: 'Orta Bulan\\u0131k',
+      filterBlurLg: '\\u00C7ok Bulan\\u0131k',
+      filterBright: 'Parlak',
+      filterDim: 'Karanl\\u0131k',
+      filterContrast: 'Y\\u00FCksek Kontrast',
+      filterSaturate: 'Canl\\u0131 Renkler',
+      filterDesaturate: 'Soluk Renkler',
+      filterGrayscale: 'Siyah-Beyaz',
+      filterSepia: 'Sepia',
+      filterHueRotate: 'Renk D\\u00F6nd\\u00FCr',
+      filterInvert: 'Ters \\u00C7evir',
+      filterNone: 'Filtre Kald\\u0131r',
+      txtShadowSm: 'K\\u00FC\\u00E7\\u00FCk Metin G\\u00F6lgesi',
+      txtShadowMd: 'Orta Metin G\\u00F6lgesi',
+      txtShadowLg: 'B\\u00FCy\\u00FCk Metin G\\u00F6lgesi',
+      txtGlowBlue: 'Mavi I\\u015F\\u0131lt\\u0131',
+      txtGlowGreen: 'Ye\\u015Fil I\\u015F\\u0131lt\\u0131',
+      txtGlowPurple: 'Mor I\\u015F\\u0131lt\\u0131',
+      txtOutline: 'Metin D\\u0131\\u015F \\u00C7izgi',
+      txtShadowNone: 'Metin G\\u00F6lgesi Kald\\u0131r',
       enterWidth: 'Geni\\u015Flik (px):',
       enterHeight: 'Y\\u00FCkseklik (px):',
       enterNote: 'Not giriniz:',
@@ -129,7 +159,9 @@ export const EDITOR_SCRIPT = `
       animNone: 'Animasyonu Kald\\u0131r',
       animCustom: '\\u00D6zel Animasyon...',
       enterTransition: 'Transition de\\u011Feri (\\u00F6r: all 0.3s ease):',
-      enterAnimation: 'Animasyon de\\u011Feri (\\u00F6r: bounce 1s infinite):'
+      enterAnimation: 'Animasyon de\\u011Feri (\\u00F6r: bounce 1s infinite):',
+      saveAndNotify: 'Kaydet & AI\\'ye G\\u00F6nder',
+      editCount: ' d\\u00FCzenleme'
     },
     en: {
       editText: 'Edit Text',
@@ -158,8 +190,35 @@ export const EDITOR_SCRIPT = `
       shadowMd: 'Medium Shadow',
       shadowLg: 'Large Shadow',
       shadowXl: 'Extra Large Shadow',
+      shadow2xl: 'Huge Shadow',
       shadowInner: 'Inner Shadow',
+      shadowGlow: 'Blue Glow',
+      shadowNeon: 'Neon Green',
       shadowNone: 'Remove Shadow',
+      secShadows: 'Shadows',
+      secFilters: 'CSS Filters',
+      secTextShadow: 'Text Shadow',
+      filterBlurSm: 'Slight Blur',
+      filterBlurMd: 'Medium Blur',
+      filterBlurLg: 'Heavy Blur',
+      filterBright: 'Brighten',
+      filterDim: 'Dim',
+      filterContrast: 'High Contrast',
+      filterSaturate: 'Vivid Colors',
+      filterDesaturate: 'Muted Colors',
+      filterGrayscale: 'Grayscale',
+      filterSepia: 'Sepia',
+      filterHueRotate: 'Hue Rotate',
+      filterInvert: 'Invert',
+      filterNone: 'Remove Filter',
+      txtShadowSm: 'Small Text Shadow',
+      txtShadowMd: 'Medium Text Shadow',
+      txtShadowLg: 'Large Text Shadow',
+      txtGlowBlue: 'Blue Glow',
+      txtGlowGreen: 'Green Glow',
+      txtGlowPurple: 'Purple Glow',
+      txtOutline: 'Text Outline',
+      txtShadowNone: 'Remove Text Shadow',
       enterWidth: 'Width (px):',
       enterHeight: 'Height (px):',
       enterNote: 'Enter note:',
@@ -195,7 +254,9 @@ export const EDITOR_SCRIPT = `
       animNone: 'Remove Animation',
       animCustom: 'Custom Animation...',
       enterTransition: 'Transition value (e.g. all 0.3s ease):',
-      enterAnimation: 'Animation value (e.g. bounce 1s infinite):'
+      enterAnimation: 'Animation value (e.g. bounce 1s infinite):',
+      saveAndNotify: 'Save & Notify AI',
+      editCount: ' edits'
     }
   };
 
@@ -883,8 +944,38 @@ export const EDITOR_SCRIPT = `
     { label: 'shadowMd', value: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1)' },
     { label: 'shadowLg', value: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1)' },
     { label: 'shadowXl', value: '0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)' },
+    { label: 'shadow2xl', value: '0 25px 50px -12px rgba(0,0,0,0.25)' },
     { label: 'shadowInner', value: 'inset 0 2px 4px rgba(0,0,0,0.15)' },
+    { label: 'shadowGlow', value: '0 0 15px rgba(59,130,246,0.5), 0 0 30px rgba(59,130,246,0.2)' },
+    { label: 'shadowNeon', value: '0 0 5px #22c55e, 0 0 20px #22c55e, 0 0 40px rgba(34,197,94,0.3)' },
     { label: 'shadowNone', value: 'none' }
+  ];
+
+  var FILTER_PRESETS = [
+    { label: 'filterBlurSm', prop: 'filter', value: 'blur(2px)' },
+    { label: 'filterBlurMd', prop: 'filter', value: 'blur(4px)' },
+    { label: 'filterBlurLg', prop: 'filter', value: 'blur(8px)' },
+    { label: 'filterBright', prop: 'filter', value: 'brightness(1.25)' },
+    { label: 'filterDim', prop: 'filter', value: 'brightness(0.7)' },
+    { label: 'filterContrast', prop: 'filter', value: 'contrast(1.5)' },
+    { label: 'filterSaturate', prop: 'filter', value: 'saturate(1.5)' },
+    { label: 'filterDesaturate', prop: 'filter', value: 'saturate(0.3)' },
+    { label: 'filterGrayscale', prop: 'filter', value: 'grayscale(1)' },
+    { label: 'filterSepia', prop: 'filter', value: 'sepia(0.8)' },
+    { label: 'filterHueRotate', prop: 'filter', value: 'hue-rotate(90deg)' },
+    { label: 'filterInvert', prop: 'filter', value: 'invert(1)' },
+    { label: 'filterNone', prop: 'filter', value: 'none' }
+  ];
+
+  var TEXT_SHADOW_PRESETS = [
+    { label: 'txtShadowSm', value: '1px 1px 2px rgba(0,0,0,0.3)' },
+    { label: 'txtShadowMd', value: '2px 2px 4px rgba(0,0,0,0.4)' },
+    { label: 'txtShadowLg', value: '3px 3px 6px rgba(0,0,0,0.5)' },
+    { label: 'txtGlowBlue', value: '0 0 10px rgba(59,130,246,0.6), 0 0 20px rgba(59,130,246,0.3)' },
+    { label: 'txtGlowGreen', value: '0 0 10px rgba(34,197,94,0.6), 0 0 20px rgba(34,197,94,0.3)' },
+    { label: 'txtGlowPurple', value: '0 0 10px rgba(168,85,247,0.6), 0 0 20px rgba(168,85,247,0.3)' },
+    { label: 'txtOutline', value: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000' },
+    { label: 'txtShadowNone', value: 'none' }
   ];
 
   function showContextMenu(x, y) {
@@ -895,65 +986,44 @@ export const EDITOR_SCRIPT = `
     var items = [];
 
     if (hasSelection) {
-      /* ── Element selected menu ── */
-      items.push({ type: 'section', label: 'secEdit' });
+      /* ── Direct edit actions ── */
       items.push({ emoji: '\\u270F\\uFE0F', label: 'editText', action: 'startText' });
       items.push({ emoji: '\\uD83D\\uDCCB', label: 'copySelector', action: 'copySelector' });
+      items.push({ type: 'separator' });
 
-      items.push({ type: 'section', label: 'secStyle' });
-      items.push({ emoji: '\\uD83C\\uDFA8', label: 'changeColor', action: 'submenu', submenuType: 'color' });
-      items.push({ emoji: '\\uD83D\\uDCCF', label: 'fontSize', action: 'submenu', submenuType: 'fontsize' });
-      items.push({ emoji: '\\u2728', label: 'addEffect', action: 'submenu', submenuType: 'effect' });
-      items.push({ emoji: '\\uD83D\\uDCE6', label: 'padding', action: 'submenu', submenuType: 'padding' });
-      items.push({ emoji: '\\u2B1C', label: 'margin', action: 'submenu', submenuType: 'margin' });
-      items.push({ emoji: '\\u25A1', label: 'border', action: 'submenu', submenuType: 'border' });
-      items.push({ emoji: '\\u25EF', label: 'borderRadius', action: 'submenu', submenuType: 'borderRadius' });
-      items.push({ emoji: '\\uD83D\\uDCA7', label: 'opacity', action: 'submenu', submenuType: 'opacity' });
-      items.push({ emoji: '\\uD83C\\uDF08', label: 'gradient', action: 'submenu', submenuType: 'gradient' });
+      /* ── Category submenus (grouped) ── */
+      items.push({ emoji: '\\uD83C\\uDFA8', label: 'secStyle', action: 'submenu', submenuType: 'catStyle' });
+      items.push({ emoji: '\\uD83D\\uDCD0', label: 'secLayout', action: 'submenu', submenuType: 'catLayout' });
+      items.push({ emoji: '\\uD83D\\uDCE6', label: 'secElement', action: 'submenu', submenuType: 'catElement' });
+      items.push({ emoji: '\\uD83D\\uDD0D', label: 'secInspector', action: 'submenu', submenuType: 'catInspector' });
 
-      /* Detect existing transitions/animations on selected element */
+      /* Conditional transition category */
       if (S.selected) {
         var elCs = window.getComputedStyle(S.selected);
         var hasTrans = elCs.transition && elCs.transition !== 'none' && elCs.transition !== 'all 0s ease 0s';
         var hasAnim = elCs.animationName && elCs.animationName !== 'none';
         if (hasTrans || hasAnim) {
-          items.push({ type: 'section', label: 'secTransition' });
-          items.push({ emoji: '\\u23F1', label: 'transition', action: 'submenu', submenuType: 'transition' });
-          if (hasAnim) {
-            items.push({ emoji: '\\uD83C\\uDFAC', label: 'animation', action: 'submenu', submenuType: 'animation' });
-          }
+          items.push({ emoji: '\\u23F1', label: 'secTransition', action: 'submenu', submenuType: 'catTransition' });
         }
       }
 
-      items.push({ type: 'section', label: 'secLayout' });
-      items.push({ emoji: '\\uD83D\\uDCE4', label: 'display', action: 'submenu', submenuType: 'display' });
-      items.push({ emoji: '\\u2194\\uFE0F', label: 'flexDirection', action: 'submenu', submenuType: 'flexDirection' });
-      items.push({ emoji: '\\u2696\\uFE0F', label: 'justifyContent', action: 'submenu', submenuType: 'justifyContent' });
-      items.push({ emoji: '\\u2195\\uFE0F', label: 'alignItems', action: 'submenu', submenuType: 'alignItems' });
-      items.push({ emoji: '\\u2506', label: 'gap', action: 'submenu', submenuType: 'gap' });
+      items.push({ type: 'separator' });
 
-      items.push({ type: 'section', label: 'secSize' });
-      items.push({ emoji: '\\u2194\\uFE0F', label: 'expandShrink', action: 'expandShrink' });
-
-      items.push({ type: 'section', label: 'secElement' });
-      items.push({ emoji: '\\u274C', label: 'deleteElement', action: 'deleteElement', danger: true });
-      items.push({ emoji: '\\uD83D\\uDCC4', label: 'duplicateElement', action: 'duplicateElement' });
-      items.push({ emoji: '\\uD83D\\uDCE6', label: 'wrapInDiv', action: 'wrapInDiv' });
-      items.push({ emoji: '\\uD83E\\uDDC5', label: 'unwrapElement', action: 'unwrapElement' });
-      items.push({ emoji: '\\uD83D\\uDC41', label: 'toggleVisibility', action: 'toggleVisibility' });
-
-      items.push({ type: 'section', label: 'secInspector' });
-      items.push({ emoji: '\\uD83D\\uDCCB', label: 'copyHtml', action: 'copyHtml' });
-      items.push({ emoji: '\\uD83C\\uDFA8', label: 'copyStyles', action: 'copyStyles' });
-      items.push({ emoji: '\\uD83D\\uDD0D', label: 'showComputed', action: 'showComputed' });
-
-      items.push({ type: 'section', label: 'secMark' });
+      /* ── Mark / Annotate ── */
       items.push({ emoji: '\\u2757', label: 'markError', action: 'annotate', annotationType: 'error' });
       items.push({ emoji: '\\u2795', label: 'addHere', action: 'annotate', annotationType: 'add' });
       items.push({ emoji: '\\uD83D\\uDCDD', label: 'leaveNote', action: 'annotate', annotationType: 'note' });
-      items.push({ type: 'section', label: 'secPrompt' });
+      items.push({ type: 'separator' });
+
+      /* ── Prompt / Pin ── */
       items.push({ emoji: '\\uD83D\\uDCAC', label: 'addPrompt', action: 'promptPin' });
       items.push({ emoji: '\\uD83D\\uDCCC', label: S.showAllPins ? 'hideAllPins' : 'showAllPins', action: 'togglePins' });
+
+      /* ── Save & Notify AI ── */
+      if (S.edits.length > 0) {
+        items.push({ type: 'separator' });
+        items.push({ emoji: '\\uD83D\\uDCBE', label: 'saveAndNotify', action: 'saveAndNotify', highlight: true, badge: S.edits.length });
+      }
     } else {
       /* ── No selection menu ── */
       items.push({ emoji: '\\uD83D\\uDCAC', label: 'addPrompt', action: 'promptPin' });
@@ -961,6 +1031,12 @@ export const EDITOR_SCRIPT = `
       items.push({ emoji: '\\uD83D\\uDCCC', label: S.showAllPins ? 'hideAllPins' : 'showAllPins', action: 'togglePins' });
       items.push({ type: 'separator' });
       items.push({ emoji: '\\uD83E\\uDDF9', label: 'clearAll', action: 'clearAll', danger: true });
+
+      /* ── Save & Notify AI (also in no-selection) ── */
+      if (S.edits.length > 0) {
+        items.push({ type: 'separator' });
+        items.push({ emoji: '\\uD83D\\uDCBE', label: 'saveAndNotify', action: 'saveAndNotify', highlight: true, badge: S.edits.length });
+      }
     }
 
     var menu = buildMenu(items, x, y);
@@ -970,12 +1046,12 @@ export const EDITOR_SCRIPT = `
   function buildMenu(items, x, y) {
     var menu = document.createElement('div');
     menu.id = '__ve_ctx';
-    menu.style.cssText = 'position:fixed;z-index:2147483645;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:4px 0;min-width:200px;box-shadow:0 8px 30px rgba(0,0,0,0.5);pointer-events:auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+    menu.style.cssText = 'position:fixed;z-index:2147483645;background:rgba(15,23,42,0.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(51,65,85,0.8);border-radius:10px;padding:4px 0;min-width:210px;max-height:calc(100vh - 24px);overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 0 1px rgba(148,163,184,0.05);pointer-events:auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;scrollbar-width:thin;scrollbar-color:#334155 transparent;';
     menu.dataset.ve = '1';
 
     /* Position: ensure within viewport */
-    var menuW = 220;
-    var menuH = items.length * 30 + 20; /* rough estimate */
+    var menuW = 230;
+    var menuH = items.length * 30 + 20;
     var posX = x;
     var posY = y;
     if (posX + menuW > window.innerWidth) posX = window.innerWidth - menuW - 8;
@@ -990,7 +1066,7 @@ export const EDITOR_SCRIPT = `
 
       if (item.type === 'separator') {
         var sep = document.createElement('div');
-        sep.style.cssText = 'height:1px;background:#334155;margin:4px 8px;';
+        sep.style.cssText = 'height:1px;background:rgba(51,65,85,0.6);margin:3px 10px;';
         sep.dataset.ve = '1';
         menu.appendChild(sep);
         continue;
@@ -1001,34 +1077,44 @@ export const EDITOR_SCRIPT = `
         sec.style.cssText = 'padding:4px 14px 2px;font:bold 9px/1.2 sans-serif;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;';
         if (i > 0) {
           var divider = document.createElement('div');
-          divider.style.cssText = 'height:1px;background:#334155;margin:4px 8px;';
+          divider.style.cssText = 'height:1px;background:rgba(51,65,85,0.6);margin:3px 10px;';
           divider.dataset.ve = '1';
           menu.appendChild(divider);
         }
-        sec.textContent = '\\u2500\\u2500 ' + t(item.label) + ' \\u2500\\u2500';
+        sec.textContent = t(item.label);
         sec.dataset.ve = '1';
         menu.appendChild(sec);
         continue;
       }
 
       var btn = document.createElement('div');
-      btn.style.cssText = 'padding:5px 14px;font:12px/1.4 sans-serif;color:' + (item.danger ? '#ef4444' : '#e2e8f0') + ';cursor:pointer;display:flex;align-items:center;gap:8px;position:relative;';
+      var btnBg = item.highlight ? 'background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(139,92,246,0.15));' : '';
+      var btnColor = item.danger ? '#ef4444' : item.highlight ? '#60a5fa' : '#e2e8f0';
+      btn.style.cssText = 'padding:4px 12px;font:12px/1.4 sans-serif;color:' + btnColor + ';cursor:pointer;display:flex;align-items:center;gap:7px;position:relative;border-radius:4px;margin:0 4px;transition:background 0.1s;' + btnBg;
       btn.dataset.ve = '1';
       btn.dataset.action = item.action || '';
 
       var emojiSpan = document.createElement('span');
-      emojiSpan.style.cssText = 'font-size:14px;width:18px;text-align:center;flex-shrink:0;';
+      emojiSpan.style.cssText = 'font-size:13px;width:18px;text-align:center;flex-shrink:0;';
       emojiSpan.textContent = item.emoji || '';
       btn.appendChild(emojiSpan);
 
       var labelSpan = document.createElement('span');
-      labelSpan.style.cssText = 'flex:1;';
+      labelSpan.style.cssText = 'flex:1;white-space:nowrap;';
       labelSpan.textContent = t(item.label);
       btn.appendChild(labelSpan);
 
+      /* Badge for edit count */
+      if (item.badge) {
+        var badgeSpan = document.createElement('span');
+        badgeSpan.style.cssText = 'background:#3b82f6;color:#fff;font:bold 10px/1 sans-serif;padding:2px 6px;border-radius:9px;min-width:16px;text-align:center;';
+        badgeSpan.textContent = item.badge;
+        btn.appendChild(badgeSpan);
+      }
+
       if (item.action === 'submenu') {
         var arrow = document.createElement('span');
-        arrow.style.cssText = 'color:#64748b;font-size:10px;margin-left:auto;';
+        arrow.style.cssText = 'color:#64748b;font-size:9px;margin-left:auto;';
         arrow.textContent = '\\u25B6';
         btn.appendChild(arrow);
       }
@@ -1036,30 +1122,29 @@ export const EDITOR_SCRIPT = `
       /* Hover effect */
       btn.addEventListener('mouseenter', (function(it, btnEl) {
         return function() {
-          btnEl.style.background = '#334155';
+          btnEl.style.background = it.highlight ? 'linear-gradient(135deg,rgba(59,130,246,0.3),rgba(139,92,246,0.3))' : 'rgba(51,65,85,0.5)';
           if (it.action === 'submenu') {
             clearSubmenuTimer();
             S.submenuTimer = setTimeout(function() {
               showSubmenu(btnEl, it.submenuType);
             }, 150);
           } else {
-            /* Non-submenu item: cancel pending timers. Submenu closes via its own mouseleave. */
             clearSubmenuTimer();
           }
         };
       })(item, btn));
 
-      btn.addEventListener('mouseleave', (function(btnEl) {
+      btn.addEventListener('mouseleave', (function(it, btnEl) {
         return function() {
-          btnEl.style.background = '';
+          btnEl.style.background = it.highlight ? 'linear-gradient(135deg,rgba(59,130,246,0.15),rgba(139,92,246,0.15))' : '';
         };
-      })(btn));
+      })(item, btn));
 
       /* Click handler */
       btn.addEventListener('click', (function(it) {
         return function(e) {
           e.stopPropagation();
-          if (it.action === 'submenu') return; /* submenus open on hover */
+          if (it.action === 'submenu') return;
           hideContextMenu();
           handleMenuAction(it);
         };
@@ -1242,6 +1327,47 @@ export const EDITOR_SCRIPT = `
         emit('VOLTRON_CONTEXT_ACTION', { action: 'clear_all' });
       }
     }
+    else if (action === 'saveAndNotify') {
+      var editSummary = S.edits.map(function(e) {
+        return { id: e.id, type: e.type, selector: e.selector, desc: e.desc, from: e.from, to: e.to, coords: e.coords };
+      });
+      /* Serialize annotations — extract data from DOM elements, not the elements themselves */
+      var annData = S.annotations.map(function(ann) {
+        return {
+          id: ann.id || '',
+          text: ann.textContent || '',
+          title: ann.title || '',
+          x: parseInt(ann.style.left, 10) || 0,
+          y: parseInt(ann.style.top, 10) || 0
+        };
+      });
+      var pinData = S.promptPins.map(function(p) {
+        return { id: p.id, prompt: p.prompt, x: p.x, y: p.y };
+      });
+      var payload = {
+        edits: editSummary,
+        editCount: S.edits.length,
+        timestamp: Date.now(),
+        annotations: annData,
+        promptPins: pinData,
+        referenceImage: S.refImage ? { dataUrl: S.refImage.dataUrl } : null
+      };
+      emit('VOLTRON_SAVE_AND_NOTIFY', payload);
+
+      /* Success overlay */
+      var successEl = mk('div', '__ve_save_success', 'position:fixed;z-index:2147483647;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.8);background:rgba(15,23,42,0.95);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(34,197,94,0.4);border-radius:16px;padding:24px 36px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5),0 0 40px rgba(34,197,94,0.1);opacity:0;transition:all 0.3s ease;');
+      successEl.dataset.ve = '1';
+      successEl.innerHTML = '<div style="font-size:36px;margin-bottom:8px;">\\u2705</div><div style="color:#22c55e;font:bold 16px/1.4 sans-serif;">' + S.edits.length + t('editCount') + '</div><div style="color:#94a3b8;font:12px/1.4 sans-serif;margin-top:4px;">AI\\'ye g\\u00F6nderildi</div>';
+      setTimeout(function() { successEl.style.opacity = '1'; successEl.style.transform = 'translate(-50%,-50%) scale(1)'; }, 10);
+      setTimeout(function() {
+        successEl.style.opacity = '0';
+        successEl.style.transform = 'translate(-50%,-50%) scale(0.9)';
+        setTimeout(function() { if (successEl.parentElement) successEl.parentElement.removeChild(successEl); }, 300);
+      }, 2000);
+
+      /* Tell parent to navigate to agent feed */
+      emit('VOLTRON_NAVIGATE', { target: 'feed', reason: 'save_and_notify' });
+    }
   }
 
   /* ═══ SUBMENUS ═══ */
@@ -1251,10 +1377,14 @@ export const EDITOR_SCRIPT = `
     var parentRect = parentBtn.getBoundingClientRect();
     var sub = document.createElement('div');
     sub.id = '__ve_ctx_sub';
-    sub.style.cssText = 'position:fixed;z-index:2147483646;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:4px 0;box-shadow:0 8px 30px rgba(0,0,0,0.5);pointer-events:auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+    sub.style.cssText = 'position:fixed;z-index:2147483646;background:rgba(15,23,42,0.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(51,65,85,0.8);border-radius:10px;padding:4px 0;box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 0 1px rgba(148,163,184,0.05);pointer-events:auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
     sub.dataset.ve = '1';
 
-    if (submenuType === 'color') {
+    /* ── Category submenus (grouped items with sub-submenus) ── */
+    if (submenuType === 'catStyle' || submenuType === 'catLayout' || submenuType === 'catElement' || submenuType === 'catInspector' || submenuType === 'catTransition') {
+      buildCategorySubmenu(sub, submenuType);
+    /* ── Direct value submenus (used as 3rd level from categories) ── */
+    } else if (submenuType === 'color') {
       buildColorSubmenu(sub);
     } else if (submenuType === 'fontsize') {
       buildFontSizeSubmenu(sub);
@@ -1324,6 +1454,112 @@ export const EDITOR_SCRIPT = `
         hideSubmenu();
       }, 300);
     });
+  }
+
+  function buildCategorySubmenu(sub, catType) {
+    sub.style.minWidth = '180px';
+    var catItems = [];
+
+    if (catType === 'catStyle') {
+      catItems = [
+        { emoji: '\\uD83C\\uDFA8', label: 'changeColor', subType: 'color' },
+        { emoji: '\\uD83D\\uDCCF', label: 'fontSize', subType: 'fontsize' },
+        { emoji: '\\u2728', label: 'addEffect', subType: 'effect' },
+        { emoji: '\\uD83D\\uDCE6', label: 'padding', subType: 'padding' },
+        { emoji: '\\u2B1C', label: 'margin', subType: 'margin' },
+        { emoji: '\\u25A1', label: 'border', subType: 'border' },
+        { emoji: '\\u25EF', label: 'borderRadius', subType: 'borderRadius' },
+        { emoji: '\\uD83D\\uDCA7', label: 'opacity', subType: 'opacity' },
+        { emoji: '\\uD83C\\uDF08', label: 'gradient', subType: 'gradient' }
+      ];
+    } else if (catType === 'catLayout') {
+      catItems = [
+        { emoji: '\\uD83D\\uDCE4', label: 'display', subType: 'display' },
+        { emoji: '\\u2194\\uFE0F', label: 'flexDirection', subType: 'flexDirection' },
+        { emoji: '\\u2696\\uFE0F', label: 'justifyContent', subType: 'justifyContent' },
+        { emoji: '\\u2195\\uFE0F', label: 'alignItems', subType: 'alignItems' },
+        { emoji: '\\u2506', label: 'gap', subType: 'gap' },
+        { emoji: '\\u2194\\uFE0F', label: 'expandShrink', action: 'expandShrink' }
+      ];
+    } else if (catType === 'catElement') {
+      catItems = [
+        { emoji: '\\u274C', label: 'deleteElement', action: 'deleteElement', danger: true },
+        { emoji: '\\uD83D\\uDCC4', label: 'duplicateElement', action: 'duplicateElement' },
+        { emoji: '\\uD83D\\uDCE6', label: 'wrapInDiv', action: 'wrapInDiv' },
+        { emoji: '\\uD83E\\uDDC5', label: 'unwrapElement', action: 'unwrapElement' },
+        { emoji: '\\uD83D\\uDC41', label: 'toggleVisibility', action: 'toggleVisibility' }
+      ];
+    } else if (catType === 'catInspector') {
+      catItems = [
+        { emoji: '\\uD83D\\uDCCB', label: 'copyHtml', action: 'copyHtml' },
+        { emoji: '\\uD83C\\uDFA8', label: 'copyStyles', action: 'copyStyles' },
+        { emoji: '\\uD83D\\uDD0D', label: 'showComputed', action: 'showComputed' }
+      ];
+    } else if (catType === 'catTransition') {
+      catItems = [
+        { emoji: '\\u23F1', label: 'transition', subType: 'transition' }
+      ];
+      if (S.selected) {
+        var cs = window.getComputedStyle(S.selected);
+        if (cs.animationName && cs.animationName !== 'none') {
+          catItems.push({ emoji: '\\uD83C\\uDFAC', label: 'animation', subType: 'animation' });
+        }
+      }
+    }
+
+    for (var i = 0; i < catItems.length; i++) {
+      var ci = catItems[i];
+      var btn = document.createElement('div');
+      btn.style.cssText = 'padding:4px 12px;font:12px/1.4 sans-serif;color:' + (ci.danger ? '#ef4444' : '#e2e8f0') + ';cursor:pointer;display:flex;align-items:center;gap:7px;border-radius:4px;margin:0 4px;transition:background 0.1s;';
+      btn.dataset.ve = '1';
+
+      var emoSpan = document.createElement('span');
+      emoSpan.style.cssText = 'font-size:13px;width:18px;text-align:center;flex-shrink:0;';
+      emoSpan.textContent = ci.emoji || '';
+      btn.appendChild(emoSpan);
+
+      var lblSpan = document.createElement('span');
+      lblSpan.style.cssText = 'flex:1;white-space:nowrap;';
+      lblSpan.textContent = t(ci.label);
+      btn.appendChild(lblSpan);
+
+      if (ci.subType) {
+        var arr = document.createElement('span');
+        arr.style.cssText = 'color:#64748b;font-size:9px;margin-left:auto;';
+        arr.textContent = '\\u25B6';
+        btn.appendChild(arr);
+      }
+
+      btn.addEventListener('mouseenter', (function(it, btnEl) {
+        return function() {
+          btnEl.style.background = 'rgba(51,65,85,0.5)';
+          if (it.subType) {
+            clearSubSubmenuTimer();
+            S.subSubmenuTimer = setTimeout(function() {
+              showSubSubmenu(btnEl, it.subType);
+            }, 150);
+          } else {
+            clearSubSubmenuTimer();
+            hideSubSubmenu();
+          }
+        };
+      })(ci, btn));
+
+      btn.addEventListener('mouseleave', (function(btnEl) {
+        return function() { btnEl.style.background = ''; };
+      })(btn));
+
+      btn.addEventListener('click', (function(it) {
+        return function(e) {
+          e.stopPropagation();
+          if (it.subType) return;
+          hideContextMenu();
+          handleMenuAction(it);
+        };
+      })(ci));
+
+      sub.appendChild(btn);
+    }
   }
 
   function buildColorSubmenu(sub) {
@@ -1417,37 +1653,122 @@ export const EDITOR_SCRIPT = `
   }
 
   function buildEffectSubmenu(sub) {
-    sub.style.minWidth = '180px';
+    sub.style.minWidth = '200px';
+    sub.style.maxHeight = '420px';
+    sub.style.overflowY = 'auto';
+    sub.style.scrollbarWidth = 'thin';
+    sub.style.scrollbarColor = '#334155 transparent';
 
+    function addSectionHeader(text) {
+      var hdr = document.createElement('div');
+      hdr.style.cssText = 'padding:5px 12px 2px;font:bold 9px/1.2 sans-serif;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;';
+      hdr.textContent = t(text);
+      hdr.dataset.ve = '1';
+      sub.appendChild(hdr);
+    }
+
+    function addSeparator() {
+      var sep = document.createElement('div');
+      sep.style.cssText = 'height:1px;background:rgba(51,65,85,0.6);margin:3px 10px;';
+      sep.dataset.ve = '1';
+      sub.appendChild(sep);
+    }
+
+    /* ── Section 1: Box Shadows ── */
+    addSectionHeader('secShadows');
     for (var i = 0; i < SHADOW_PRESETS.length; i++) {
       var preset = SHADOW_PRESETS[i];
       var item = document.createElement('div');
-      item.style.cssText = 'padding:6px 14px;font:12px/1.4 sans-serif;color:#e2e8f0;cursor:pointer;display:flex;align-items:center;gap:8px;';
+      item.style.cssText = 'padding:4px 12px;font:12px/1.4 sans-serif;color:#e2e8f0;cursor:pointer;display:flex;align-items:center;gap:8px;border-radius:4px;margin:0 4px;';
       item.dataset.ve = '1';
-
-      /* Shadow preview box */
       var previewBox = document.createElement('div');
       var previewShadow = preset.value === 'none' ? 'none' : preset.value;
       previewBox.style.cssText = 'width:20px;height:20px;background:#475569;border-radius:3px;box-shadow:' + previewShadow + ';flex-shrink:0;';
       item.appendChild(previewBox);
-
       var label = document.createElement('span');
       label.textContent = t(preset.label);
       item.appendChild(label);
-
-      item.addEventListener('mouseenter', function() { this.style.background = '#334155'; });
+      item.addEventListener('mouseenter', function() { this.style.background = 'rgba(51,65,85,0.5)'; });
       item.addEventListener('mouseleave', function() { this.style.background = ''; });
-
       item.addEventListener('click', (function(val) {
         return function(e) {
           e.stopPropagation();
           hideContextMenu();
           applyEffect({ shadow: val });
-          emit('VOLTRON_CONTEXT_ACTION', { action: 'add_effect', shadow: val });
+          emit('VOLTRON_CONTEXT_ACTION', { action: 'add_effect', effect: 'boxShadow', value: val });
         };
       })(preset.value));
-
       sub.appendChild(item);
+    }
+
+    /* ── Section 2: CSS Filters ── */
+    addSeparator();
+    addSectionHeader('secFilters');
+    for (var fi = 0; fi < FILTER_PRESETS.length; fi++) {
+      var fp = FILTER_PRESETS[fi];
+      var fItem = document.createElement('div');
+      fItem.style.cssText = 'padding:4px 12px;font:12px/1.4 sans-serif;color:#e2e8f0;cursor:pointer;display:flex;align-items:center;gap:8px;border-radius:4px;margin:0 4px;';
+      fItem.dataset.ve = '1';
+      var fPreview = document.createElement('div');
+      var fPreviewFilter = fp.value === 'none' ? '' : fp.value;
+      fPreview.style.cssText = 'width:20px;height:20px;background:linear-gradient(135deg,#3b82f6,#a855f7);border-radius:3px;flex-shrink:0;filter:' + fPreviewFilter + ';';
+      fItem.appendChild(fPreview);
+      var fLabel = document.createElement('span');
+      fLabel.textContent = t(fp.label);
+      fItem.appendChild(fLabel);
+      fItem.addEventListener('mouseenter', function() { this.style.background = 'rgba(51,65,85,0.5)'; });
+      fItem.addEventListener('mouseleave', function() { this.style.background = ''; });
+      fItem.addEventListener('click', (function(preset) {
+        return function(e) {
+          e.stopPropagation();
+          hideContextMenu();
+          if (!S.selected) return;
+          var cs = window.getComputedStyle(S.selected);
+          var oldVal = cs[preset.prop] || 'none';
+          S.selected.style[preset.prop] = preset.value;
+          var r = S.selected.getBoundingClientRect();
+          var fromObj = {}; fromObj[preset.prop] = oldVal;
+          var toObj = {}; toObj[preset.prop] = preset.value;
+          addEdit({ id: uid(), type: 'effect', selector: getSelector(S.selected), desc: preset.prop + ': ' + preset.value, coords: { x: px(r.x), y: px(r.y), w: px(r.width), h: px(r.height) }, from: fromObj, to: toObj });
+          updateSel();
+          emit('VOLTRON_CONTEXT_ACTION', { action: 'add_effect', effect: 'filter', value: preset.value });
+        };
+      })(fp));
+      sub.appendChild(fItem);
+    }
+
+    /* ── Section 3: Text Shadows ── */
+    addSeparator();
+    addSectionHeader('secTextShadow');
+    for (var ti = 0; ti < TEXT_SHADOW_PRESETS.length; ti++) {
+      var tp = TEXT_SHADOW_PRESETS[ti];
+      var tItem = document.createElement('div');
+      tItem.style.cssText = 'padding:4px 12px;font:12px/1.4 sans-serif;color:#e2e8f0;cursor:pointer;display:flex;align-items:center;gap:8px;border-radius:4px;margin:0 4px;';
+      tItem.dataset.ve = '1';
+      var tPreview = document.createElement('span');
+      tPreview.style.cssText = 'font:bold 14px/1 sans-serif;color:#e2e8f0;text-shadow:' + (tp.value === 'none' ? 'none' : tp.value) + ';width:20px;text-align:center;flex-shrink:0;';
+      tPreview.textContent = 'A';
+      tItem.appendChild(tPreview);
+      var tLabel = document.createElement('span');
+      tLabel.textContent = t(tp.label);
+      tItem.appendChild(tLabel);
+      tItem.addEventListener('mouseenter', function() { this.style.background = 'rgba(51,65,85,0.5)'; });
+      tItem.addEventListener('mouseleave', function() { this.style.background = ''; });
+      tItem.addEventListener('click', (function(val) {
+        return function(e) {
+          e.stopPropagation();
+          hideContextMenu();
+          if (!S.selected) return;
+          var cs = window.getComputedStyle(S.selected);
+          var oldVal = cs.textShadow || 'none';
+          S.selected.style.textShadow = val;
+          var r = S.selected.getBoundingClientRect();
+          addEdit({ id: uid(), type: 'effect', selector: getSelector(S.selected), desc: 'textShadow: ' + val, coords: { x: px(r.x), y: px(r.y), w: px(r.width), h: px(r.height) }, from: { textShadow: oldVal }, to: { textShadow: val } });
+          updateSel();
+          emit('VOLTRON_CONTEXT_ACTION', { action: 'add_effect', effect: 'textShadow', value: val });
+        };
+      })(tp.value));
+      sub.appendChild(tItem);
     }
   }
 
@@ -1554,14 +1875,35 @@ export const EDITOR_SCRIPT = `
   }
 
   function buildGradientSubmenu(sub) {
-    sub.style.minWidth = '180px';
+    sub.style.minWidth = '200px';
+    sub.style.maxHeight = '380px';
+    sub.style.overflowY = 'auto';
+    sub.style.scrollbarWidth = 'thin';
+    sub.style.scrollbarColor = '#334155 transparent';
     var gradients = [
+      /* Linear */
       { label: 'Blue \\u2192 Purple', value: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' },
       { label: 'Green \\u2192 Blue', value: 'linear-gradient(135deg, #22c55e, #06b6d4)' },
       { label: 'Orange \\u2192 Pink', value: 'linear-gradient(135deg, #f97316, #ec4899)' },
       { label: 'Red \\u2192 Yellow', value: 'linear-gradient(135deg, #ef4444, #eab308)' },
       { label: 'Dark \\u2192 Light', value: 'linear-gradient(180deg, #0f172a, #334155)' },
-      { label: 'Sunset', value: 'linear-gradient(135deg, #f97316, #ef4444, #8b5cf6)' }
+      { label: 'Sunset', value: 'linear-gradient(135deg, #f97316, #ef4444, #8b5cf6)' },
+      { label: 'Ocean', value: 'linear-gradient(135deg, #0ea5e9, #6366f1, #a855f7)' },
+      { label: 'Aurora', value: 'linear-gradient(135deg, #22c55e, #06b6d4, #8b5cf6)' },
+      { label: 'Fire', value: 'linear-gradient(135deg, #dc2626, #f97316, #eab308)' },
+      { label: 'Midnight', value: 'linear-gradient(135deg, #1e1b4b, #312e81, #4c1d95)' },
+      { label: 'Rose Gold', value: 'linear-gradient(135deg, #be185d, #e11d48, #f59e0b)' },
+      { label: 'Ice', value: 'linear-gradient(135deg, #e0f2fe, #bae6fd, #7dd3fc)' },
+      { label: 'Forest', value: 'linear-gradient(135deg, #14532d, #166534, #15803d)' },
+      { label: 'Candy', value: 'linear-gradient(135deg, #ec4899, #f472b6, #f9a8d4)' },
+      /* Radial */
+      { label: 'Radial Blue', value: 'radial-gradient(circle, #3b82f6, #1e3a8a)' },
+      { label: 'Radial Glow', value: 'radial-gradient(circle, rgba(139,92,246,0.4), transparent)' },
+      { label: 'Spotlight', value: 'radial-gradient(ellipse at center, #fbbf24, #f97316, #1e293b)' },
+      /* Conic */
+      { label: 'Rainbow', value: 'conic-gradient(#ef4444, #f97316, #eab308, #22c55e, #3b82f6, #8b5cf6, #ef4444)' },
+      /* Remove */
+      { label: 'None', value: 'none' }
     ];
     for (var i = 0; i < gradients.length; i++) {
       var g = gradients[i];
@@ -1851,10 +2193,75 @@ export const EDITOR_SCRIPT = `
   }
 
   function hideContextMenu() {
+    clearSubSubmenuTimer();
+    hideSubSubmenu();
     clearSubmenuTimer();
     hideSubmenu();
     if (S.contextMenu && S.contextMenu.parentElement) S.contextMenu.parentElement.removeChild(S.contextMenu);
     S.contextMenu = null;
+  }
+
+  function showSubSubmenu(parentBtn, submenuType) {
+    hideSubSubmenu();
+    var parentRect = parentBtn.getBoundingClientRect();
+    var sub = document.createElement('div');
+    sub.id = '__ve_ctx_sub2';
+    sub.style.cssText = 'position:fixed;z-index:2147483647;background:rgba(15,23,42,0.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(51,65,85,0.8);border-radius:8px;padding:4px 0;box-shadow:0 8px 32px rgba(0,0,0,0.5);pointer-events:auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+    sub.dataset.ve = '1';
+
+    if (submenuType === 'color') buildColorSubmenu(sub);
+    else if (submenuType === 'fontsize') buildFontSizeSubmenu(sub);
+    else if (submenuType === 'effect') buildEffectSubmenu(sub);
+    else if (submenuType === 'padding') buildSpacingSubmenu(sub, 'padding');
+    else if (submenuType === 'margin') buildSpacingSubmenu(sub, 'margin');
+    else if (submenuType === 'border') buildBorderSubmenu(sub);
+    else if (submenuType === 'borderRadius') buildValueListSubmenu(sub, 'borderRadius', ['0','2px','4px','8px','12px','16px','9999px']);
+    else if (submenuType === 'opacity') buildValueListSubmenu(sub, 'opacity', ['1','0.9','0.8','0.7','0.6','0.5','0.4','0.3','0.2','0.1','0']);
+    else if (submenuType === 'gradient') buildGradientSubmenu(sub);
+    else if (submenuType === 'display') buildValueListSubmenu(sub, 'display', ['block','flex','grid','inline-flex','inline-block','none']);
+    else if (submenuType === 'flexDirection') buildValueListSubmenu(sub, 'flexDirection', ['row','column','row-reverse','column-reverse']);
+    else if (submenuType === 'justifyContent') buildValueListSubmenu(sub, 'justifyContent', ['flex-start','center','flex-end','space-between','space-around','space-evenly']);
+    else if (submenuType === 'alignItems') buildValueListSubmenu(sub, 'alignItems', ['flex-start','center','flex-end','stretch','baseline']);
+    else if (submenuType === 'gap') buildValueListSubmenu(sub, 'gap', ['0','4px','8px','12px','16px','24px','32px']);
+    else if (submenuType === 'transition') buildTransitionSubmenu(sub);
+    else if (submenuType === 'animation') buildAnimationSubmenu(sub);
+
+    document.body.appendChild(sub);
+
+    var subW = sub.offsetWidth || 200;
+    var subH = sub.offsetHeight || 200;
+    var subX = parentRect.right + 4;
+    var subY = parentRect.top - 4;
+    if (subX + subW > window.innerWidth - 8) subX = parentRect.left - subW - 4;
+    if (subY + subH > window.innerHeight - 8) subY = Math.max(8, window.innerHeight - subH - 8);
+    if (subX < 8) subX = 8;
+    if (subY < 8) subY = 8;
+    sub.style.left = subX + 'px';
+    sub.style.top = subY + 'px';
+
+    S.activeSubSubmenu = sub;
+    S.activeSubSubmenuItem = parentBtn;
+
+    sub.addEventListener('mouseenter', function() { clearSubSubmenuTimer(); });
+    sub.addEventListener('mouseleave', function() {
+      clearSubSubmenuTimer();
+      S.subSubmenuTimer = setTimeout(function() { hideSubSubmenu(); }, 300);
+    });
+  }
+
+  function hideSubSubmenu() {
+    if (S.activeSubSubmenu && S.activeSubSubmenu.parentElement) {
+      S.activeSubSubmenu.parentElement.removeChild(S.activeSubSubmenu);
+    }
+    S.activeSubSubmenu = null;
+    S.activeSubSubmenuItem = null;
+  }
+
+  function clearSubSubmenuTimer() {
+    if (S.subSubmenuTimer) {
+      clearTimeout(S.subSubmenuTimer);
+      S.subSubmenuTimer = null;
+    }
   }
 
   /* ═══ TOAST NOTIFICATION ═══ */
@@ -1962,16 +2369,21 @@ export const EDITOR_SCRIPT = `
 
   function onMouseDown(e) {
     if (!S.enabled) return;
-    hideContextMenu();
 
     /* Resize handle */
     if (e.target.dataset && e.target.dataset.handle && S.selected) {
+      hideContextMenu();
       e.preventDefault();
       startResize(e.target.dataset.handle, e);
       return;
     }
 
+    /* Let our UI elements (context menu items, etc.) handle their own clicks.
+       Do NOT call hideContextMenu() here — the menu item's click handler
+       needs the DOM element alive to fire. It calls hideContextMenu() itself. */
     if (isOurs(e.target)) return;
+
+    hideContextMenu();
     if (e.button !== 0) return;
 
     var el = document.elementFromPoint(e.clientX, e.clientY);
@@ -1986,6 +2398,8 @@ export const EDITOR_SCRIPT = `
     if (el !== S.selected) {
       select(el);
     }
+    /* If text editing is active on this element, let the browser handle cursor/selection */
+    if (S.textEditing && S.textEditing === el) return;
     if (S.selected) {
       e.preventDefault();
       startDrag(e);
@@ -2005,6 +2419,8 @@ export const EDITOR_SCRIPT = `
   function onClick(e) {
     if (!S.enabled) return;
     if (isOurs(e.target)) return;
+    /* Allow clicks inside contentEditable text editing */
+    if (S.textEditing) return;
     e.preventDefault();
     e.stopPropagation();
   }

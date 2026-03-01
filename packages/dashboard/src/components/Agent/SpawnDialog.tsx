@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Bot, X, Zap, ClipboardList, Brain } from 'lucide-react';
 import { useTranslation } from '../../i18n';
-import { useSettingsStore } from '../../stores/settingsStore';
+import { useSettingsStore, useUserDefaultModel } from '../../stores/settingsStore';
 import { QuickSpawnPresets } from './QuickSpawnPresets';
 import type { PresetConfig } from './QuickSpawnPresets';
 
@@ -20,8 +20,9 @@ const MODELS = [
 
 export function SpawnDialog({ projectId, defaultConfig, onSpawn, onClose }: SpawnDialogProps) {
   const { t } = useTranslation();
+  const userDefaultModel = useUserDefaultModel();
   const [prompt, setPrompt] = useState(defaultConfig?.prompt ?? '');
-  const [model, setModel] = useState(defaultConfig?.model ?? MODELS[0].id);
+  const [model, setModel] = useState(defaultConfig?.model ?? userDefaultModel);
   const [targetDir, setTargetDir] = useState(defaultConfig?.targetDir ?? '/tmp/voltron-project');
   const dialogRef = useRef<HTMLDivElement>(null);
 

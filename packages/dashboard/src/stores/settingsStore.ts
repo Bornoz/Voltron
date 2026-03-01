@@ -14,6 +14,21 @@ import {
   type AgentSessionInfo,
 } from '../lib/api';
 
+const USER_SETTINGS_KEY = 'voltron_user_settings';
+const FALLBACK_MODEL = 'claude-sonnet-4-6';
+
+/** Read the user's preferred default model from localStorage */
+export function useUserDefaultModel(): string {
+  try {
+    const raw = localStorage.getItem(USER_SETTINGS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.defaultModel) return parsed.defaultModel;
+    }
+  } catch { /* ignore */ }
+  return FALLBACK_MODEL;
+}
+
 interface SettingsState {
   // Rules
   rules: string;
