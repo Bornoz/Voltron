@@ -397,6 +397,19 @@ export const GPSFilePreview = memo(function GPSFilePreview({
     setToast('Degisiklik gecmisi temizlendi');
   }, []);
 
+  const handleUndo = useCallback(() => {
+    setDesignChanges((prev) => {
+      if (prev.length === 0) return prev;
+      return prev.slice(0, -1);
+    });
+  }, []);
+
+  const handleAskAI = useCallback((selector: string, elementInfo: string) => {
+    if (!onInject || !node) return;
+    const prompt = `Bu element hakkinda yardim istiyorum:\n${elementInfo}\nSelector: ${selector}\nDosya: ${node.filePath}`;
+    onInject(prompt, { filePath: node.filePath });
+  }, [onInject, node]);
+
   // ─── Design context menu handlers ───
   const handlePreviewContextMenu = useCallback((data: ContextMenuEventData) => {
     setDesignMenu(data);
@@ -763,6 +776,8 @@ export const GPSFilePreview = memo(function GPSFilePreview({
         onDuplicateElement={handleDuplicateElement}
         onToggleVisibility={handleToggleVisibility}
         onDesignChange={handleDesignChange}
+        onUndo={designChanges.length > 0 ? handleUndo : undefined}
+        onAskAI={onInject ? handleAskAI : undefined}
       />
 
       {/* ═══ Premium Text Editor Modal ═══ */}

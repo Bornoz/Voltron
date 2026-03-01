@@ -4,6 +4,7 @@ import type { AgentStatus, AgentLocation, AgentPlan, AgentBreadcrumb, PhaseExecu
 import { useAgentStore } from '../stores/agentStore';
 import type { AgentOutputEntry } from '../stores/agentStore';
 import { useChatStore } from '../stores/chatStore';
+import { useNotificationStore } from '../stores/notificationStore';
 
 /**
  * Subscribes to AGENT_* WS message types and dispatches to agentStore.
@@ -123,14 +124,45 @@ export function useAgentStream(client: VoltronWebSocket): void {
       setDevServer(p.status === 'stopped' ? null : p);
     }));
 
-    // Breakpoint hit
+    // Breakpoint hit — agent auto-paused by server
     unsubs.push(client.on('AGENT_BREAKPOINT_HIT', (msg) => {
       const p = msg.payload as { filePath: string; timestamp: number };
       console.log('[WS] AGENT_BREAKPOINT_HIT:', p.filePath);
+      const fileName = p.filePath.split('/').pop() ?? p.filePath;
       addOutput({
-        text: `Breakpoint hit: ${p.filePath}`,
+        text: `Breakpoint hit: ${p.filePath} — Agent durduruldu`,
         type: 'error',
         timestamp: p.timestamp,
+      });
+      useNotificationStore.getState().addNotification({
+        type: 'warning',
+        title: 'Breakpoint tetiklendi',
+        message: `Agent "${fileName}" dosyasında durduruldu. Devam etmek için Resume kullanın.`,
+      });
+    }));
+
+    // Breakpoint set (server confirmed)
+    unsubs.push(client.on('AGENT_BREAKPOINT_SET', (msg) => {
+      const p = msg.payload as { filePath: string };
+      console.log('[WS] AGENT_BREAKPOINT_SET:', p.filePath);
+      useAgentStore.getState().addBreakpoint(p.filePath);
+    }));
+
+    // Breakpoint removed (server confirmed)
+    unsubs.push(client.on('AGENT_BREAKPOINT_REMOVED', (msg) => {
+      const p = msg.payload as { filePath: string };
+      console.log('[WS] AGENT_BREAKPOINT_REMOVED:', p.filePath);
+      useAgentStore.getState().removeBreakpoint(p.filePath);
+    }));
+
+    // Agent redirected to file
+    unsubs.push(client.on('AGENT_REDIRECTED', (msg) => {
+      const p = msg.payload as { filePath: string };
+      console.log('[WS] AGENT_REDIRECTED:', p.filePath);
+      addOutput({
+        text: `Agent yönlendirildi: ${p.filePath}`,
+        type: 'text',
+        timestamp: Date.now(),
       });
     }));
 

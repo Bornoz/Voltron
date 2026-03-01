@@ -31,7 +31,15 @@ export const useThemeStore = create<ThemeState>()(
     (set) => ({
       mode: 'dark',
       accent: 'blue',
-      setMode: (mode) => set({ mode }),
+      setMode: (mode) => {
+        // Add transition class for smooth theme change
+        const root = typeof document !== 'undefined' ? document.documentElement : null;
+        if (root) {
+          root.classList.add('theme-transitioning');
+          setTimeout(() => root.classList.remove('theme-transitioning'), 500);
+        }
+        set({ mode });
+      },
       setAccent: (accent) => set({ accent }),
     }),
     {

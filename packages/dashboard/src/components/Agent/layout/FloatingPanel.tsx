@@ -1,9 +1,10 @@
-import { useCallback, type ReactNode } from 'react';
+import { useCallback, useEffect, type ReactNode } from 'react';
 import {
   Minus, Square, X, Monitor, Map, Radio,
   ListChecks, MessageSquare, Activity, Terminal,
   ClipboardList, Brain, History, GripVertical,
 } from 'lucide-react';
+import { useTranslation } from '../../../i18n';
 import { useDrag } from '../../../hooks/useDrag';
 import { useResize, computeResize, type ResizeDirection } from '../../../hooks/useResize';
 import { useWindowStore, type PanelId, type PanelState } from '../../../stores/windowStore';
@@ -34,6 +35,7 @@ interface FloatingPanelProps {
 }
 
 export function FloatingPanel({ panel, title, children }: FloatingPanelProps) {
+  const { t } = useTranslation();
   const movePanel = useWindowStore((s) => s.movePanel);
   const resizePanel = useWindowStore((s) => s.resizePanel);
   const bringToFront = useWindowStore((s) => s.bringToFront);
@@ -117,6 +119,19 @@ export function FloatingPanel({ panel, title, children }: FloatingPanelProps) {
     toggleVisibility(panel.id);
   }, [panel.id, toggleVisibility]);
 
+  /* ── ESC to exit maximize ── */
+  useEffect(() => {
+    if (!panel.maximized) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        toggleMaximize(panel.id);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [panel.maximized, panel.id, toggleMaximize]);
+
   /* ── Render ── */
   if (!panel.visible) return null;
 
@@ -173,7 +188,7 @@ export function FloatingPanel({ panel, title, children }: FloatingPanelProps) {
           onClick={handleMinimize}
           className="p-0.5 hover:text-yellow-400 rounded transition-colors"
           style={{ color: 'var(--color-text-muted)' }}
-          title="Minimize"
+          title={t('agent.windowManager.minimize')}
         >
           <Minus className="w-3 h-3" />
         </button>
@@ -181,7 +196,7 @@ export function FloatingPanel({ panel, title, children }: FloatingPanelProps) {
           onClick={handleMaximize}
           className="p-0.5 hover:text-green-400 rounded transition-colors"
           style={{ color: 'var(--color-text-muted)' }}
-          title={panel.maximized ? 'Restore' : 'Maximize'}
+          title={panel.maximized ? t('agent.windowManager.restore') : t('agent.windowManager.maximize')}
         >
           <Square className="w-2.5 h-2.5" />
         </button>
@@ -189,11 +204,19 @@ export function FloatingPanel({ panel, title, children }: FloatingPanelProps) {
           onClick={handleClose}
           className="p-0.5 hover:text-red-400 hover:bg-red-500/20 rounded transition-colors"
           style={{ color: 'var(--color-text-muted)' }}
-          title="Close"
+          title={t('agent.windowManager.close')}
         >
           <X className="w-3 h-3" />
         </button>
       </div>
+
+      {/* ── ESC hint for maximized ── */}
+      {isMaximized && (
+        <div className="absolute top-10 right-3 px-2 py-1 rounded text-[9px] font-mono animate-pulse pointer-events-none"
+          style={{ background: 'rgba(0,0,0,0.5)', color: 'rgba(255,255,255,0.5)', zIndex: 1 }}>
+          ESC: {t('agent.windowManager.restore')}
+        </div>
+      )}
 
       {/* ── Content ── */}
       {!panel.minimized && (

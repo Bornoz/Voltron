@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronRight,
   AlertCircle,
+  AlertTriangle,
   Brain,
   Eye,
   Pencil,
@@ -185,6 +186,16 @@ export function AgentOutput() {
           <Download className="w-3 h-3 text-gray-500" />
         </button>
       </div>
+
+      {/* Buffer overflow warning */}
+      {output.length >= 900 && (
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-yellow-950/30 border-b border-yellow-800/20">
+          <AlertTriangle className="w-3 h-3 text-yellow-500 shrink-0" />
+          <span className="text-[9px] text-yellow-500/80">
+            {t('agent.bufferWarning', { count: output.length, max: 1000 })}
+          </span>
+        </div>
+      )}
 
       {/* Output area */}
       <div

@@ -101,12 +101,14 @@ export function SpawnDialog({ projectId, defaultConfig, onSpawn, onClose }: Spaw
           )}
 
           {/* Quick Presets */}
-          {!prompt.trim() && (
-            <QuickSpawnPresets onSelect={(config: PresetConfig) => {
+          <QuickSpawnPresets
+            onSelect={(config: PresetConfig) => {
               setPrompt(config.prompt);
               setModel(config.model);
-            }} />
-          )}
+            }}
+            currentModel={model}
+            currentPrompt={prompt}
+          />
 
           {/* Prompt */}
           <div>

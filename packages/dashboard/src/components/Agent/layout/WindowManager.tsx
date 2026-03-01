@@ -180,7 +180,7 @@ export function WindowManager({ projectId, onInject, onAgentAction }: WindowMana
 
       case 'phase-viewer':
         return hasPhases ? (
-          <PhaseTracker />
+          <PhaseTracker projectId={projectId} />
         ) : (
           <div className="h-full p-2 overflow-auto">
             <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 font-medium">

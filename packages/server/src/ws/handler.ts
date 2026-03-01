@@ -151,6 +151,12 @@ export function createWsServices(config: ServerConfig, eventBus: EventBus, agent
       'AGENT_ERROR',
       'AGENT_PHASE_UPDATE',
       'AGENT_BREAKPOINT_HIT',
+      'AGENT_BREAKPOINT_SET',
+      'AGENT_BREAKPOINT_REMOVED',
+      'AGENT_INJECTION_QUEUED',
+      'AGENT_INJECTION_APPLIED',
+      'AGENT_REDIRECTED',
+      'AGENT_CHECKPOINT_SAVED',
       'DEV_SERVER_STATUS',
     ] as const;
 

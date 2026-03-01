@@ -44,8 +44,12 @@ export const WsMessageType = z.enum([
   'AGENT_ERROR',
   'AGENT_PHASE_UPDATE',
   'AGENT_BREAKPOINT_HIT',
+  'AGENT_BREAKPOINT_SET',
+  'AGENT_BREAKPOINT_REMOVED',
   'AGENT_INJECTION_QUEUED',
   'AGENT_INJECTION_APPLIED',
+  'AGENT_REDIRECTED',
+  'AGENT_CHECKPOINT_SAVED',
 
   // Dashboard -> Server (Agent)
   'AGENT_SPAWN',
@@ -53,6 +57,8 @@ export const WsMessageType = z.enum([
   'AGENT_RESUME',
   'AGENT_KILL',
   'AGENT_INJECT_PROMPT',
+  'AGENT_PHASE_APPROVE',
+  'AGENT_PHASE_REJECT',
 
   // Simulator -> Server (Agent Constraints)
   'SIMULATOR_CONSTRAINT',

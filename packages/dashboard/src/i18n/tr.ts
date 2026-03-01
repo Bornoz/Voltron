@@ -342,6 +342,7 @@ export const tr = {
     export: 'Disa Aktar',
     noOutput: 'Henuz cikti yok',
     scrollToBottom: 'Asagiya kay',
+    bufferWarning: 'Cikti tamponu dolmak uzere ({{count}}/{{max}}). Eski kayitlar siliniyor.',
     gpsTracker: 'GPS Takip',
     plan: 'Plan',
     promptInjector: 'Prompt Enjeksiyonu',
@@ -393,6 +394,12 @@ export const tr = {
     showEdits: 'Degisiklikleri Goster',
     hideEdits: 'Gizle',
     saveAndSend: "AI'a Gonder",
+    sendConfirm: {
+      title: 'Degisiklikleri Gonder',
+      message: '{{count}} degisiklik AI\'a gonderilecek. Devam etmek istiyor musunuz?',
+      cancel: 'Vazgec',
+      confirm: 'Gonder',
+    },
     editList: 'Degisiklikler',
     removeEdit: 'Geri al',
     errorNotePlaceholder: 'Hata aciklamasi: burada ne yanlis?',
@@ -421,6 +428,27 @@ export const tr = {
     quickAddTypeScript: 'TypeScript Ekle',
     quickResponsive: 'Responsive Yap',
 
+    tempChangesWarning: 'Degisiklikler gecicidir. Kalici yapmak icin AI\'a gonderin.',
+
+    // Prompt History
+    promptHistory: {
+      title: 'Prompt Gecmisi',
+      historyTab: 'Gecmis',
+      templatesTab: 'Sablonlar',
+      searchPlaceholder: 'Gecmiste ara...',
+      noMatchingPrompts: 'Eslesen prompt bulunamadi',
+      noHistoryYet: 'Henuz prompt gecmisi yok',
+      tryDifferentSearch: 'Farkli bir arama deneyin',
+      promptsWillAppear: 'Prompt\'lar agent calistirdiktan sonra burada gorunecek',
+      copyToClipboard: 'Panoya kopyala',
+      deleteFromHistory: 'Gecmisten sil',
+      of: '/',
+      prompts: 'prompt',
+      clearAll: 'Tumunu Temizle',
+      clickToUse: 'Kullanmak icin tikla',
+      templateHint: 'Prompt\'unuz olarak kullanmak icin bir sablon secin. Baslatmadan once duzenleyebilirsiniz.',
+    },
+
     // Hizli Baslat Sablonlari
     presets: {
       title: 'Hizli Sablonlar',
@@ -436,6 +464,9 @@ export const tr = {
       uiPolishDesc: 'Stil, animasyon ve responsive tasarim iyilestirmeleri',
       testSuite: 'Test Paketi',
       testSuiteDesc: 'Kapsamli unit ve entegrasyon testleri',
+      saveAsCurrent: 'Mevcut prompt\'u sablon olarak kaydet',
+      presetName: 'Sablon adi...',
+      save: 'Kaydet',
     },
 
     // Rules
@@ -638,7 +669,17 @@ export const tr = {
       escape: 'Escape: Tam Ekrandan Cik',
     },
 
+    // Editor Toolbar
+    editorToolbar: {
+      undo: 'Geri Al (Ctrl+Z)',
+      redo: 'Yinele (Ctrl+Y)',
+      domTree: 'DOM Agaci',
+      diffView: 'Fark Gorunumu',
+    },
+
+    // GPS auto-follow
     gps: {
+      autoFollow: 'Otomatik Takip',
       pauseAgent: 'Duraklat',
       stopAgent: 'Durdur',
       sendPrompt: 'Prompt Gonder',

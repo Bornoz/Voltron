@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import {
-  Search, ZoomIn, ZoomOut, RotateCcw, Flame, BarChart3, Map as MapIcon, Maximize2, Minimize2,
+  Search, ZoomIn, ZoomOut, RotateCcw, Flame, BarChart3, Map as MapIcon, Maximize2, Minimize2, Crosshair,
 } from 'lucide-react';
 import { useAgentStore } from '../../../stores/agentStore';
 import { useTranslation } from '../../../i18n';
@@ -36,6 +36,7 @@ export function GPSNavigator({ projectId, files, onAgentAction, onInject }: GPSN
   const [minimapEnabled, setMinimapEnabled] = useState(true);
   const [statsVisible, setStatsVisible] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [autoFollow, setAutoFollow] = useState(true);
   const [timelineIndex, setTimelineIndex] = useState<number | null>(null);
   const [containerSize, setContainerSize] = useState({ w: 800, h: 500 });
 
@@ -91,9 +92,9 @@ export function GPSNavigator({ projectId, files, onAgentAction, onInject }: GPSN
     [layout.nodes],
   );
 
-  // Auto-center on current node
+  // Auto-center on current node when autoFollow is enabled
   useEffect(() => {
-    if (!currentNode || timelineIndex !== null) return;
+    if (!currentNode || timelineIndex !== null || !autoFollow) return;
     const cx = currentNode.x + 50; // NODE.FILE_W / 2
     const cy = currentNode.y + 18; // NODE.FILE_H / 2
     setViewport((vp) => ({
@@ -101,7 +102,7 @@ export function GPSNavigator({ projectId, files, onAgentAction, onInject }: GPSN
       x: containerSize.w / 2 - cx * vp.zoom,
       y: containerSize.h / 2 - cy * vp.zoom,
     }));
-  }, [currentNode?.id, containerSize, timelineIndex]);
+  }, [currentNode?.id, containerSize, timelineIndex, autoFollow]);
 
   // Handlers
   const handleNodeClick = useCallback((node: ForceNode) => {
@@ -178,7 +179,7 @@ export function GPSNavigator({ projectId, files, onAgentAction, onInject }: GPSN
 
         {/* File count badge */}
         <span className="text-[9px] font-mono text-slate-500 bg-white/[0.04] border border-white/[0.06] px-1.5 py-0.5 rounded-md">
-          {filteredFiles.length} files
+          {filteredFiles.length} {t('agent.history.filesCount')}
         </span>
 
         {/* Search */}
@@ -194,6 +195,12 @@ export function GPSNavigator({ projectId, files, onAgentAction, onInject }: GPSN
 
         <div className="ml-auto flex items-center gap-0.5">
           <ToolbarBtn
+            icon={<Crosshair size={13} />}
+            active={autoFollow}
+            onClick={() => setAutoFollow(!autoFollow)}
+            title={t('agent.gps.autoFollow')}
+          />
+          <ToolbarBtn
             icon={<Flame size={13} />}
             active={heatmapEnabled}
             onClick={() => setHeatmapEnabled(!heatmapEnabled)}
@@ -203,7 +210,7 @@ export function GPSNavigator({ projectId, files, onAgentAction, onInject }: GPSN
             icon={<BarChart3 size={13} />}
             active={statsVisible}
             onClick={() => setStatsVisible(!statsVisible)}
-            title="Stats"
+            title={t('agent.gps.stats')}
           />
           <div className="w-px h-4 bg-white/[0.06] mx-1" />
           <ToolbarBtn
@@ -228,7 +235,7 @@ export function GPSNavigator({ projectId, files, onAgentAction, onInject }: GPSN
           <ToolbarBtn
             icon={fullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
             onClick={() => setFullscreen(!fullscreen)}
-            title={fullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+            title={fullscreen ? t('agent.gps.exitFullscreen') : t('agent.gps.fullscreen')}
           />
         </div>
       </div>

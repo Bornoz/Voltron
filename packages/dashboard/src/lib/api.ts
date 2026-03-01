@@ -575,6 +575,18 @@ export function agentKill(projectId: string): Promise<{ status: string }> {
   return request<{ status: string }>(`/projects/${projectId}/agent/kill`, { method: 'POST' });
 }
 
+export function agentPhaseDecision(
+  projectId: string,
+  phaseId: string,
+  decision: 'approve' | 'reject',
+  reason?: string,
+): Promise<{ status: string; decision: string }> {
+  return request<{ status: string; decision: string }>(`/projects/${projectId}/agent/phase-decision`, {
+    method: 'POST',
+    body: JSON.stringify({ phaseId, decision, reason }),
+  });
+}
+
 export function agentInject(
   projectId: string,
   injection: { prompt: string; context?: Record<string, unknown>; urgency?: string },

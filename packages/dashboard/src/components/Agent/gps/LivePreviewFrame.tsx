@@ -31,6 +31,14 @@ function wrapJSXSource(source: string, ext: string): string {
   /* Tailwind-like reset */
   button, input, select, textarea { font: inherit; color: inherit; }
   a { color: inherit; text-decoration: none; }
+  /* Voltron animation presets */
+  @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(20px) } to { opacity: 1; transform: translateY(0) } }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-20px) } to { opacity: 1; transform: translateY(0) } }
+  @keyframes scaleIn { from { opacity: 0; transform: scale(0.8) } to { opacity: 1; transform: scale(1) } }
+  @keyframes bounce { 0%,100% { transform: scale(1) } 50% { transform: scale(1.1) } }
+  @keyframes wiggle { 0%,100% { transform: rotate(0) } 25% { transform: rotate(-5deg) } 75% { transform: rotate(5deg) } }
+  @keyframes glowPulse { 0%,100% { box-shadow: 0 0 5px rgba(59,130,246,0.3) } 50% { box-shadow: 0 0 20px rgba(59,130,246,0.6), 0 0 40px rgba(59,130,246,0.2) } }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js" crossorigin><\/script>
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js" crossorigin><\/script>
@@ -67,12 +75,36 @@ __root__.render(React.createElement(__Component__));
 
 <!-- Voltron right-click bridge -->
 <script>
+// Assign unique data-vid to every element for reliable selection
+(function() {
+  var vid = 0;
+  function tagAll(root) {
+    var els = root.querySelectorAll('*');
+    for (var i = 0; i < els.length; i++) {
+      if (!els[i].hasAttribute('data-vid')) els[i].setAttribute('data-vid', 'v' + (vid++));
+    }
+  }
+  tagAll(document);
+  new MutationObserver(function(muts) {
+    for (var i = 0; i < muts.length; i++) {
+      for (var j = 0; j < muts[i].addedNodes.length; j++) {
+        var n = muts[i].addedNodes[j];
+        if (n.nodeType === 1) {
+          if (!n.hasAttribute('data-vid')) n.setAttribute('data-vid', 'v' + (vid++));
+          if (n.querySelectorAll) tagAll(n);
+        }
+      }
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+})();
+
 document.addEventListener('contextmenu', function(e) {
   e.preventDefault();
   var el = e.target;
   var selector = '';
   try {
-    if (el.id) selector = '#' + el.id;
+    if (el.getAttribute('data-vid')) selector = '[data-vid="' + el.getAttribute('data-vid') + '"]';
+    else if (el.id) selector = '#' + el.id;
     else if (el.className && typeof el.className === 'string') selector = el.tagName.toLowerCase() + '.' + el.className.split(' ').filter(Boolean).join('.');
     else selector = el.tagName.toLowerCase();
   } catch(err) { selector = 'unknown'; }
@@ -158,13 +190,27 @@ window.addEventListener('message', function(e) {
   }
 });
 
-// Hover highlight
+// Hover highlight + inspector tooltip
+var _voltronTip = document.createElement('div');
+_voltronTip.style.cssText = 'position:fixed;z-index:99999;pointer-events:none;padding:2px 6px;border-radius:3px;font:10px/1.4 monospace;color:#e2e8f0;background:rgba(15,23,42,0.92);border:1px solid rgba(59,130,246,0.4);white-space:nowrap;display:none;';
+document.body.appendChild(_voltronTip);
+
 document.addEventListener('mouseover', function(e) {
   var el = e.target;
-  if (el === document.body || el === document.documentElement) return;
+  if (el === document.body || el === document.documentElement || el === _voltronTip) return;
   el.style.outline = '1px dashed rgba(59,130,246,0.4)';
+  // Show tooltip
+  var tag = el.tagName.toLowerCase();
+  var cls = el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\\s+/).slice(0,2).join('.') : '';
+  var rect = el.getBoundingClientRect();
+  var size = Math.round(rect.width) + 'x' + Math.round(rect.height);
+  _voltronTip.textContent = '<' + tag + cls + '> ' + size;
+  _voltronTip.style.display = 'block';
+  _voltronTip.style.left = Math.min(rect.left, window.innerWidth - 150) + 'px';
+  _voltronTip.style.top = Math.max(0, rect.top - 20) + 'px';
   el.addEventListener('mouseout', function handler() {
     el.style.outline = '';
+    _voltronTip.style.display = 'none';
     el.removeEventListener('mouseout', handler);
   });
 });
@@ -185,6 +231,14 @@ function wrapCSSSource(source: string): string {
   .preview-section h3 { font-size: 0.75rem; color: #64748b; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
   .sample-elements { display: flex; flex-wrap: wrap; gap: 1rem; }
   .sample { padding: 1rem 1.5rem; border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); }
+  /* Voltron animation presets */
+  @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(20px) } to { opacity: 1; transform: translateY(0) } }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-20px) } to { opacity: 1; transform: translateY(0) } }
+  @keyframes scaleIn { from { opacity: 0; transform: scale(0.8) } to { opacity: 1; transform: scale(1) } }
+  @keyframes bounce { 0%,100% { transform: scale(1) } 50% { transform: scale(1.1) } }
+  @keyframes wiggle { 0%,100% { transform: rotate(0) } 25% { transform: rotate(-5deg) } 75% { transform: rotate(5deg) } }
+  @keyframes glowPulse { 0%,100% { box-shadow: 0 0 5px rgba(59,130,246,0.3) } 50% { box-shadow: 0 0 20px rgba(59,130,246,0.6), 0 0 40px rgba(59,130,246,0.2) } }
   /* User CSS applied below */
   ${source}
 </style>
@@ -213,7 +267,15 @@ function wrapPHPSource(source: string): string {
     .replace(/<\?=[\s\S]*?\?>/g, '[dynamic]');
   return stripped.includes('<html') ? stripped : `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8">
-<style>body { background: #0f172a; color: #e2e8f0; font-family: system-ui, sans-serif; padding: 2rem; }</style>
+<style>body { background: #0f172a; color: #e2e8f0; font-family: system-ui, sans-serif; padding: 2rem; }
+  @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(20px) } to { opacity: 1; transform: translateY(0) } }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-20px) } to { opacity: 1; transform: translateY(0) } }
+  @keyframes scaleIn { from { opacity: 0; transform: scale(0.8) } to { opacity: 1; transform: scale(1) } }
+  @keyframes bounce { 0%,100% { transform: scale(1) } 50% { transform: scale(1.1) } }
+  @keyframes wiggle { 0%,100% { transform: rotate(0) } 25% { transform: rotate(-5deg) } 75% { transform: rotate(5deg) } }
+  @keyframes glowPulse { 0%,100% { box-shadow: 0 0 5px rgba(59,130,246,0.3) } 50% { box-shadow: 0 0 20px rgba(59,130,246,0.6), 0 0 40px rgba(59,130,246,0.2) } }
+</style>
 </head><body>${stripped}</body></html>`;
 }
 

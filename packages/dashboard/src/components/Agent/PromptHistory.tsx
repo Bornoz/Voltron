@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { History, FileText, Search, Trash2, X, Clock, Sparkles, Copy, Check } from 'lucide-react';
+import { useTranslation } from '../../i18n';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -170,6 +171,7 @@ export function addPromptToHistory(prompt: string, model?: string): void {
 // ---------------------------------------------------------------------------
 
 export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('history');
   const [history, setHistory] = useState<PromptHistoryItem[]>([]);
   const [search, setSearch] = useState('');
@@ -278,7 +280,7 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
         <div className="flex items-center justify-between px-5 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--glass-border)' }}>
           <div className="flex items-center gap-2">
             <History className="w-4 h-4 text-blue-400" />
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>Prompt History</h2>
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>{t('agent.promptHistory.title')}</h2>
           </div>
           <button
             onClick={onClose}
@@ -303,7 +305,7 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
             style={tab !== 'history' ? { color: 'var(--color-text-muted)' } : undefined}
           >
             <Clock className="w-3.5 h-3.5" />
-            History
+            {t('agent.promptHistory.historyTab')}
             {history.length > 0 && (
               <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full" style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-muted)' }}>
                 {history.length}
@@ -322,7 +324,7 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
             style={tab !== 'templates' ? { color: 'var(--color-text-muted)' } : undefined}
           >
             <FileText className="w-3.5 h-3.5" />
-            Templates
+            {t('agent.promptHistory.templatesTab')}
           </button>
         </div>
 
@@ -338,7 +340,7 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search history..."
+                  placeholder={t('agent.promptHistory.searchPlaceholder')}
                   className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all"
                   style={{ background: 'var(--color-bg-tertiary)', border: '1px solid var(--glass-border)', color: 'var(--color-text-primary)' }}
                 />
@@ -352,13 +354,13 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
                   <History className="w-8 h-8 mb-2 opacity-40" />
                   <span className="text-xs">
                     {search.trim()
-                      ? 'No matching prompts found'
-                      : 'No prompt history yet'}
+                      ? t('agent.promptHistory.noMatchingPrompts')
+                      : t('agent.promptHistory.noHistoryYet')}
                   </span>
                   <span className="text-[10px] mt-1" style={{ color: 'var(--color-text-muted)' }}>
                     {search.trim()
-                      ? 'Try a different search term'
-                      : 'Prompts will appear here after you spawn an agent'}
+                      ? t('agent.promptHistory.tryDifferentSearch')
+                      : t('agent.promptHistory.promptsWillAppear')}
                   </span>
                 </div>
               ) : (
@@ -382,7 +384,7 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
                             if (e.key === 'Enter') handleCopy(e as unknown as React.MouseEvent, item);
                           }}
                           className="p-1 hover:bg-gray-700 rounded transition-colors"
-                          title="Copy to clipboard"
+                          title={t('agent.promptHistory.copyToClipboard')}
                         >
                           {copiedId === item.id ? (
                             <Check className="w-3 h-3 text-emerald-400" />
@@ -398,7 +400,7 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
                             if (e.key === 'Enter') handleDelete(e as unknown as React.MouseEvent, item.id);
                           }}
                           className="p-1 hover:bg-red-900/40 rounded transition-colors"
-                          title="Delete from history"
+                          title={t('agent.promptHistory.deleteFromHistory')}
                         >
                           <Trash2 className="w-3 h-3 text-gray-500 hover:text-red-400" />
                         </span>
@@ -425,14 +427,14 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
             {history.length > 0 && (
               <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ borderTop: '1px solid var(--glass-border)' }}>
                 <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
-                  {filtered.length} of {history.length} prompts
+                  {filtered.length} {t('agent.promptHistory.of')} {history.length} {t('agent.promptHistory.prompts')}
                 </span>
                 <button
                   onClick={handleClearAll}
                   className="flex items-center gap-1 px-2 py-1 text-[10px] text-red-400/80 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors"
                 >
                   <Trash2 className="w-3 h-3" />
-                  Clear All
+                  {t('agent.promptHistory.clearAll')}
                 </button>
               </div>
             )}
@@ -456,7 +458,7 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
                     <p className="text-xs font-medium transition-colors" style={{ color: 'var(--color-text-primary)' }}>
                       {tpl.label}
                     </p>
-                    <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>Click to use</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>{t('agent.promptHistory.clickToUse')}</p>
                   </div>
                 </button>
               ))}
@@ -464,7 +466,7 @@ export function PromptHistory({ isOpen, onClose, onSelect }: PromptHistoryProps)
 
             <div className="mt-4 px-1">
               <p className="text-[10px] text-center" style={{ color: 'var(--color-text-muted)' }}>
-                Select a template to use as your prompt. You can edit it before spawning.
+                {t('agent.promptHistory.templateHint')}
               </p>
             </div>
           </div>

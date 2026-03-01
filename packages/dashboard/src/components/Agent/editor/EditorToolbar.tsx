@@ -45,13 +45,13 @@ export const EditorToolbar = memo(function EditorToolbar({
         icon={<Undo2 size={13} />}
         disabled={!canUndo}
         onClick={onUndo}
-        title="Undo (Ctrl+Z)"
+        title={t('agent.editorToolbar.undo')}
       />
       <ToolBtn
         icon={<Redo2 size={13} />}
         disabled={!canRedo}
         onClick={onRedo}
-        title="Redo (Ctrl+Y)"
+        title={t('agent.editorToolbar.redo')}
       />
 
       <div className="w-px h-4 bg-slate-700/50 mx-1" />
@@ -88,13 +88,13 @@ export const EditorToolbar = memo(function EditorToolbar({
         icon={<Layers size={13} />}
         active={treeVisible}
         onClick={onToggleTree}
-        title="DOM Tree"
+        title={t('agent.editorToolbar.domTree')}
       />
       <ToolBtn
         icon={<GitCompare size={13} />}
         active={diffVisible}
         onClick={onToggleDiff}
-        title="Diff View"
+        title={t('agent.editorToolbar.diffView')}
       />
 
       <div className="flex-1" />

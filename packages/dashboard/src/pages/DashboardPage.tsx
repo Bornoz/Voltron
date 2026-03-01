@@ -16,6 +16,7 @@ import { useAgentHydration } from '../hooks/useAgentHydration';
 import { useFileTreeStore } from '../stores/fileTreeStore';
 import { useAuthStore } from '../stores/authStore';
 import { useLanguageStore } from '../stores/languageStore';
+import { useWindowStore } from '../stores/windowStore';
 import { MainLayout } from '../components/Layout/MainLayout';
 import { MobileBottomNav } from '../components/Layout/MobileBottomNav';
 import { ActionFeed } from '../components/ActionFeed/ActionFeed';
@@ -282,9 +283,36 @@ export function DashboardPage() {
     }
   };
 
-  const handleAgentInject = (prompt: string, context?: { filePath?: string; constraints?: string[]; attachmentUrls?: string[] }) => {
+  const handleAgentInject = async (prompt: string, context?: { filePath?: string; constraints?: string[]; attachmentUrls?: string[] }) => {
     if (!projectId) return;
-    api.agentInject(projectId, { prompt, context }).catch(() => {});
+    try {
+      await api.agentInject(projectId, { prompt, context });
+
+      // 1. Visual editor maximize ise restore et
+      const windowState = useWindowStore.getState();
+      if (windowState.panels['visual-editor']?.maximized) {
+        windowState.toggleMaximize('visual-editor');
+      }
+
+      // 2. Agent output panelini aç ve öne getir
+      if (!windowState.panels['agent-output']?.visible) {
+        windowState.toggleVisibility('agent-output');
+      }
+      windowState.bringToFront('agent-output');
+
+      // 3. Bildirim göster
+      useNotificationStore.getState().addNotification({
+        type: 'success',
+        title: 'Düzenlemeler gönderildi',
+        message: 'Yapay zeka değişiklikleri uyguluyor...',
+      });
+    } catch (err) {
+      useNotificationStore.getState().addNotification({
+        type: 'error',
+        title: 'Gönderim başarısız',
+        message: err instanceof Error ? err.message : 'Değişiklikler gönderilemedi',
+      });
+    }
   };
 
   // Tab definitions

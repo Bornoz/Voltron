@@ -24,6 +24,14 @@
   --risk-critical: #ef4444;
 }
 
+/* ── Theme Transition ────────────────────── */
+.theme-transitioning,
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important;
+}
+
 /* ── Theme: Midnight ────────────────────── */
 [data-theme="midnight"] {
   --color-bg-primary: #0a0a1a;

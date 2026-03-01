@@ -2,6 +2,7 @@ import { CheckCircle2, XCircle, Clock, Play, AlertTriangle, ChevronRight, Loader
 import { useAgentStore } from '../../stores/agentStore';
 import type { Phase } from '../../stores/agentStore';
 import { useTranslation } from '../../i18n';
+import * as api from '../../lib/api';
 
 const PHASE_STATUS_ICON: Record<Phase['status'], typeof Clock> = {
   pending: Clock,
@@ -30,11 +31,21 @@ const PHASE_STATUS_BG: Record<Phase['status'], string> = {
   completed: 'bg-green-950/20 border-green-800/30',
 };
 
-export function PhaseTracker() {
+export function PhaseTracker({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
   const phaseExecution = useAgentStore((s) => s.phaseExecution);
   const approvePhase = useAgentStore((s) => s.approvePhase);
   const rejectPhase = useAgentStore((s) => s.rejectPhase);
+
+  const handleApprove = (phaseId: string) => {
+    approvePhase(phaseId);
+    api.agentPhaseDecision(projectId, phaseId, 'approve').catch(() => {});
+  };
+
+  const handleReject = (phaseId: string) => {
+    rejectPhase(phaseId);
+    api.agentPhaseDecision(projectId, phaseId, 'reject').catch(() => {});
+  };
 
   if (phaseExecution.status === 'idle' || phaseExecution.phases.length === 0) {
     return null;
@@ -128,14 +139,14 @@ export function PhaseTracker() {
               {isAwaiting && (
                 <div className="flex items-center gap-2 mt-2 ml-5.5">
                   <button
-                    onClick={() => approvePhase(phase.id)}
+                    onClick={() => handleApprove(phase.id)}
                     className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium text-green-400 bg-green-950/40 hover:bg-green-900/50 border border-green-800/40 rounded-md transition-all hover:scale-105"
                   >
                     <CheckCircle2 className="w-3 h-3" />
                     {t('agent.phase.approve')}
                   </button>
                   <button
-                    onClick={() => rejectPhase(phase.id)}
+                    onClick={() => handleReject(phase.id)}
                     className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium text-red-400 bg-red-950/40 hover:bg-red-900/50 border border-red-800/40 rounded-md transition-all hover:scale-105"
                   >
                     <XCircle className="w-3 h-3" />

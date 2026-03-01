@@ -341,6 +341,46 @@ export class AgentRunner extends EventEmitter {
   }
 
   /**
+   * Handle phase execution decision (approve/reject) from dashboard.
+   * On approve: emits AGENT_PHASE_UPDATE with approved status and injects continuation prompt.
+   * On reject: emits AGENT_PHASE_UPDATE with rejected status and injects rejection context.
+   */
+  async handlePhaseDecision(
+    projectId: string,
+    phaseId: string,
+    decision: 'approve' | 'reject',
+    reason?: string,
+  ): Promise<void> {
+    const timestamp = Date.now();
+
+    // Emit phase update event to all dashboard clients
+    this.eventBus.emit('AGENT_PHASE_UPDATE', {
+      projectId,
+      phaseId,
+      status: decision === 'approve' ? 'approved' : 'rejected',
+      decision,
+      reason: reason ?? null,
+      timestamp,
+    });
+
+    // If agent is running, inject the decision context so the AI knows
+    const agent = this.agents.get(projectId);
+    if (agent) {
+      if (decision === 'approve') {
+        const prompt = `[PHASE APPROVED] Phase "${phaseId}" has been approved by the user.${
+          reason ? ` Reason: ${reason}` : ''
+        } Continue with the next phase.`;
+        await this.injectPrompt(projectId, { prompt, urgency: 'normal' });
+      } else {
+        const prompt = `[PHASE REJECTED] Phase "${phaseId}" has been rejected by the user.${
+          reason ? ` Reason: ${reason}` : ''
+        } Stop the current approach and address the rejection reason.`;
+        await this.injectPrompt(projectId, { prompt, urgency: 'high' });
+      }
+    }
+  }
+
+  /**
    * Inject a prompt into a running agent.
    * Kills current process, restarts with --continue and enriched context.
    */
@@ -411,6 +451,8 @@ export class AgentRunner extends EventEmitter {
       this.emitStatus(projectId, 'INJECTING');
 
       // Record injection in DB
+      const injectionId1 = randomUUID();
+      const injectedAt1 = Date.now();
       this.injectionRepo.insert({
         sessionId,
         projectId,
@@ -420,20 +462,30 @@ export class AgentRunner extends EventEmitter {
         contextLineEnd: injection.context?.lineRange?.end ?? null,
         constraints: injection.context?.constraints ? JSON.stringify(injection.context.constraints) : null,
         urgency: injection.urgency ?? 'normal',
-        injectedAt: Date.now(),
+        injectedAt: injectedAt1,
         agentStatusBefore: 'COMPLETED',
+      });
+
+      // Notify dashboard: injection queued
+      this.eventBus.emit('AGENT_INJECTION_QUEUED', {
+        projectId, id: injectionId1, prompt: injection.prompt, queuedAt: injectedAt1,
       });
 
       // Build enriched prompt and --resume same session (AI keeps memory)
       const enrichedPrompt = this.buildEnrichedPrompt(agent, injection, projectId);
       agent._spawnPrompt = enrichedPrompt;
       this.spawnProcess(agent, enrichedPrompt, true, sessionId);
+
+      // Notify dashboard: injection applied (process spawned with injected prompt)
+      this.eventBus.emit('AGENT_INJECTION_APPLIED', { projectId, id: injectionId1 });
       return;
     }
 
     const prevStatus = agent.status;
 
     // Record injection in DB
+    const injectionId2 = randomUUID();
+    const injectedAt2 = Date.now();
     this.injectionRepo.insert({
       sessionId: agent.sessionId,
       projectId,
@@ -443,8 +495,13 @@ export class AgentRunner extends EventEmitter {
       contextLineEnd: injection.context?.lineRange?.end ?? null,
       constraints: injection.context?.constraints ? JSON.stringify(injection.context.constraints) : null,
       urgency: injection.urgency ?? 'normal',
-      injectedAt: Date.now(),
+      injectedAt: injectedAt2,
       agentStatusBefore: prevStatus,
+    });
+
+    // Notify dashboard: injection queued
+    this.eventBus.emit('AGENT_INJECTION_QUEUED', {
+      projectId, id: injectionId2, prompt: injection.prompt, queuedAt: injectedAt2,
     });
 
     this.sessionRepo.incrementInjections(agent.sessionDbId);
@@ -462,6 +519,9 @@ export class AgentRunner extends EventEmitter {
 
     // Resume same session — AI keeps all context and memory
     this.spawnProcess(agent, enrichedPrompt, true, agent.sessionId);
+
+    // Notify dashboard: injection applied
+    this.eventBus.emit('AGENT_INJECTION_APPLIED', { projectId, id: injectionId2 });
   }
 
   /**
@@ -888,10 +948,10 @@ export class AgentRunner extends EventEmitter {
         emitOrQueue('AGENT_PLAN_UPDATE', { projectId, plan: agent.plan });
       }
 
-      // Check breakpoints
+      // Check breakpoints — emit BEFORE pause so event isn't queued
       if (agent.breakpoints.has(loc.filePath)) {
+        this.eventBus.emit('AGENT_BREAKPOINT_HIT', { projectId, filePath: loc.filePath, timestamp: Date.now() });
         this.pause(projectId);
-        emitOrQueue('AGENT_BREAKPOINT_HIT', { projectId, filePath: loc.filePath, timestamp: Date.now() });
       }
 
       emitOrQueue('AGENT_LOCATION_UPDATE', { projectId, location });

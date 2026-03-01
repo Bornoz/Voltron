@@ -344,6 +344,7 @@ export const en: TranslationKeys = {
     export: 'Export',
     noOutput: 'No output yet',
     scrollToBottom: 'Scroll to bottom',
+    bufferWarning: 'Output buffer is nearly full ({{count}}/{{max}}). Older entries are being trimmed.',
     gpsTracker: 'GPS Tracker',
     plan: 'Plan',
     promptInjector: 'Prompt Injection',
@@ -395,6 +396,12 @@ export const en: TranslationKeys = {
     showEdits: 'Show Edits',
     hideEdits: 'Hide',
     saveAndSend: 'Send to AI',
+    sendConfirm: {
+      title: 'Send Changes',
+      message: '{{count}} change(s) will be sent to AI. Do you want to continue?',
+      cancel: 'Cancel',
+      confirm: 'Send',
+    },
     editList: 'Edits',
     removeEdit: 'Undo',
     errorNotePlaceholder: 'Describe the error: what is wrong here?',
@@ -423,6 +430,27 @@ export const en: TranslationKeys = {
     quickAddTypeScript: 'Add TypeScript',
     quickResponsive: 'Responsive',
 
+    tempChangesWarning: 'Changes are temporary. Send to AI to make them permanent.',
+
+    // Prompt History
+    promptHistory: {
+      title: 'Prompt History',
+      historyTab: 'History',
+      templatesTab: 'Templates',
+      searchPlaceholder: 'Search history...',
+      noMatchingPrompts: 'No matching prompts found',
+      noHistoryYet: 'No prompt history yet',
+      tryDifferentSearch: 'Try a different search term',
+      promptsWillAppear: 'Prompts will appear here after you spawn an agent',
+      copyToClipboard: 'Copy to clipboard',
+      deleteFromHistory: 'Delete from history',
+      of: 'of',
+      prompts: 'prompts',
+      clearAll: 'Clear All',
+      clickToUse: 'Click to use',
+      templateHint: 'Select a template to use as your prompt. You can edit it before spawning.',
+    },
+
     // Quick Spawn Presets
     presets: {
       title: 'Quick Presets',
@@ -438,6 +466,9 @@ export const en: TranslationKeys = {
       uiPolishDesc: 'Improve styling, animations, and responsive design',
       testSuite: 'Test Suite',
       testSuiteDesc: 'Comprehensive unit and integration tests',
+      saveAsCurrent: 'Save current prompt as preset',
+      presetName: 'Preset name...',
+      save: 'Save',
     },
 
     // Rules
@@ -640,7 +671,17 @@ export const en: TranslationKeys = {
       escape: 'Escape: Exit Fullscreen',
     },
 
+    // Editor Toolbar
+    editorToolbar: {
+      undo: 'Undo (Ctrl+Z)',
+      redo: 'Redo (Ctrl+Y)',
+      domTree: 'DOM Tree',
+      diffView: 'Diff View',
+    },
+
+    // GPS auto-follow
     gps: {
+      autoFollow: 'Auto-Follow',
       pauseAgent: 'Pause',
       stopAgent: 'Stop',
       sendPrompt: 'Send Prompt',

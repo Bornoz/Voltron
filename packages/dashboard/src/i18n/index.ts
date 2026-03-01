@@ -40,8 +40,14 @@ export function useTranslation() {
   const setLanguage = useLanguageStore((s) => s.setLanguage);
 
   const t = useCallback(
-    (key: string): string => {
-      return getNestedValue(translations[language], key);
+    (key: string, params?: Record<string, string | number>): string => {
+      let value = getNestedValue(translations[language], key);
+      if (params) {
+        for (const [k, v] of Object.entries(params)) {
+          value = value.replaceAll(`{{${k}}}`, String(v));
+        }
+      }
+      return value;
     },
     [language],
   );

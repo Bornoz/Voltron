@@ -281,6 +281,22 @@ export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner, devS
     return reply.send(agentRunner.getBreakpoints(request.params.id));
   });
 
+  // Phase decision (approve/reject)
+  app.post<{ Params: { id: string } }>('/api/projects/:id/agent/phase-decision', async (request, reply) => {
+    const body = z.object({
+      phaseId: z.string().min(1),
+      decision: z.enum(['approve', 'reject']),
+      reason: z.string().optional(),
+    }).parse(request.body);
+    try {
+      await agentRunner.handlePhaseDecision(request.params.id, body.phaseId, body.decision, body.reason);
+      return reply.send({ status: 'OK', decision: body.decision });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Phase decision failed';
+      return reply.status(400).send({ error: message });
+    }
+  });
+
   // Inject prompt
   app.post<{ Params: { id: string } }>('/api/projects/:id/agent/inject', async (request, reply) => {
     const body = InjectBody.parse(request.body);

@@ -79,24 +79,25 @@ type EditAction =
   | { type: 'RESTORE'; edits: VisualEdit[] };
 
 const initialUndoableState: UndoableState = { past: [], present: [], future: [] };
+const MAX_UNDO_STACK = 50;
 
 function undoableEditReducer(state: UndoableState, action: EditAction): UndoableState {
   switch (action.type) {
     case 'ADD':
       return {
-        past: [...state.past, state.present],
+        past: [...state.past, state.present].slice(-MAX_UNDO_STACK),
         present: [...state.present, action.edit],
         future: [],
       };
     case 'REMOVE':
       return {
-        past: [...state.past, state.present],
+        past: [...state.past, state.present].slice(-MAX_UNDO_STACK),
         present: state.present.filter((e) => e.id !== action.editId),
         future: [],
       };
     case 'CLEAR':
       return {
-        past: [...state.past, state.present],
+        past: [...state.past, state.present].slice(-MAX_UNDO_STACK),
         present: [],
         future: [],
       };
@@ -106,14 +107,14 @@ function undoableEditReducer(state: UndoableState, action: EditAction): Undoable
       return {
         past: state.past.slice(0, -1),
         present: prev,
-        future: [state.present, ...state.future],
+        future: [state.present, ...state.future].slice(0, MAX_UNDO_STACK),
       };
     }
     case 'REDO': {
       if (state.future.length === 0) return state;
       const next = state.future[0];
       return {
-        past: [...state.past, state.present],
+        past: [...state.past, state.present].slice(-MAX_UNDO_STACK),
         present: next,
         future: state.future.slice(1),
       };
@@ -339,6 +340,7 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
   // Prompt pin modal state
   const [pinCreateReq, setPinCreateReq] = useState<PinCreateRequest | null>(null);
   const [editingPinId, setEditingPinId] = useState<string | null>(null);
+  const [showSendConfirm, setShowSendConfirm] = useState(false);
 
   const isActive = !['IDLE'].includes(status);
   const canInject = ['RUNNING', 'PAUSED', 'COMPLETED', 'CRASHED'].includes(status);
@@ -609,6 +611,15 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
     clearPromptPins();
   }, [edits, promptPins, referenceImage, onInject, clearEdits, clearPromptPins]);
 
+  const requestSend = useCallback(() => {
+    setShowSendConfirm(true);
+  }, []);
+
+  const confirmSend = useCallback(() => {
+    setShowSendConfirm(false);
+    handleSaveAndSend();
+  }, [handleSaveAndSend]);
+
   const editingPin = editingPinId ? promptPins.find((p) => p.id === editingPinId) : null;
   const totalChanges = edits.length + promptPins.length;
 
@@ -750,7 +761,7 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
           onRedo={() => dispatchEdit({ type: 'REDO' })}
           onToggleTree={() => setShowComponentTree(!showComponentTree)}
           onToggleDiff={() => setShowDiffView(!showDiffView)}
-          onSave={handleSaveAndSend}
+          onSave={requestSend}
           editCount={edits.length}
           treeVisible={showComponentTree}
           diffVisible={showDiffView}
@@ -804,7 +815,7 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
             canInject={canInject && !!onInject}
             onRemove={removeEdit}
             onClear={clearEdits}
-            onSaveAndSend={handleSaveAndSend}
+            onSaveAndSend={requestSend}
             onClose={() => setShowEditList(false)}
           />
         )}
@@ -812,7 +823,13 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
 
       {/* ─── Bottom: Save & Send bar ─── */}
       {totalChanges > 0 && canInject && onInject && (
-        <div className="flex items-center gap-2 px-3 py-2 border-t border-orange-800/40 bg-gradient-to-r from-orange-950/40 to-gray-950">
+        <div className="flex flex-col border-t border-orange-800/40">
+          {/* Temporary changes warning */}
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-yellow-950/30 border-b border-yellow-800/20">
+            <AlertTriangle className="w-3 h-3 text-yellow-500 shrink-0" />
+            <span className="text-[9px] text-yellow-500/80">{t('agent.tempChangesWarning')}</span>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-orange-950/40 to-gray-950">
           <span className="text-[10px] text-orange-400 font-medium">
             {edits.length > 0 && `${edits.length} ${t('agent.pendingEdits')}`}
             {edits.length > 0 && promptPins.length > 0 && ' + '}
@@ -830,12 +847,13 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
             {showEditList ? t('agent.hideEdits') : t('agent.showEdits')}
           </button>
           <button
-            onClick={handleSaveAndSend}
+            onClick={requestSend}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-orange-600 hover:bg-orange-500 rounded-lg shadow-lg shadow-orange-600/20 transition-all hover:scale-105"
           >
             <Send className="w-3.5 h-3.5" />
             {t('agent.saveAndSend')}
           </button>
+        </div>
         </div>
       )}
 
@@ -867,6 +885,35 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
           onSave={handleSavePin}
           onCancel={() => setEditingPinId(null)}
         />
+      )}
+
+      {/* Send confirmation dialog */}
+      {showSendConfirm && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl p-4 max-w-xs w-full mx-4">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle className="w-5 h-5 text-orange-400" />
+              <h3 className="text-sm font-semibold text-gray-200">{t('agent.sendConfirm.title')}</h3>
+            </div>
+            <p className="text-[11px] text-gray-400 mb-4">
+              {t('agent.sendConfirm.message', { count: edits.length + promptPins.length })}
+            </p>
+            <div className="flex items-center gap-2 justify-end">
+              <button
+                onClick={() => setShowSendConfirm(false)}
+                className="px-3 py-1.5 text-[11px] text-gray-400 hover:text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                {t('agent.sendConfirm.cancel')}
+              </button>
+              <button
+                onClick={confirmSend}
+                className="px-3 py-1.5 text-[11px] font-medium text-white bg-orange-600 hover:bg-orange-500 rounded-lg transition-colors"
+              >
+                {t('agent.sendConfirm.confirm')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

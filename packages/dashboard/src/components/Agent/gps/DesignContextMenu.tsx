@@ -30,6 +30,8 @@ interface DesignContextMenuProps {
   onDuplicateElement: (selector: string) => void;
   onToggleVisibility: (selector: string) => void;
   onDesignChange?: (selector: string, tagName: string, property: string, value: string) => void;
+  onUndo?: () => void;
+  onAskAI?: (selector: string, elementInfo: string) => void;
 }
 
 /* ═══ Categories ═══ */
@@ -128,7 +130,7 @@ const ANIMATION_PRESETS = [
 
 /* ═══ Component ═══ */
 export const DesignContextMenu = memo(function DesignContextMenu({
-  data, frameOffset, onClose, onApplyStyle, onEditText, onDeleteElement, onDuplicateElement, onToggleVisibility, onDesignChange,
+  data, frameOffset, onClose, onApplyStyle, onEditText, onDeleteElement, onDuplicateElement, onToggleVisibility, onDesignChange, onUndo, onAskAI,
 }: DesignContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -766,6 +768,18 @@ export const DesignContextMenu = memo(function DesignContextMenu({
         flashAction('reset-styles');
       },
     },
+    ...(onAskAI ? [{
+      id: 'ask-ai', category: 'structure',
+      icon: <Send size={14} />,
+      label: "AI'ya Sor",
+      description: 'Bu element hakkinda AI\'ya soru sor veya degisiklik iste.',
+      action: () => {
+        const info = `<${data.tagName}> ${data.selector} — ${data.text?.slice(0, 50) || '(bos)'}`;
+        onAskAI(data.selector, info);
+        onClose();
+      },
+      accent: true,
+    }] : []),
   ];
 
   // Group by category
@@ -832,7 +846,7 @@ export const DesignContextMenu = memo(function DesignContextMenu({
               &quot;{data.textContent}&quot;
             </p>
           )}
-          {/* Current element dimensions */}
+          {/* Current element dimensions + undo quick-action */}
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <span className="text-[9px] text-slate-600 font-mono bg-white/[0.03] px-1.5 py-0.5 rounded">
               {Math.round(data.rect.width)}x{Math.round(data.rect.height)}
@@ -846,6 +860,16 @@ export const DesignContextMenu = memo(function DesignContextMenu({
             <span className="text-[9px] text-slate-600 font-mono bg-white/[0.03] px-1.5 py-0.5 rounded">
               {data.styles.position}
             </span>
+            {onUndo && (
+              <button
+                onClick={() => { onUndo(); onClose(); }}
+                className="ml-auto flex items-center gap-1 px-2 py-0.5 text-[9px] text-yellow-400 hover:text-yellow-300 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/20 rounded-md transition-colors"
+                title="Geri Al (Ctrl+Z)"
+              >
+                <RotateCcw size={10} />
+                Geri Al
+              </button>
+            )}
           </div>
         </div>
 
