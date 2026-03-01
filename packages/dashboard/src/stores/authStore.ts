@@ -16,7 +16,7 @@ interface AuthState {
 
 function apiBase(): string {
   try {
-    return window.location.port === '6400' ? 'http://localhost:8600' : '';
+    return import.meta.env.DEV ? 'http://localhost:8600' : '';
   } catch {
     return '';
   }

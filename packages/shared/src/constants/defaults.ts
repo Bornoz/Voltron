@@ -1,6 +1,6 @@
 export const DEFAULTS = {
   SERVER_PORT: 8600,
-  DB_PATH: '/opt/voltron/data/voltron.db',
+  DB_PATH: 'data/voltron.db',
   LOG_LEVEL: 'info',
 
   // Project defaults

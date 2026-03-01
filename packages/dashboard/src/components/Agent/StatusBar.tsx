@@ -37,7 +37,7 @@ export function StatusBar({ wsConnected, projectId }: StatusBarProps) {
     let cancelled = false;
     const fetchStats = async () => {
       try {
-        const base = window.location.port === '6400' ? 'http://localhost:8600' : '';
+        const base = import.meta.env.DEV ? 'http://localhost:8600' : '';
         const resp = await fetch(`${base}/api/stats`);
         if (resp.ok && !cancelled) {
           const data = await resp.json();

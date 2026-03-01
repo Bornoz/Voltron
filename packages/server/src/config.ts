@@ -30,6 +30,7 @@ const EnvSchema = z.object({
   VOLTRON_AUTH_SECRET: z.string().optional(),
   VOLTRON_ADMIN_USER: z.string().optional(),
   VOLTRON_ADMIN_PASS: z.string().optional(),
+  VOLTRON_CORS_ORIGINS: z.string().optional(),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 });
 
@@ -66,7 +67,9 @@ export function loadConfig(): ServerConfig {
     interceptorSecret: env.VOLTRON_INTERCEPTOR_SECRET,
     githubToken: env.VOLTRON_GITHUB_TOKEN ?? null,
     corsOrigins: [
-      'https://voltron.isgai.tr',
+      ...(env.VOLTRON_CORS_ORIGINS
+        ? env.VOLTRON_CORS_ORIGINS.split(',').map((s) => s.trim())
+        : []),
       'http://localhost:6400',
       'http://localhost:5174',
     ],

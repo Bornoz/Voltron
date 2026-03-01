@@ -1,6 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const nodeStubs = resolve(__dirname, 'src/lib/node-stubs.ts');
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -34,9 +39,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      'node:crypto': '/opt/voltron/packages/ui-simulator/src/lib/node-stubs.ts',
-      'node:fs': '/opt/voltron/packages/ui-simulator/src/lib/node-stubs.ts',
-      'node:path': '/opt/voltron/packages/ui-simulator/src/lib/node-stubs.ts',
+      'node:crypto': nodeStubs,
+      'node:fs': nodeStubs,
+      'node:path': nodeStubs,
     },
   },
 });

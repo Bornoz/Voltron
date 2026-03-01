@@ -3,7 +3,7 @@ set -e
 
 echo "Starting Voltron development environment..."
 
-cd /opt/voltron
+cd "$(dirname "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)")"
 
 # Build shared first
 pnpm --filter @voltron/shared build

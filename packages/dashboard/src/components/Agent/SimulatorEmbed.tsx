@@ -138,8 +138,7 @@ function editReducer(state: VisualEdit[], action: Exclude<EditAction, { type: 'U
 /* ─── Helpers ──────────────────────────────────────────── */
 
 function getSimulatorUrl(projectId: string): string {
-  const isDev = window.location.port === '6400' || window.location.hostname === 'localhost';
-  const base = isDev ? 'http://localhost:5174' : '';
+  const base = import.meta.env.DEV ? 'http://localhost:5174' : '';
   return `${base}/simulator/?projectId=${encodeURIComponent(projectId)}`;
 }
 
@@ -155,8 +154,7 @@ const PREVIEWABLE_EXTS = new Set(['html', 'htm', 'jsx', 'tsx', 'vue', 'svelte', 
 function getPreviewUrl(projectId: string, _devServer?: DevServerInfo | null, currentFile?: string | null): string {
   // Route through Voltron server proxy to ensure editor script injection
   // Server will proxy to dev server when available, falling back to static files
-  const isDev = window.location.port === '6400' || window.location.hostname === 'localhost';
-  const base = isDev ? 'http://localhost:8600' : '';
+  const base = import.meta.env.DEV ? 'http://localhost:8600' : '';
 
   // Use agent's current file if it's previewable, otherwise fall back to index.html
   let previewFile = 'index.html';

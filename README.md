@@ -25,8 +25,7 @@
   <a href="#architecture">Architecture</a> &middot;
   <a href="#features">Features</a> &middot;
   <a href="#quick-start">Quick Start</a> &middot;
-  <a href="#documentation">Documentation</a> &middot;
-  <a href="CONTRIBUTING.md">Contributing</a>
+  <a href="#documentation">Documentation</a>
 </p>
 
 ---
