@@ -2495,9 +2495,23 @@ export const EDITOR_SCRIPT = `
   function onContextMenu(e) {
     if (!S.enabled) return;
     e.preventDefault();
-    if (isOurs(e.target)) return;
+    /* When right-clicking on our overlay (resize handles, selBox etc.),
+       temporarily hide all our elements to find the real element underneath */
+    var el;
+    if (isOurs(e.target)) {
+      var savedDisplay = {};
+      var allOurs = [selBox, hoverBox, tooltip].concat(Object.values(handleEls));
+      allOurs.forEach(function(node) {
+        if (node) { savedDisplay[node.id || ''] = node.style.display; node.style.display = 'none'; }
+      });
+      el = document.elementFromPoint(e.clientX, e.clientY);
+      allOurs.forEach(function(node) {
+        if (node && savedDisplay[node.id || ''] !== undefined) { node.style.display = savedDisplay[node.id || '']; }
+      });
+    } else {
+      el = document.elementFromPoint(e.clientX, e.clientY);
+    }
     /* Auto-select element under cursor so full menu appears */
-    var el = document.elementFromPoint(e.clientX, e.clientY);
     if (el && !isOurs(el) && el !== document.body && el !== document.documentElement) {
       select(el);
     } else if (el === document.body || el === document.documentElement) {
