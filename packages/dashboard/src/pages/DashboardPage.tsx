@@ -16,6 +16,7 @@ import { useAgentHydration } from '../hooks/useAgentHydration';
 import { useFileTreeStore } from '../stores/fileTreeStore';
 import { useAuthStore } from '../stores/authStore';
 import { useLanguageStore } from '../stores/languageStore';
+import { useWindowStore } from '../stores/windowStore';
 import { MainLayout } from '../components/Layout/MainLayout';
 import { MobileBottomNav } from '../components/Layout/MobileBottomNav';
 import { ActionFeed } from '../components/ActionFeed/ActionFeed';
@@ -301,7 +302,22 @@ export function DashboardPage() {
   const handleAgentInject = async (prompt: string, context?: { filePath?: string; constraints?: string[]; attachmentUrls?: string[] }) => {
     if (!projectId) return;
 
-    // Bildirim göster
+    // 1) Maximize paneli restore et (kullanıcı sıkışmasın)
+    const windowState = useWindowStore.getState();
+    if (windowState.panels['visual-editor']?.maximized) {
+      windowState.toggleMaximize('visual-editor');
+    }
+
+    // 2) Agent output panelini aç ve öne getir
+    if (!windowState.panels['agent-output']?.visible) {
+      windowState.toggleVisibility('agent-output');
+    }
+    windowState.bringToFront('agent-output');
+
+    // 3) Agent sekmesine geç (düzenlemelerin uygulanışını görsün)
+    setCenterTab('agent');
+
+    // 4) Bildirim göster
     useNotificationStore.getState().addNotification({
       type: 'info',
       title: t('agent.sending'),
@@ -309,7 +325,19 @@ export function DashboardPage() {
     });
 
     try {
-      await api.agentInject(projectId, { prompt, context });
+      // Agent IDLE/CRASHED ise → spawn et; çalışıyor/tamamlanmış ise → inject et
+      const currentAgentStatus = useAgentStore.getState().status;
+      if (currentAgentStatus === 'IDLE' || currentAgentStatus === 'CRASHED') {
+        const targetDir = selectedProject?.rootPath ?? '.';
+        await api.agentSpawn(projectId, {
+          prompt,
+          model: useAgentStore.getState().model || undefined,
+          targetDir,
+        });
+      } else {
+        // RUNNING, THINKING, COMPLETED, etc. → inject (server handles COMPLETED resume)
+        await api.agentInject(projectId, { prompt, context });
+      }
 
       useNotificationStore.getState().addNotification({
         type: 'success',

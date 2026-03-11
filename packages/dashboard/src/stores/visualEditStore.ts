@@ -90,16 +90,21 @@ export function generateMultiFilePrompt(changesByFile: Record<string, DesignChan
   const files = Object.entries(changesByFile).filter(([, changes]) => changes.length > 0);
   if (files.length === 0) return '';
 
+  const totalChanges = files.reduce((sum, [, c]) => sum + c.length, 0);
+
   const lines: string[] = [
-    `=== VOLTRON ÇOKLU DOSYA TASARIM DEĞİŞİKLİKLERİ ===`,
-    `Tarih: ${new Date().toISOString()}`,
-    `Toplam Dosya: ${files.length}`,
-    `Toplam Değişiklik: ${files.reduce((sum, [, c]) => sum + c.length, 0)}`,
+    `[VISUAL DESIGN CHANGES — Apply these to the source code immediately]`,
+    `Files: ${files.length} | Changes: ${totalChanges}`,
+    '',
+    `IMPORTANT: Read each file below, find the matching elements by their CSS selector or tag+class,`,
+    `then apply the specified style/text/action changes directly in the source code.`,
+    `Use Tailwind classes when possible, otherwise use CSS classes. Do NOT use inline styles.`,
     '',
   ];
 
   for (const [filePath, changes] of files) {
-    lines.push(`━━━ DOSYA: ${filePath} ━━━`);
+    lines.push(`── FILE: ${filePath} ──`);
+    lines.push(`Action: Open and edit this file.`);
     lines.push('');
 
     // Group changes by selector
@@ -120,31 +125,31 @@ export function generateMultiFilePrompt(changesByFile: Record<string, DesignChan
     }
 
     for (const [selector, data] of Object.entries(grouped)) {
-      lines.push(`## Element: <${data.tagName}> — Selector: "${selector}"`);
+      lines.push(`  ELEMENT: <${data.tagName}> matching "${selector}"`);
 
       if (data.styles['__action'] === 'DELETE') {
-        lines.push('  - Bu elementi tamamen sil');
+        lines.push('    → DELETE this element entirely');
       } else if (data.styles['__action'] === 'DUPLICATE') {
-        lines.push('  - Bu elementi kopyala (clone edip hemen sonrasına ekle)');
+        lines.push('    → DUPLICATE this element (clone and insert after)');
       }
 
       if (data.textChange !== undefined) {
-        lines.push(`  - Metin içeriğini değiştir: "${data.textChange}"`);
+        lines.push(`    → SET text content to: "${data.textChange}"`);
       }
 
       const styleEntries = Object.entries(data.styles).filter(([k]) => !k.startsWith('__'));
       if (styleEntries.length > 0) {
-        lines.push('  CSS Stilleri:');
+        lines.push('    → APPLY styles:');
         for (const [prop, val] of styleEntries) {
           const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
-          lines.push(`    - ${cssProp}: ${val}`);
+          lines.push(`      ${cssProp}: ${val}`);
         }
       }
       lines.push('');
     }
   }
 
-  lines.push('Bu değişiklikleri doğrudan kaynak kodda uygula. Inline style yerine mümkünse Tailwind class veya CSS class kullan.');
+  lines.push('After applying all changes, verify the file still compiles/renders correctly.');
 
   return lines.join('\n');
 }
