@@ -8,12 +8,35 @@ import { useWindowStore, type PanelId } from '../../stores/windowStore';
 import { useAgentStore } from '../../stores/agentStore';
 import { useTranslation } from '../../i18n';
 
+const RECENT_KEY = 'voltron_recent_commands';
+const MAX_RECENT = 5;
+
+function getRecentIds(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.slice(0, MAX_RECENT) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentId(id: string): void {
+  try {
+    const recent = getRecentIds().filter((r) => r !== id);
+    recent.unshift(id);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(recent.slice(0, MAX_RECENT)));
+  } catch { /* ignore */ }
+}
+
 interface CommandItem {
   id: string;
   label: string;
   category: string;
   icon: React.ReactNode;
   shortcut?: string;
+  context?: string;
   action: () => void;
 }
 
@@ -35,6 +58,7 @@ export function CommandPalette({ isOpen, onClose, onAgentAction }: CommandPalett
   const applyPreset = useWindowStore((s) => s.applyPreset);
   const resetToDefault = useWindowStore((s) => s.resetToDefault);
   const panels = useWindowStore((s) => s.panels);
+  const activePanel = useWindowStore((s) => s.activePanel);
   const agentStatus = useAgentStore((s) => s.status);
 
   const isAgentActive = ['RUNNING', 'PAUSED', 'SPAWNING', 'INJECTING'].includes(agentStatus);
@@ -63,6 +87,7 @@ export function CommandPalette({ isOpen, onClose, onAgentAction }: CommandPalett
         label: `${visible ? t('commandPalette.hide') : t('commandPalette.show')} ${p.label}`,
         category: t('commandPalette.panels'),
         icon: p.icon,
+        context: p.id,
         action: () => toggleVisibility(p.id),
       });
     }
@@ -74,6 +99,7 @@ export function CommandPalette({ isOpen, onClose, onAgentAction }: CommandPalett
         label: `${t('commandPalette.maximize')} ${p.label}`,
         category: t('commandPalette.panels'),
         icon: <Maximize2 className="w-4 h-4" />,
+        context: p.id,
         action: () => toggleMaximize(p.id),
       });
     }
@@ -100,6 +126,20 @@ export function CommandPalette({ isOpen, onClose, onAgentAction }: CommandPalett
         category: t('commandPalette.layout'),
         icon: <Layout className="w-4 h-4" />,
         action: () => applyPreset('monitor'),
+      },
+      {
+        id: 'preset-minimal',
+        label: t('commandPalette.layoutMinimal'),
+        category: t('commandPalette.layout'),
+        icon: <Layout className="w-4 h-4" />,
+        action: () => applyPreset('minimal'),
+      },
+      {
+        id: 'preset-development',
+        label: t('commandPalette.layoutDevelopment'),
+        category: t('commandPalette.layout'),
+        icon: <Layout className="w-4 h-4" />,
+        action: () => applyPreset('development'),
       },
       {
         id: 'preset-reset',
@@ -140,6 +180,28 @@ export function CommandPalette({ isOpen, onClose, onAgentAction }: CommandPalett
         shortcut: 'Ctrl+Shift+S',
         action: () => onAgentAction?.('stop'),
       });
+
+      // Context-aware inject commands when visual-editor is active
+      if (activePanel === 'visual-editor') {
+        items.push(
+          {
+            id: 'inject-fix',
+            label: t('commandPalette.injectFix'),
+            category: t('commandPalette.agent'),
+            icon: <Zap className="w-4 h-4" />,
+            context: 'visual-editor',
+            action: () => onAgentAction?.('inject', { prompt: 'Fix current file' }),
+          },
+          {
+            id: 'inject-explain',
+            label: t('commandPalette.injectExplain'),
+            category: t('commandPalette.agent'),
+            icon: <Zap className="w-4 h-4" />,
+            context: 'visual-editor',
+            action: () => onAgentAction?.('inject', { prompt: 'Explain this code' }),
+          },
+        );
+      }
     } else {
       items.push({
         id: 'agent-spawn',
@@ -177,21 +239,54 @@ export function CommandPalette({ isOpen, onClose, onAgentAction }: CommandPalett
     );
 
     return items;
-  }, [t, panels, agentStatus, isAgentActive, toggleVisibility, toggleMaximize, applyPreset, resetToDefault, onAgentAction]);
+  }, [t, panels, activePanel, agentStatus, isAgentActive, toggleVisibility, toggleMaximize, applyPreset, resetToDefault, onAgentAction]);
 
-  // Filter commands
+  // Filter commands with context-aware prioritization
   const filtered = useMemo(() => {
-    if (!query.trim()) return commands;
+    if (!query.trim()) {
+      // When no query: boost context-matching commands, then return all
+      const sorted = [...commands].sort((a, b) => {
+        const aMatch = a.context && a.context === activePanel ? 1 : 0;
+        const bMatch = b.context && b.context === activePanel ? 1 : 0;
+        return bMatch - aMatch;
+      });
+      return sorted;
+    }
     const q = query.toLowerCase();
-    return commands.filter((c) =>
+    const matches = commands.filter((c) =>
       c.label.toLowerCase().includes(q) ||
       c.category.toLowerCase().includes(q),
     );
+    // Sort: context-matching first
+    matches.sort((a, b) => {
+      const aMatch = a.context && a.context === activePanel ? 1 : 0;
+      const bMatch = b.context && b.context === activePanel ? 1 : 0;
+      return bMatch - aMatch;
+    });
+    return matches;
+  }, [query, commands, activePanel]);
+
+  // Build recent commands list (only when no query)
+  const recentItems = useMemo(() => {
+    if (query.trim()) return [];
+    const recentIds = getRecentIds();
+    const items: CommandItem[] = [];
+    for (const rid of recentIds) {
+      const cmd = commands.find((c) => c.id === rid);
+      if (cmd) items.push(cmd);
+    }
+    return items;
   }, [query, commands]);
 
-  // Group by category
+  // Group by category, with Recent at top when no query
   const grouped = useMemo(() => {
     const groups: Array<{ category: string; items: CommandItem[] }> = [];
+
+    // Add recent group at top when there's no search query
+    if (recentItems.length > 0) {
+      groups.push({ category: t('commandPalette.recent'), items: recentItems });
+    }
+
     const seen: Record<string, CommandItem[]> = {};
     for (const item of filtered) {
       if (seen[item.category]) {
@@ -202,7 +297,7 @@ export function CommandPalette({ isOpen, onClose, onAgentAction }: CommandPalett
       }
     }
     return groups;
-  }, [filtered]);
+  }, [filtered, recentItems, t]);
 
   // Reset on open
   useEffect(() => {
@@ -213,12 +308,15 @@ export function CommandPalette({ isOpen, onClose, onAgentAction }: CommandPalett
     }
   }, [isOpen]);
 
+  // Total flat item count (recent items + filtered items)
+  const totalItems = recentItems.length + filtered.length;
+
   // Keep selectedIndex in bounds
   useEffect(() => {
-    if (selectedIndex >= filtered.length) {
-      setSelectedIndex(Math.max(0, filtered.length - 1));
+    if (selectedIndex >= totalItems) {
+      setSelectedIndex(Math.max(0, totalItems - 1));
     }
-  }, [filtered.length, selectedIndex]);
+  }, [totalItems, selectedIndex]);
 
   // Scroll selected into view
   useEffect(() => {
@@ -227,20 +325,32 @@ export function CommandPalette({ isOpen, onClose, onAgentAction }: CommandPalett
     el?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex]);
 
+  // Build flat list from grouped for index lookup
+  const flatItems = useMemo(() => {
+    const items: CommandItem[] = [];
+    for (const group of grouped) {
+      for (const item of group.items) {
+        items.push(item);
+      }
+    }
+    return items;
+  }, [grouped]);
+
   const executeSelected = useCallback(() => {
-    const item = filtered[selectedIndex];
+    const item = flatItems[selectedIndex];
     if (item) {
+      saveRecentId(item.id);
       item.action();
       onClose();
     }
-  }, [filtered, selectedIndex, onClose]);
+  }, [flatItems, selectedIndex, onClose]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
-          setSelectedIndex((i) => Math.min(i + 1, filtered.length - 1));
+          setSelectedIndex((i) => Math.min(i + 1, flatItems.length - 1));
           break;
         case 'ArrowUp':
           e.preventDefault();
@@ -256,7 +366,7 @@ export function CommandPalette({ isOpen, onClose, onAgentAction }: CommandPalett
           break;
       }
     },
-    [filtered.length, executeSelected, onClose],
+    [flatItems.length, executeSelected, onClose],
   );
 
   if (!isOpen) return null;
@@ -290,7 +400,7 @@ export function CommandPalette({ isOpen, onClose, onAgentAction }: CommandPalett
 
         {/* Results */}
         <div ref={listRef} className="flex-1 overflow-y-auto py-1">
-          {filtered.length === 0 && (
+          {flatItems.length === 0 && (
             <div className="px-4 py-8 text-center text-sm" style={{ color: 'var(--color-text-muted)' }}>
               {t('commandPalette.noResults')}
             </div>
@@ -313,7 +423,7 @@ export function CommandPalette({ isOpen, onClose, onAgentAction }: CommandPalett
                         : 'hover:bg-[var(--color-bg-tertiary)]'
                     }`}
                     style={idx !== selectedIndex ? { color: 'var(--color-text-secondary)' } : undefined}
-                    onClick={() => { item.action(); onClose(); }}
+                    onClick={() => { saveRecentId(item.id); item.action(); onClose(); }}
                     onMouseEnter={() => setSelectedIndex(idx)}
                   >
                     <span style={{ color: idx === selectedIndex ? 'rgb(96,165,250)' : 'var(--color-text-muted)' }}>

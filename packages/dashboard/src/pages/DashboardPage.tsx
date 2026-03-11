@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, AlertCircle, GitBranch, GitCommit, Brain, FileText, Bot, Sparkles } from 'lucide-react';
 import type { ProjectConfig } from '@voltron/shared';
@@ -249,8 +249,8 @@ export function DashboardPage() {
     );
   }
 
-  // Agent action handlers
-  const handleAgentSpawn = async (config: { model: string; prompt: string; targetDir: string }) => {
+  // Agent action handlers (memoized to prevent unnecessary re-renders)
+  const handleAgentSpawn = useCallback(async (config: { model: string; prompt: string; targetDir: string }) => {
     if (!projectId) return;
     try {
       await api.agentSpawn(projectId, config);
@@ -258,9 +258,9 @@ export function DashboardPage() {
     } catch {
       // Error will come through WS
     }
-  };
+  }, [projectId]);
 
-  const handleAgentPause = async () => {
+  const handleAgentPause = useCallback(async () => {
     if (!projectId) return;
     try {
       await api.agentStop(projectId);
@@ -271,9 +271,9 @@ export function DashboardPage() {
         message: err instanceof Error ? err.message : 'Could not pause agent',
       });
     }
-  };
+  }, [projectId, t]);
 
-  const handleAgentResume = async () => {
+  const handleAgentResume = useCallback(async () => {
     if (!projectId) return;
     try {
       await api.agentResume(projectId);
@@ -284,9 +284,9 @@ export function DashboardPage() {
         message: err instanceof Error ? err.message : 'Could not resume agent',
       });
     }
-  };
+  }, [projectId, t]);
 
-  const handleAgentKill = async () => {
+  const handleAgentKill = useCallback(async () => {
     if (!projectId) return;
     try {
       await api.agentKill(projectId);
@@ -297,9 +297,9 @@ export function DashboardPage() {
         message: err instanceof Error ? err.message : 'Could not kill agent',
       });
     }
-  };
+  }, [projectId, t]);
 
-  const handleAgentInject = async (prompt: string, context?: { filePath?: string; constraints?: string[]; attachmentUrls?: string[] }) => {
+  const handleAgentInject = useCallback(async (prompt: string, context?: { filePath?: string; constraints?: string[]; attachmentUrls?: string[] }) => {
     if (!projectId) return;
 
     // 1) Maximize paneli restore et (kullanıcı sıkışmasın)
@@ -351,21 +351,21 @@ export function DashboardPage() {
         message: err instanceof Error ? err.message : t('agent.couldNotSendEdits'),
       });
     }
-  };
+  }, [projectId, selectedProject?.rootPath, setCenterTab, t]);
 
-  // Tab definitions — filtered by dashboard mode
-  const allTabs = [
+  // Tab definitions — filtered by dashboard mode (memoized)
+  const allTabs = useMemo(() => [
     { id: 'feed' as const, icon: null, label: t('app.actionFeed'), minMode: 'essential' as DashboardMode },
     { id: 'github' as const, icon: <GitBranch className="w-3.5 h-3.5" />, label: t('app.github'), minMode: 'power' as DashboardMode },
     { id: 'snapshots' as const, icon: <GitCommit className="w-3.5 h-3.5" />, label: t('app.snapshots'), minMode: 'power' as DashboardMode },
     { id: 'behavior' as const, icon: <Brain className="w-3.5 h-3.5" />, label: t('app.behavior'), minMode: 'power' as DashboardMode },
     { id: 'prompts' as const, icon: <FileText className="w-3.5 h-3.5" />, label: t('app.prompts'), minMode: 'power' as DashboardMode },
     { id: 'smart-setup' as const, icon: <Sparkles className="w-3.5 h-3.5" />, label: t('app.smartSetup'), minMode: 'power' as DashboardMode },
-  ];
+  ], [t]);
 
-  const modeOrder: DashboardMode[] = ['essential', 'active', 'power'];
+  const modeOrder: DashboardMode[] = useMemo(() => ['essential', 'active', 'power'], []);
   const currentModeIndex = modeOrder.indexOf(dashboardMode);
-  const tabs = allTabs.filter(tab => modeOrder.indexOf(tab.minMode) <= currentModeIndex);
+  const tabs = useMemo(() => allTabs.filter(tab => modeOrder.indexOf(tab.minMode) <= currentModeIndex), [allTabs, modeOrder, currentModeIndex]);
 
   // Center content
   const centerContent = (
@@ -419,7 +419,7 @@ export function DashboardPage() {
                 color: 'var(--color-text-muted)',
               }}
             >
-              {mode === 'essential' ? 'Essential' : mode === 'active' ? 'Active' : 'All Tools'}
+              {mode === 'essential' ? t('dashboardMode.essential') : mode === 'active' ? t('dashboardMode.active') : t('dashboardMode.allTools')}
             </button>
           ))}
         </div>

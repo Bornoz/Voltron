@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import {
   CheckCircle2, XCircle, FileText, Clock, Cpu,
-  Monitor, Map, Code2,
+  Monitor, Map, Code2, Minimize2, Terminal,
 } from 'lucide-react';
 import { useAgentStore } from '../../stores/agentStore';
 import { useWindowStore, type WindowPreset } from '../../stores/windowStore';
@@ -144,7 +144,7 @@ export function AgentWorkspace({
       case 'promptInFile':
         if (data?.filePath) {
           const fp = String(data.filePath);
-          onInject(`Bu dosyada calis: ${fp}`, { filePath: fp });
+          onInject(t('agent.workOnFile').replace('{path}', fp), { filePath: fp });
         }
         break;
       case 'viewOutput':
@@ -196,8 +196,17 @@ export function AgentWorkspace({
     enabled: isActive || isFinished,
   });
 
+  const glowClass = useMemo(() => {
+    switch (status) {
+      case 'RUNNING': case 'SPAWNING': return 'agent-glow-running';
+      case 'PAUSED': return 'agent-glow-paused';
+      case 'CRASHED': return 'agent-glow-error';
+      default: return 'agent-glow-idle';
+    }
+  }, [status]);
+
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className={`flex flex-col h-full overflow-hidden ${glowClass}`}>
       {/* Toast notifications */}
       <AgentToasts />
 
@@ -217,6 +226,8 @@ export function AgentWorkspace({
               { id: 'ide-style' as WindowPreset, icon: Code2, label: 'IDE' },
               { id: 'gps-focus' as WindowPreset, icon: Map, label: 'GPS' },
               { id: 'monitor' as WindowPreset, icon: Monitor, label: 'Monitor' },
+              { id: 'minimal' as WindowPreset, icon: Minimize2, label: 'Min' },
+              { id: 'development' as WindowPreset, icon: Terminal, label: 'Dev' },
             ]).map(({ id, icon: Icon, label }) => (
               <button
                 key={id}

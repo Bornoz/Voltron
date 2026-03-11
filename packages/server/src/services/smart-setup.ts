@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import type { ProjectProfile, DiscoveredRepo, SmartSetupRun } from '@voltron/shared';
 import { SmartSetupRepository } from '../db/repositories/smart-setup.js';
 import { ProjectRepository } from '../db/repositories/projects.js';
@@ -451,8 +451,11 @@ export class SmartSetupService {
             continue;
           }
 
-          // Execute safely — no shell interpolation
-          execSync(repo.installCommand, { cwd: targetDir, timeout: 60_000, stdio: 'pipe' });
+          // Execute safely — no shell interpolation, parse command into executable + args
+          const cmdParts = repo.installCommand!.split(/\s+/);
+          const cmdExe = cmdParts[0];
+          const cmdArgs = cmdParts.slice(1);
+          execFileSync(cmdExe, cmdArgs, { cwd: targetDir, timeout: 60_000, stdio: 'pipe' });
           this.log.info(`Applied install: ${repo.installCommand}`);
         }
 

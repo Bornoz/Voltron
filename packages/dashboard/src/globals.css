@@ -411,6 +411,107 @@ body::before {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
+/* ═══ Phase 6: Micro-Interactions ═══ */
+
+/* Agent status glow effects */
+.agent-glow-running {
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.15), 0 0 40px rgba(34, 197, 94, 0.05);
+  transition: box-shadow 0.5s ease;
+}
+.agent-glow-paused {
+  box-shadow: 0 0 20px rgba(234, 179, 8, 0.15), 0 0 40px rgba(234, 179, 8, 0.05);
+  transition: box-shadow 0.5s ease;
+}
+.agent-glow-error {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.2), 0 0 40px rgba(239, 68, 68, 0.05);
+  transition: box-shadow 0.5s ease;
+}
+.agent-glow-idle {
+  box-shadow: none;
+  transition: box-shadow 0.5s ease;
+}
+
+/* Focus mode: dim non-active panels */
+.focus-mode-active {
+  opacity: 0.35;
+  filter: saturate(0.5);
+  transition: opacity 0.3s ease, filter 0.3s ease;
+  pointer-events: none;
+}
+.focus-mode-active:hover {
+  opacity: 0.6;
+  filter: saturate(0.8);
+  pointer-events: auto;
+}
+.focus-mode-target {
+  opacity: 1;
+  filter: none;
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+/* Panel appear/disappear transitions */
+.panel-enter {
+  animation: panel-scale-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.panel-exit {
+  animation: panel-scale-out 0.15s ease-in forwards;
+}
+
+@keyframes panel-scale-in {
+  from { opacity: 0; transform: scale(0.95) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes panel-scale-out {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to { opacity: 0; transform: scale(0.95) translateY(8px); }
+}
+
+/* Tab switch slide animation */
+.tab-slide-left {
+  animation: tab-slide-l 0.2s ease-out forwards;
+}
+.tab-slide-right {
+  animation: tab-slide-r 0.2s ease-out forwards;
+}
+
+@keyframes tab-slide-l {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes tab-slide-r {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Status badge pulse */
+.status-pulse {
+  position: relative;
+}
+.status-pulse::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: inherit;
+  opacity: 0;
+  animation: status-ring-pulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes status-ring-pulse {
+  0%, 100% { opacity: 0; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(1.15); }
+}
+
+/* Smooth number counter */
+.counter-change {
+  animation: counter-bump 0.3s ease-out;
+}
+@keyframes counter-bump {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); color: var(--color-accent); }
+  100% { transform: scale(1); }
+}
+
 /* Reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
   .animate-slide-up,
@@ -426,6 +527,23 @@ body::before {
   .animate-progress-bar,
   .stagger-children > * {
     animation: none !important;
+  }
+  .panel-enter,
+  .panel-exit,
+  .tab-slide-left,
+  .tab-slide-right,
+  .status-pulse::after,
+  .counter-change {
+    animation: none !important;
+  }
+  .focus-mode-active {
+    transition: none !important;
+  }
+  .agent-glow-running,
+  .agent-glow-paused,
+  .agent-glow-error,
+  .agent-glow-idle {
+    transition: none !important;
   }
   .hover-lift:hover { transform: none; }
   .press-effect:active { transform: none; }

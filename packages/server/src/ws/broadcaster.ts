@@ -74,6 +74,16 @@ export class Broadcaster {
     }
   }
 
+  /** Broadcast to ALL connected dashboard clients regardless of projectId */
+  broadcastToDashboards(message: unknown): void {
+    const payload = JSON.stringify(message);
+    for (const client of this.clients.values()) {
+      if (client.clientType === 'dashboard') {
+        this.safeSend(client, payload);
+      }
+    }
+  }
+
   send(clientId: string, message: unknown): void {
     const client = this.clients.get(clientId);
     if (client) {

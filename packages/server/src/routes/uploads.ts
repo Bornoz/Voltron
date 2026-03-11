@@ -104,7 +104,8 @@ export function uploadRoutes(app: FastifyInstance): void {
       const content = await readFile(row.storagePath);
       return reply
         .header('Content-Type', row.mimeType)
-        .header('Content-Disposition', `inline; filename="${row.filename}"`)
+        .header('Content-Disposition', `inline; filename="${row.filename.replace(/["\r\n\\]/g, '_')}"`)
+        .header('X-Content-Type-Options', 'nosniff')
         .header('Cache-Control', 'public, max-age=3600')
         .send(content);
     } catch {

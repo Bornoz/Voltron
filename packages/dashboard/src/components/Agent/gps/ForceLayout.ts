@@ -21,6 +21,18 @@ interface LayoutResult {
  * Pure force-directed layout engine (no external dependencies).
  * Uses spring forces, repulsion, directory containment, and center gravity.
  */
+/** Maximum nodes for O(n²) force simulation. Beyond this, use grid layout. */
+const MAX_FORCE_NODES = 500;
+
+/** Deterministic pseudo-random using seed for consistent layouts */
+function seededRandom(seed: number): () => number {
+  let s = seed;
+  return () => {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0xffffffff;
+  };
+}
+
 export function computeForceLayout(input: LayoutInput): LayoutResult {
   const { files, breadcrumbs, currentFile, width, height } = input;
   if (files.length === 0) return { nodes: [], edges: [], dirZones: [], bounds: { minX: 0, minY: 0, maxX: width, maxY: height } };
@@ -65,10 +77,11 @@ export function computeForceLayout(input: LayoutInput): LayoutResult {
     const visits = visitMap.get(filePath) ?? 0;
     const radius = NODE.MIN_RADIUS + (NODE.MAX_RADIUS - NODE.MIN_RADIUS) * (visits / maxVisits);
 
-    // Initial position: spread by directory in a grid
+    // Initial position: spread by directory in a grid (deterministic)
+    const rand = seededRandom(idx * 7919 + filePath.length);
     const dirIdx = [...dirSet].indexOf(dir);
     const angle = (dirIdx * 2.399 + idx * 0.5) % (2 * Math.PI); // golden angle
-    const r = 80 + dirIdx * 60 + Math.random() * 40;
+    const r = 80 + dirIdx * 60 + rand() * 40;
     const cx = width / 2 + r * Math.cos(angle);
     const cy = height / 2 + r * Math.sin(angle);
 
@@ -122,7 +135,10 @@ export function computeForceLayout(input: LayoutInput): LayoutResult {
   // Pre-build node lookup map for O(1) edge resolution (avoids O(n) find per edge)
   const edgeNodeMap = new Map(nodes.map((nd) => [nd.id, nd]));
 
-  for (let iter = 0; iter < FORCE.ITERATIONS; iter++) {
+  // Skip expensive O(n²) force simulation for large graphs — use initial positions only
+  const iterations = n > MAX_FORCE_NODES ? 0 : FORCE.ITERATIONS;
+
+  for (let iter = 0; iter < iterations; iter++) {
     // Repulsion (all pairs — simplified O(n²), fine for <500 nodes)
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) {

@@ -27,7 +27,7 @@ function getConfidenceColor(confidence: number): string {
 }
 
 /** Build a minimal "file list" plan from breadcrumbs when thinking-based plan extraction fails */
-function buildBreadcrumbPlan(breadcrumbs: { filePath: string; activity: string }[]) {
+function buildBreadcrumbPlan(breadcrumbs: { filePath: string; activity: string }[], t: (key: string) => string) {
   const fileSet = new Map<string, string>();
   for (const bc of breadcrumbs) {
     if (bc.filePath && !fileSet.has(bc.filePath)) {
@@ -44,7 +44,7 @@ function buildBreadcrumbPlan(breadcrumbs: { filePath: string; activity: string }
   }));
 
   return {
-    summary: `${fileSet.size} dosya islendi`,
+    summary: t('agent.filesProcessed').replace('{count}', String(fileSet.size)),
     confidence: 0.3,
     totalSteps: steps.length,
     currentStepIndex: steps.length - 1,
@@ -93,7 +93,7 @@ export function PlanViewer() {
 
   // Case 2: Agent completed/crashed without a plan — show breadcrumb fallback or "no plan" message
   if (['COMPLETED', 'CRASHED'].includes(status)) {
-    const fallback = buildBreadcrumbPlan(breadcrumbs);
+    const fallback = buildBreadcrumbPlan(breadcrumbs, t);
     if (fallback) {
       return (
         <div className="space-y-2">
@@ -115,7 +115,7 @@ export function PlanViewer() {
 
   // Case 3: Running but timed out — show timeout message
   if (['RUNNING', 'SPAWNING'].includes(status) && timedOut) {
-    const fallback = buildBreadcrumbPlan(breadcrumbs);
+    const fallback = buildBreadcrumbPlan(breadcrumbs, t);
     if (fallback) {
       return (
         <div className="space-y-2">

@@ -128,7 +128,7 @@ export const GPSContextMenu = memo(function GPSContextMenu({
       <MenuItem
         icon={<Crosshair size={13} />}
         label={hasBreakpoint ? t('agent.gps.removeBreakpoint') : t('agent.gps.setBreakpoint')}
-        description={hasBreakpoint ? 'Dosyadaki durdurma noktasini kaldir' : 'Agent bu dosyaya gelince duraklat'}
+        description={hasBreakpoint ? t('agent.gps.removeBreakpointDesc') : t('agent.gps.setBreakpointDesc')}
         onClick={() => { onBreakpoint(node.filePath); onClose(); }}
         danger={hasBreakpoint}
       />
@@ -137,7 +137,7 @@ export const GPSContextMenu = memo(function GPSContextMenu({
         <MenuItem
           icon={<Pencil size={13} />}
           label={t('agent.gps.doInFile')}
-          description="Agent'tan bu dosyayi iyilestirmesini iste"
+          description={t('agent.gps.improveFileDesc')}
           onClick={() => {
             const prompt = `Improve this file: ${node.filePath}\nRefactor, fix issues, and optimize the code.`;
             onInject(prompt, { filePath: node.filePath });

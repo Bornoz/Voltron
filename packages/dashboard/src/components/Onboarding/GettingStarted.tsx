@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ChevronDown, CheckCircle2, Circle, Play, Bot, Shield, Paintbrush, Sparkles, X } from 'lucide-react';
+import { useTranslation } from '../../i18n';
 
 interface ChecklistItem {
   id: string;
@@ -23,6 +24,7 @@ interface GettingStartedProps {
 }
 
 export function GettingStarted({ onTryDemo, onSpawnAgent, onOpenSettings, hasEvents, agentEverRun }: GettingStartedProps) {
+  const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const [dismissed, setDismissed] = useState(() => {
     try { return localStorage.getItem(DISMISSED_KEY) === 'true'; } catch { return false; }
@@ -71,36 +73,36 @@ export function GettingStarted({ onTryDemo, onSpawnAgent, onOpenSettings, hasEve
     {
       id: 'demo',
       icon: Play,
-      label: 'Try the Interactive Demo',
-      description: 'See how the risk engine classifies file operations in real-time.',
+      label: t('gettingStarted.tryDemo'),
+      description: t('gettingStarted.tryDemoDesc'),
       color: 'text-purple-400',
       action: onTryDemo,
-      actionLabel: 'Start Demo',
+      actionLabel: t('gettingStarted.startDemo'),
     },
     {
       id: 'agent',
       icon: Bot,
-      label: 'Spawn Your First Agent',
-      description: 'Give Claude a task and watch Voltron monitor every file change.',
+      label: t('gettingStarted.spawnAgent'),
+      description: t('gettingStarted.spawnAgentDesc'),
       color: 'text-blue-400',
       action: onSpawnAgent,
-      actionLabel: 'Spawn Agent',
+      actionLabel: t('gettingStarted.spawnAgentBtn'),
     },
     {
       id: 'zones',
       icon: Shield,
-      label: 'Set Up Protection Zones',
-      description: 'Mark critical files as DO_NOT_TOUCH to block dangerous modifications.',
+      label: t('gettingStarted.setupZones'),
+      description: t('gettingStarted.setupZonesDesc'),
       color: 'text-red-400',
     },
     {
       id: 'customize',
       icon: Paintbrush,
-      label: 'Customize Your Setup',
-      description: 'Set default model, language, and notification preferences.',
+      label: t('gettingStarted.customize'),
+      description: t('gettingStarted.customizeDesc'),
       color: 'text-amber-400',
       action: onOpenSettings,
-      actionLabel: 'Open Settings',
+      actionLabel: t('gettingStarted.openSettings'),
     },
   ];
 
@@ -120,7 +122,7 @@ export function GettingStarted({ onTryDemo, onSpawnAgent, onOpenSettings, hasEve
       >
         <Sparkles className="w-4 h-4 text-blue-400 shrink-0" />
         <div className="flex-1 min-w-0">
-          <span className="text-xs font-semibold text-gray-200">Getting Started</span>
+          <span className="text-xs font-semibold text-gray-200">{t('gettingStarted.title')}</span>
           <span className="text-[10px] text-gray-500 ml-2">{completedCount}/{items.length}</span>
         </div>
         {/* Progress bar */}
@@ -134,7 +136,7 @@ export function GettingStarted({ onTryDemo, onSpawnAgent, onOpenSettings, hasEve
         <button
           onClick={(e) => { e.stopPropagation(); handleDismiss(); }}
           className="p-1 rounded hover:bg-white/[0.05] text-gray-600 hover:text-gray-400 transition-colors"
-          title="Dismiss"
+          title={t('gettingStarted.dismiss')}
         >
           <X className="w-3 h-3" />
         </button>

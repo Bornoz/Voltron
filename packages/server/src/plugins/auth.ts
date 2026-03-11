@@ -92,6 +92,6 @@ export function registerAuth(app: FastifyInstance, config: ServerConfig): void {
     }
 
     // Attach user info to request for downstream use
-    (request as any).user = payload;
+    (request as FastifyRequest & { user?: TokenPayload }).user = payload;
   });
 }

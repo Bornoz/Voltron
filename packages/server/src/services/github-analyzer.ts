@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync, readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -74,7 +74,7 @@ export class GitHubAnalyzer {
   }
 
   private cloneRepo(repoUrl: string, targetDir: string): void {
-    const args = ['git', 'clone', '--depth=1', '--single-branch'];
+    const args = ['clone', '--depth=1', '--single-branch'];
     if (this.config.token) {
       const urlObj = new URL(repoUrl);
       urlObj.username = 'x-access-token';
@@ -85,7 +85,7 @@ export class GitHubAnalyzer {
     }
     args.push(targetDir);
 
-    execSync(args.join(' '), {
+    execFileSync('git', args, {
       timeout: this.config.analysisTimeout,
       stdio: 'pipe',
     });
@@ -93,7 +93,7 @@ export class GitHubAnalyzer {
 
   private getHeadCommit(repoDir: string): string {
     try {
-      return execSync('git rev-parse HEAD', { cwd: repoDir, stdio: 'pipe' }).toString().trim().slice(0, 40);
+      return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoDir, stdio: 'pipe' }).toString().trim().slice(0, 40);
     } catch {
       return '0'.repeat(40);
     }

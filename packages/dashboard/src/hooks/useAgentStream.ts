@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { VoltronWebSocket } from '../lib/ws';
 import type { AgentStatus, AgentLocation, AgentPlan, AgentBreadcrumb, PhaseExecution } from '@voltron/shared';
 import { useAgentStore } from '../stores/agentStore';
@@ -8,26 +8,48 @@ import { useNotificationStore } from '../stores/notificationStore';
 
 /**
  * Subscribes to AGENT_* WS message types and dispatches to agentStore.
- * Includes conflict detection, breakpoint, and injection queue handlers.
- * All handlers log to console for debugging.
+ * Uses refs for callbacks to avoid teardown/rebuild on every store selector change.
  */
 export function useAgentStream(client: VoltronWebSocket): void {
-  const setSession = useAgentStore((s) => s.setSession);
-  const setStatus = useAgentStore((s) => s.setStatus);
-  const setLocation = useAgentStore((s) => s.setLocation);
-  const setPlan = useAgentStore((s) => s.setPlan);
-  const addBreadcrumb = useAgentStore((s) => s.addBreadcrumb);
-  const addOutput = useAgentStore((s) => s.addOutput);
-  const setTokenUsage = useAgentStore((s) => s.setTokenUsage);
-  const setError = useAgentStore((s) => s.setError);
-  const setDevServer = useAgentStore((s) => s.setDevServer);
-  const setPhaseExecution = useAgentStore((s) => s.setPhaseExecution);
-  const addToInjectionQueue = useAgentStore((s) => s.addToInjectionQueue);
-  const updateInjectionQueueEntry = useAgentStore((s) => s.updateInjectionQueueEntry);
-  const addAgentChatMessage = useChatStore((s) => s.addAgentMessage);
+  // Use refs to always have latest callbacks without re-subscribing
+  const storeRef = useRef({
+    setSession: useAgentStore.getState().setSession,
+    setStatus: useAgentStore.getState().setStatus,
+    setLocation: useAgentStore.getState().setLocation,
+    setPlan: useAgentStore.getState().setPlan,
+    addBreadcrumb: useAgentStore.getState().addBreadcrumb,
+    addOutput: useAgentStore.getState().addOutput,
+    setTokenUsage: useAgentStore.getState().setTokenUsage,
+    setError: useAgentStore.getState().setError,
+    setDevServer: useAgentStore.getState().setDevServer,
+    setPhaseExecution: useAgentStore.getState().setPhaseExecution,
+    addToInjectionQueue: useAgentStore.getState().addToInjectionQueue,
+    updateInjectionQueueEntry: useAgentStore.getState().updateInjectionQueueEntry,
+    addAgentChatMessage: useChatStore.getState().addAgentMessage,
+  });
+
+  // Keep refs up to date (Zustand stores are stable, but just in case)
+  useEffect(() => {
+    storeRef.current = {
+      setSession: useAgentStore.getState().setSession,
+      setStatus: useAgentStore.getState().setStatus,
+      setLocation: useAgentStore.getState().setLocation,
+      setPlan: useAgentStore.getState().setPlan,
+      addBreadcrumb: useAgentStore.getState().addBreadcrumb,
+      addOutput: useAgentStore.getState().addOutput,
+      setTokenUsage: useAgentStore.getState().setTokenUsage,
+      setError: useAgentStore.getState().setError,
+      setDevServer: useAgentStore.getState().setDevServer,
+      setPhaseExecution: useAgentStore.getState().setPhaseExecution,
+      addToInjectionQueue: useAgentStore.getState().addToInjectionQueue,
+      updateInjectionQueueEntry: useAgentStore.getState().updateInjectionQueueEntry,
+      addAgentChatMessage: useChatStore.getState().addAgentMessage,
+    };
+  });
 
   useEffect(() => {
     const unsubs: (() => void)[] = [];
+    const s = () => storeRef.current;
 
     unsubs.push(client.on('AGENT_STATUS_CHANGE', (msg) => {
       const p = msg.payload as {
@@ -38,16 +60,16 @@ export function useAgentStream(client: VoltronWebSocket): void {
         startedAt?: number;
       };
       console.log('[WS] AGENT_STATUS_CHANGE:', p.status, p.sessionId ?? '');
-      setStatus(p.status);
+      s().setStatus(p.status);
       if (p.sessionId && p.model && p.startedAt) {
-        setSession(p.sessionId, p.model, p.startedAt);
+        s().setSession(p.sessionId, p.model, p.startedAt);
       }
     }));
 
     unsubs.push(client.on('AGENT_LOCATION_UPDATE', (msg) => {
       const p = msg.payload as { location: AgentLocation; projectId?: string };
       console.log('[WS] AGENT_LOCATION_UPDATE:', p.location.activity, p.location.filePath?.split('/').pop());
-      setLocation(p.location);
+      s().setLocation(p.location);
 
       // Conflict detection: warn if agent is writing to a file with visual edits
       const projectId = (msg.payload as Record<string, unknown>).projectId ?? '';
@@ -56,7 +78,7 @@ export function useAgentStream(client: VoltronWebSocket): void {
         try {
           const edits = JSON.parse(visualEdits) as Array<{ selector: string }>;
           if (edits.length > 0) {
-            addOutput({
+            s().addOutput({
               text: `Warning: Agent is writing while you have ${edits.length} visual edits pending`,
               type: 'error',
               timestamp: Date.now(),
@@ -69,19 +91,19 @@ export function useAgentStream(client: VoltronWebSocket): void {
     unsubs.push(client.on('AGENT_PLAN_UPDATE', (msg) => {
       const p = msg.payload as { plan: AgentPlan };
       console.log('[WS] AGENT_PLAN_UPDATE:', p.plan.summary, `${p.plan.steps.length} steps, confidence=${p.plan.confidence}`);
-      setPlan(p.plan);
+      s().setPlan(p.plan);
     }));
 
     unsubs.push(client.on('AGENT_BREADCRUMB', (msg) => {
       const p = msg.payload as { breadcrumb: AgentBreadcrumb };
       console.log('[WS] AGENT_BREADCRUMB:', p.breadcrumb.activity, p.breadcrumb.filePath?.split('/').pop());
-      addBreadcrumb(p.breadcrumb);
+      s().addBreadcrumb(p.breadcrumb);
     }));
 
     unsubs.push(client.on('AGENT_OUTPUT', (msg) => {
       const p = msg.payload as AgentOutputEntry & { projectId: string };
       console.log('[WS] AGENT_OUTPUT:', p.type, p.text?.substring(0, 80));
-      addOutput({
+      s().addOutput({
         text: p.text,
         type: p.type,
         timestamp: p.timestamp,
@@ -90,26 +112,26 @@ export function useAgentStream(client: VoltronWebSocket): void {
       });
       // Forward text and delta outputs to chat
       if ((p.type === 'text' || p.type === 'delta') && p.text) {
-        addAgentChatMessage(p.text);
+        s().addAgentChatMessage(p.text);
       }
     }));
 
     unsubs.push(client.on('AGENT_TOKEN_USAGE', (msg) => {
       const p = msg.payload as { inputTokens: number; outputTokens: number };
       console.log('[WS] AGENT_TOKEN_USAGE:', p.inputTokens, '/', p.outputTokens);
-      setTokenUsage(p);
+      s().setTokenUsage(p);
     }));
 
     unsubs.push(client.on('AGENT_ERROR', (msg) => {
       const p = msg.payload as { error: string };
       console.error('[WS] AGENT_ERROR:', p.error.substring(0, 200));
-      setError(p.error);
+      s().setError(p.error);
     }));
 
     unsubs.push(client.on('AGENT_PHASE_UPDATE', (msg) => {
       const p = msg.payload as PhaseExecution;
       console.log('[WS] AGENT_PHASE_UPDATE:', p.status, p.phases.length, 'phases');
-      setPhaseExecution(p);
+      s().setPhaseExecution(p);
     }));
 
     unsubs.push(client.on('DEV_SERVER_STATUS', (msg) => {
@@ -121,7 +143,7 @@ export function useAgentStream(client: VoltronWebSocket): void {
         error?: string;
       };
       console.log('[WS] DEV_SERVER_STATUS:', p.status, p.port);
-      setDevServer(p.status === 'stopped' ? null : p);
+      s().setDevServer(p.status === 'stopped' ? null : p);
     }));
 
     // Breakpoint hit — agent auto-paused by server
@@ -129,15 +151,15 @@ export function useAgentStream(client: VoltronWebSocket): void {
       const p = msg.payload as { filePath: string; timestamp: number };
       console.log('[WS] AGENT_BREAKPOINT_HIT:', p.filePath);
       const fileName = p.filePath.split('/').pop() ?? p.filePath;
-      addOutput({
-        text: `Breakpoint hit: ${p.filePath} — Agent durduruldu`,
+      s().addOutput({
+        text: `Breakpoint hit: ${p.filePath} — Agent paused`,
         type: 'error',
         timestamp: p.timestamp,
       });
       useNotificationStore.getState().addNotification({
         type: 'warning',
-        title: 'Breakpoint tetiklendi',
-        message: `Agent "${fileName}" dosyasında durduruldu. Devam etmek için Resume kullanın.`,
+        title: 'Breakpoint triggered',
+        message: `Agent paused at "${fileName}". Use Resume to continue.`,
       });
     }));
 
@@ -159,8 +181,8 @@ export function useAgentStream(client: VoltronWebSocket): void {
     unsubs.push(client.on('AGENT_REDIRECTED', (msg) => {
       const p = msg.payload as { filePath: string };
       console.log('[WS] AGENT_REDIRECTED:', p.filePath);
-      addOutput({
-        text: `Agent yönlendirildi: ${p.filePath}`,
+      s().addOutput({
+        text: `Agent redirected: ${p.filePath}`,
         type: 'text',
         timestamp: Date.now(),
       });
@@ -170,18 +192,18 @@ export function useAgentStream(client: VoltronWebSocket): void {
     unsubs.push(client.on('AGENT_INJECTION_QUEUED', (msg) => {
       const p = msg.payload as { id: string; prompt: string; queuedAt: number };
       console.log('[WS] AGENT_INJECTION_QUEUED:', p.id, p.prompt.substring(0, 60));
-      addToInjectionQueue({ id: p.id, prompt: p.prompt, queuedAt: p.queuedAt, status: 'queued' });
+      s().addToInjectionQueue({ id: p.id, prompt: p.prompt, queuedAt: p.queuedAt, status: 'queued' });
     }));
 
     // Injection applied
     unsubs.push(client.on('AGENT_INJECTION_APPLIED', (msg) => {
       const p = msg.payload as { id: string };
       console.log('[WS] AGENT_INJECTION_APPLIED:', p.id);
-      updateInjectionQueueEntry(p.id, 'applied');
+      s().updateInjectionQueueEntry(p.id, 'applied');
     }));
 
     return () => {
       for (const unsub of unsubs) unsub();
     };
-  }, [client, setSession, setStatus, setLocation, setPlan, addBreadcrumb, addOutput, setTokenUsage, setError, setDevServer, setPhaseExecution, addToInjectionQueue, updateInjectionQueueEntry, addAgentChatMessage]);
+  }, [client]); // Only re-subscribe when client changes
 }

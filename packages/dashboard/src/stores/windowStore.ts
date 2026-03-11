@@ -34,7 +34,7 @@ export interface PanelState {
 
 /* ─── Presets ─── */
 
-export type WindowPreset = 'ide-style' | 'gps-focus' | 'monitor';
+export type WindowPreset = 'ide-style' | 'gps-focus' | 'monitor' | 'minimal' | 'development';
 
 /* ─── Store Shape ─── */
 
@@ -49,6 +49,7 @@ interface WindowState {
   nextZIndex: number;
   viewportWidth: number;
   viewportHeight: number;
+  focusMode: boolean;
 
   // Actions
   movePanel: (id: PanelId, x: number, y: number) => void;
@@ -69,6 +70,7 @@ interface WindowState {
   saveLayout: () => void;
   loadLayout: () => void;
   cyclePanel: () => void;
+  toggleFocusMode: () => void;
 }
 
 /* ─── Defaults (percentage → computed on first render) ─── */
@@ -259,6 +261,42 @@ function buildPresetPanels(preset: WindowPreset, vw: number, vh: number): Record
       }
       return base;
     }
+
+    case 'minimal': {
+      // Only visual-editor, full width
+      base['visual-editor'].visible = true;
+      base['visual-editor'].x = 0;
+      base['visual-editor'].y = 0;
+      base['visual-editor'].width = aw;
+      base['visual-editor'].height = vh;
+      return base;
+    }
+
+    case 'development': {
+      // visual-editor left 55%, agent-output bottom-right, agent-tracker top-right
+      const leftW = Math.round(aw * 0.55);
+      const rightW = aw - leftW - 4;
+      const rightX = leftW + 4;
+
+      base['visual-editor'].visible = true;
+      base['visual-editor'].x = 0;
+      base['visual-editor'].y = 0;
+      base['visual-editor'].width = leftW;
+      base['visual-editor'].height = vh;
+
+      base['agent-output'].visible = true;
+      base['agent-output'].x = rightX;
+      base['agent-output'].y = Math.round(vh * 0.5) + 2;
+      base['agent-output'].width = rightW;
+      base['agent-output'].height = Math.round(vh * 0.5) - 2;
+
+      base['agent-tracker'].visible = true;
+      base['agent-tracker'].x = rightX;
+      base['agent-tracker'].y = 0;
+      base['agent-tracker'].width = rightW;
+      base['agent-tracker'].height = Math.round(vh * 0.5) - 2;
+      return base;
+    }
   }
 }
 
@@ -331,6 +369,7 @@ export const useWindowStore = create<WindowState>((set, get) => ({
   nextZIndex: 20,
   viewportWidth: fallbackVW,
   viewportHeight: fallbackVH,
+  focusMode: false,
 
   movePanel: (id, x, y) => set((s) => {
     const panel = s.panels[id];
@@ -501,6 +540,8 @@ export const useWindowStore = create<WindowState>((set, get) => ({
     const loaded = loadFromStorage();
     if (loaded) set({ panels: loaded });
   },
+
+  toggleFocusMode: () => set((state) => ({ focusMode: !state.focusMode })),
 
   cyclePanel: () => set((s) => {
     const visibleIds = (Object.keys(s.panels) as PanelId[]).filter(

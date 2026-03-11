@@ -59,6 +59,8 @@ ${EDITOR_SCRIPT}
 
 /* ─── CSS → Visual Preview wrapper ─── */
 function wrapCSSForPreview(source: string): string {
+  // Escape </style> sequences to prevent XSS via CSS injection
+  const sanitizedSource = source.replace(/<\/(style)/gi, '<\\/$1');
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -69,7 +71,7 @@ function wrapCSSForPreview(source: string): string {
   .preview-section h3 { font-size: 0.75rem; color: #64748b; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
   .sample-elements { display: flex; flex-wrap: wrap; gap: 1rem; }
   .sample { padding: 1rem 1.5rem; border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); }
-  ${source}
+  ${sanitizedSource}
 </style>
 </head>
 <body>
@@ -254,35 +256,6 @@ export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner, devS
     }
   });
 
-  // Set breakpoint
-  app.post<{ Params: { id: string } }>('/api/projects/:id/agent/breakpoint', async (request, reply) => {
-    const body = z.object({ filePath: z.string().min(1) }).parse(request.body);
-    try {
-      agentRunner.setBreakpoint(request.params.id, body.filePath);
-      return reply.send({ status: 'OK' });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Set breakpoint failed';
-      return reply.status(400).send({ error: message });
-    }
-  });
-
-  // Remove breakpoint
-  app.delete<{ Params: { id: string } }>('/api/projects/:id/agent/breakpoint', async (request, reply) => {
-    const body = z.object({ filePath: z.string().min(1) }).parse(request.body);
-    try {
-      agentRunner.removeBreakpoint(request.params.id, body.filePath);
-      return reply.send({ status: 'OK' });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Remove breakpoint failed';
-      return reply.status(400).send({ error: message });
-    }
-  });
-
-  // Get breakpoints
-  app.get<{ Params: { id: string } }>('/api/projects/:id/agent/breakpoints', async (request, reply) => {
-    return reply.send(agentRunner.getBreakpoints(request.params.id));
-  });
-
   // Phase decision (approve/reject)
   app.post<{ Params: { id: string } }>('/api/projects/:id/agent/phase-decision', async (request, reply) => {
     const body = z.object({
@@ -457,6 +430,11 @@ export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner, devS
     const devInfo = devServerManager?.getInfo(projectId);
     if (devInfo?.status === 'ready' && devInfo.url) {
       try {
+        // SSRF prevention: validate proxy URL is localhost with expected port
+        const parsedDevUrl = new URL(devInfo.url);
+        if (!['localhost', '127.0.0.1', '::1'].includes(parsedDevUrl.hostname)) {
+          return reply.status(403).send({ error: 'Dev server URL must be localhost' });
+        }
         const proxyUrl = `${devInfo.url}/${filePath}`;
         const resp = await fetch(proxyUrl);
         if (resp.ok) {
@@ -533,29 +511,26 @@ export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner, devS
           .send(html);
       }
 
-      // For SVG files, wrap in HTML
+      // For SVG files, wrap in HTML with CSP to prevent script execution
       if (ext === '.svg') {
         const source = await readFile(requested, 'utf-8');
-        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a}</style></head><body>${source}\n${EDITOR_SCRIPT}</body></html>`;
+        // Strip <script> tags and event handlers from SVG to prevent XSS
+        const sanitizedSvg = source
+          .replace(/<script[\s\S]*?<\/script>/gi, '')
+          .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '');
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta http-equiv="Content-Security-Policy" content="script-src 'none'"><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a}</style></head><body>${sanitizedSvg}\n</body></html>`;
         return reply
           .header('Content-Type', 'text/html; charset=utf-8')
           .header('Cache-Control', 'no-cache')
+          .header('Content-Security-Policy', "script-src 'none'")
           .send(html);
       }
 
-      // For PHP files, strip PHP tags and serve as HTML
+      // For PHP files, serve as plain text to prevent code execution
       if (ext === '.php') {
-        let source = await readFile(requested, 'utf-8');
-        source = source.replace(/<\?php[\s\S]*?\?>/g, '').replace(/<\?=[\s\S]*?\?>/g, '');
-        if (!source.includes('data-voltron-editor')) {
-          if (source.includes('</body>')) {
-            source = source.replace('</body>', EDITOR_SCRIPT + '\n</body>');
-          } else {
-            source += EDITOR_SCRIPT;
-          }
-        }
+        const source = await readFile(requested, 'utf-8');
         return reply
-          .header('Content-Type', 'text/html; charset=utf-8')
+          .header('Content-Type', 'text/plain; charset=utf-8')
           .header('Cache-Control', 'no-cache')
           .send(source);
       }
@@ -669,7 +644,8 @@ ${agentActive ? '<script>setTimeout(()=>location.reload(),3000)</script>' : ''}
       }
 
       return reply.send(root);
-    } catch {
+    } catch (err) {
+      app.log.warn(`[filetree] Failed to read directory: ${err instanceof Error ? err.message : err}`);
       return reply.send({ name: '.', path: '', type: 'directory', children: [] });
     }
   });

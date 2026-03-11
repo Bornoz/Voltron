@@ -21,6 +21,7 @@ function MultiFileIndicator({ changesByFile, currentFilePath, onClearFile, onCle
   onClearAll: () => void;
   onSendAll?: () => void;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const files = Object.entries(changesByFile).filter(([, c]) => c.length > 0);
   const totalCount = files.reduce((sum, [, c]) => sum + c.length, 0);
@@ -41,8 +42,8 @@ function MultiFileIndicator({ changesByFile, currentFilePath, onClearFile, onCle
         }}
       >
         <Layers size={12} className="text-purple-400" />
-        <span className="text-purple-300">{totalCount} degisiklik</span>
-        <span className="text-slate-500">· {files.length} dosya</span>
+        <span className="text-purple-300">{totalCount} {t('gpsFilePreview.changes')}</span>
+        <span className="text-slate-500">· {files.length} {t('gpsFilePreview.files')}</span>
         <ChevronDown size={10} className={`text-slate-500 transition-transform ${expanded ? 'rotate-180' : ''}`} />
       </button>
 
@@ -74,7 +75,7 @@ function MultiFileIndicator({ changesByFile, currentFilePath, onClearFile, onCle
                 <button
                   onClick={(e) => { e.stopPropagation(); onClearFile(fp); }}
                   className="p-0.5 rounded hover:bg-white/[0.06] text-slate-600 hover:text-red-400 transition-colors"
-                  title="Bu dosyanin degisikliklerini temizle"
+                  title={t('gpsFilePreview.clearFileTooltip')}
                 >
                   <Trash2 size={9} />
                 </button>
@@ -89,7 +90,7 @@ function MultiFileIndicator({ changesByFile, currentFilePath, onClearFile, onCle
               className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-medium text-slate-500 hover:text-red-400 hover:bg-red-500/[0.06] border border-white/[0.06] transition-all"
             >
               <Trash2 size={9} />
-              Tumunu Temizle
+              {t('gpsFilePreview.clearAll')}
             </button>
             {onSendAll && (
               <button
@@ -101,7 +102,7 @@ function MultiFileIndicator({ changesByFile, currentFilePath, onClearFile, onCle
                 }}
               >
                 <Send size={9} />
-                Tumunu AI'ye Gonder ({totalCount})
+                {t('gpsFilePreview.sendAllToAI')} ({totalCount})
               </button>
             )}
           </div>
@@ -145,6 +146,7 @@ function PremiumTextEditor({ selector, currentText, onSubmit, onCancel }: {
   onSubmit: (selector: string, text: string) => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const [text, setText] = useState(currentText);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -187,7 +189,7 @@ function PremiumTextEditor({ selector, currentText, onSubmit, onCancel }: {
             <Code size={16} className="text-blue-400" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-slate-100">Metin Duzenle</h3>
+            <h3 className="text-sm font-semibold text-slate-100">{t('gpsFilePreview.editTextTitle')}</h3>
             <p className="text-[10px] text-slate-500 font-mono mt-0.5">{selector}</p>
           </div>
           <button
@@ -200,7 +202,7 @@ function PremiumTextEditor({ selector, currentText, onSubmit, onCancel }: {
 
         {/* Body */}
         <div className="px-5 py-4">
-          <label className="text-[11px] text-slate-400 font-medium mb-2 block">Yeni icerik</label>
+          <label className="text-[11px] text-slate-400 font-medium mb-2 block">{t('gpsFilePreview.newContentLabel')}</label>
           <textarea
             ref={inputRef}
             value={text}
@@ -220,9 +222,9 @@ function PremiumTextEditor({ selector, currentText, onSubmit, onCancel }: {
               e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
               e.currentTarget.style.boxShadow = 'inset 0 2px 4px rgba(0,0,0,0.2)';
             }}
-            placeholder="Yeni metin giriniz..."
+            placeholder={t('gpsFilePreview.newContentPlaceholder')}
           />
-          <p className="text-[9px] text-slate-600 mt-2">Ctrl+Enter ile hizlica uygulayabilirsiniz</p>
+          <p className="text-[9px] text-slate-600 mt-2">{t('gpsFilePreview.ctrlEnterHint')}</p>
         </div>
 
         {/* Footer */}
@@ -231,7 +233,7 @@ function PremiumTextEditor({ selector, currentText, onSubmit, onCancel }: {
             onClick={onCancel}
             className="px-4 py-2 text-xs font-medium text-slate-400 rounded-lg hover:bg-white/[0.04] border border-white/[0.06] transition-all"
           >
-            Iptal
+            {t('gpsFilePreview.cancel')}
           </button>
           <button
             onClick={() => onSubmit(selector, text)}
@@ -241,7 +243,7 @@ function PremiumTextEditor({ selector, currentText, onSubmit, onCancel }: {
               boxShadow: '0 4px 16px rgba(59,130,246,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
             }}
           >
-            Uygula
+            {t('gpsFilePreview.apply')}
           </button>
         </div>
       </div>
@@ -257,6 +259,7 @@ function PremiumConfirm({ title, message, onConfirm, onCancel, danger }: {
   onCancel: () => void;
   danger?: boolean;
 }) {
+  const { t } = useTranslation();
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCancel();
@@ -301,7 +304,7 @@ function PremiumConfirm({ title, message, onConfirm, onCancel, danger }: {
             onClick={onCancel}
             className="px-4 py-2 text-xs font-medium text-slate-400 rounded-lg hover:bg-white/[0.04] border border-white/[0.06] transition-all"
           >
-            Vazgec
+            {t('gpsFilePreview.confirmCancel')}
           </button>
           <button
             onClick={onConfirm}
@@ -317,7 +320,7 @@ function PremiumConfirm({ title, message, onConfirm, onCancel, danger }: {
                 : '0 4px 16px rgba(59,130,246,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
             }}
           >
-            Onayla
+            {t('gpsFilePreview.confirmOk')}
           </button>
         </div>
       </div>
@@ -433,14 +436,14 @@ export const GPSFilePreview = memo(function GPSFilePreview({
     if (total === 0) return;
     const prompt = generateMultiFilePrompt(store.changesByFile);
     onInject(prompt, { filePath: node?.filePath });
-    setToast(`${total} degisiklik AI'ye gonderildi`);
+    setToast(t('gpsFilePreview.changesSent').replace('{count}', String(total)));
     store.clearAll();
   }, [onInject, node]);
 
   const handleClearChanges = useCallback(() => {
     if (!node) return;
     useVisualEditStore.getState().clearFile(node.filePath);
-    setToast('Degisiklik gecmisi temizlendi');
+    setToast(t('gpsFilePreview.historyCleared'));
   }, [node]);
 
   const handleUndo = useCallback(() => {
@@ -450,7 +453,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
 
   const handleAskAI = useCallback((selector: string, elementInfo: string) => {
     if (!onInject || !node) return;
-    const prompt = `Bu element hakkinda yardim istiyorum:\n${elementInfo}\nSelector: ${selector}\nDosya: ${node.filePath}`;
+    const prompt = t('gpsFilePreview.askAIPrompt').replace('{elementInfo}', elementInfo).replace('{selector}', selector).replace('{filePath}', node.filePath);
     onInject(prompt, { filePath: node.filePath });
   }, [onInject, node]);
 
@@ -461,7 +464,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
 
   const handleApplyStyle = useCallback((selector: string, styles: Record<string, string>) => {
     sendToIframe({ type: 'VOLTRON_APPLY_STYLE', selector, styles });
-    setToast('Stil uygulandı');
+    setToast(t('gpsFilePreview.styleApplied'));
     // Note: individual change tracking is done via DesignContextMenu's onDesignChange callback
   }, [sendToIframe]);
 
@@ -475,7 +478,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
   const handleTextSubmit = useCallback((selector: string, text: string) => {
     sendToIframe({ type: 'VOLTRON_EDIT_TEXT', selector, text });
     setTextEditor(null);
-    setToast('Metin guncellendi');
+    setToast(t('gpsFilePreview.textUpdated'));
     if (node) useVisualEditStore.getState().addChange(node.filePath, { selector, tagName: 'unknown', property: '__textContent', value: text, timestamp: Date.now() });
   }, [sendToIframe, node]);
 
@@ -489,7 +492,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
     if (confirmDialog) {
       sendToIframe({ type: 'VOLTRON_DELETE_ELEMENT', selector: confirmDialog.selector });
       setConfirmDialog(null);
-      setToast('Element silindi');
+      setToast(t('gpsFilePreview.elementDeleted'));
       if (node) useVisualEditStore.getState().addChange(node.filePath, { selector: confirmDialog.selector, tagName: 'unknown', property: '__delete', value: 'true', timestamp: Date.now() });
     }
   }, [confirmDialog, sendToIframe, node]);
@@ -497,14 +500,14 @@ export const GPSFilePreview = memo(function GPSFilePreview({
   const handleDuplicateElement = useCallback((selector: string) => {
     sendToIframe({ type: 'VOLTRON_DUPLICATE_ELEMENT', selector });
     setDesignMenu(null);
-    setToast('Element kopyalandi');
+    setToast(t('gpsFilePreview.elementDuplicated'));
     if (node) useVisualEditStore.getState().addChange(node.filePath, { selector, tagName: 'unknown', property: '__duplicate', value: 'true', timestamp: Date.now() });
   }, [sendToIframe, node]);
 
   const handleToggleVisibility = useCallback((selector: string) => {
     sendToIframe({ type: 'VOLTRON_TOGGLE_VISIBILITY', selector });
     setDesignMenu(null);
-    setToast('Gorunurluk degistirildi');
+    setToast(t('gpsFilePreview.visibilityToggled'));
   }, [sendToIframe]);
 
   const closeDesignMenu = useCallback(() => setDesignMenu(null), []);
@@ -598,7 +601,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
             <span className={`font-mono text-slate-500 bg-white/[0.04] border border-white/[0.06] px-2 py-0.5 rounded-md ${
               maximized ? 'text-[10px]' : 'text-[9px]'
             }`}>
-              {node.visits} ziyaret
+              {node.visits} {t('gpsFilePreview.visits')}
             </span>
             <span className={`font-mono bg-white/[0.04] border border-white/[0.06] px-2 py-0.5 rounded-md ${
               maximized ? 'text-[10px]' : 'text-[9px]'
@@ -609,7 +612,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
             {canPreview && viewMode === 'preview' && (
               <span className="flex items-center gap-1 text-[10px] text-green-400 bg-green-500/10 border border-green-500/15 px-2 py-0.5 rounded-md">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                Canli
+                {t('gpsFilePreview.live')}
               </span>
             )}
 
@@ -621,7 +624,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
               className={`p-1.5 rounded-lg transition-all ${
                 historyVisible ? 'bg-blue-500/15 text-blue-400' : 'hover:bg-white/[0.06] text-slate-500 hover:text-slate-300'
               }`}
-              title="Aktivite gecmisi"
+              title={t('gpsFilePreview.historyTooltip')}
             >
               <History size={maximized ? 16 : 14} />
             </button>
@@ -639,7 +642,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
             <button
               onClick={() => setMaximized(!maximized)}
               className="p-1.5 rounded-lg hover:bg-white/[0.06] text-slate-500 hover:text-slate-300 transition-all"
-              title={maximized ? 'Kucult' : 'Tam ekran'}
+              title={maximized ? t('gpsFilePreview.minimizeTooltip') : t('gpsFilePreview.maximizeTooltip')}
             >
               {maximized ? <PanelRightClose size={16} /> : <Maximize2 size={14} />}
             </button>
@@ -648,7 +651,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
             <button
               onClick={onClose}
               className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-all"
-              title="Kapat (Esc)"
+              title={t('gpsFilePreview.closeTooltip')}
             >
               <X size={maximized ? 16 : 14} />
             </button>
@@ -751,7 +754,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
             >
               <div className="px-3 py-2 flex items-center gap-2 text-xs text-slate-400 sticky top-0 border-b border-white/[0.04]" style={{ background: 'rgba(6,10,20,0.9)', backdropFilter: 'blur(8px)' }}>
                 <Clock size={12} />
-                <span className="font-medium">Aktivite</span>
+                <span className="font-medium">{t('gpsFilePreview.activity')}</span>
                 <span className="ml-auto text-[10px] font-mono text-slate-600">{fileBreadcrumbs.length}</span>
               </div>
               {fileBreadcrumbs.slice(-30).reverse().map((bc, i) => (
@@ -776,11 +779,11 @@ export const GPSFilePreview = memo(function GPSFilePreview({
         <div className="flex items-center gap-3 px-4 py-2 border-t border-white/[0.06] shrink-0 text-[10px] text-slate-600">
           <span className="font-mono">{node.extension}</span>
           <span className="w-px h-3 bg-white/[0.06]" />
-          <span>{node.visits} ziyaret</span>
+          <span>{node.visits} {t('gpsFilePreview.visits')}</span>
           {viewMode === 'preview' && canPreview && (
             <>
               <span className="w-px h-3 bg-white/[0.06]" />
-              <span className="text-green-500/60">Sag tikla: Tasarim modu</span>
+              <span className="text-green-500/60">{t('gpsFilePreview.designModeHint')}</span>
             </>
           )}
 
@@ -791,11 +794,11 @@ export const GPSFilePreview = memo(function GPSFilePreview({
               <span className="flex items-center gap-1.5 text-blue-400 font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
                 {designChanges.length > 0
-                  ? `${designChanges.length} degisiklik`
+                  ? t('gpsFilePreview.changesCount').replace('{count}', String(designChanges.length))
                   : null}
                 {totalChanges > designChanges.length && (
                   <span className="text-purple-400/80 text-[9px]">
-                    {designChanges.length > 0 ? '· ' : ''}toplam {totalChanges} ({Object.keys(changesByFile).filter((f) => changesByFile[f].length > 0).length} dosya)
+                    {designChanges.length > 0 ? '· ' : ''}{t('gpsFilePreview.totalChanges').replace('{total}', String(totalChanges)).replace('{fileCount}', String(Object.keys(changesByFile).filter((f) => changesByFile[f].length > 0).length))}
                   </span>
                 )}
               </span>
@@ -803,7 +806,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
                 <button
                   onClick={handleClearChanges}
                   className="flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-red-400 transition-all"
-                  title="Bu dosyanin degisikliklerini temizle"
+                  title={t('gpsFilePreview.clearFileChanges')}
                 >
                   <Trash2 size={10} />
                 </button>
@@ -816,16 +819,16 @@ export const GPSFilePreview = memo(function GPSFilePreview({
                     background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
                     boxShadow: '0 2px 12px rgba(59,130,246,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
                   }}
-                  title="Tum dosyalardaki degisiklikleri AI'ye gonder"
+                  title={t('gpsFilePreview.sendAllToAITooltip')}
                 >
                   <Send size={11} />
-                  AI'ye Gonder ({totalChanges})
+                  {t('gpsFilePreview.sendToAI')} ({totalChanges})
                 </button>
               )}
             </>
           )}
 
-          {totalChanges === 0 && <span className="ml-auto">Esc: Kapat</span>}
+          {totalChanges === 0 && <span className="ml-auto">{t('gpsFilePreview.escCloseHint')}</span>}
         </div>
       </div>
 
@@ -857,8 +860,8 @@ export const GPSFilePreview = memo(function GPSFilePreview({
       {/* ═══ Premium Confirm Dialog ═══ */}
       {confirmDialog && (
         <PremiumConfirm
-          title="Elementi Sil"
-          message="Bu element DOM'dan tamamen kaldirilacak. Bu islem geri alinamaz. Devam etmek istiyor musunuz?"
+          title={t('gpsFilePreview.deleteElementTitle')}
+          message={t('gpsFilePreview.deleteElementMessage')}
           onConfirm={handleDeleteConfirm}
           onCancel={() => setConfirmDialog(null)}
           danger

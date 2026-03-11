@@ -39,6 +39,9 @@ export function WindowManager({ projectId, onInject, onAgentAction }: WindowMana
   const setPanning = useWindowStore((s) => s.setPanning);
   const pan = useWindowStore((s) => s.pan);
   const resetPan = useWindowStore((s) => s.resetPan);
+  const focusMode = useWindowStore((s) => s.focusMode);
+  const activePanel = useWindowStore((s) => s.activePanel);
+  const toggleFocusMode = useWindowStore((s) => s.toggleFocusMode);
 
   // Agent state for conditional rendering
   const status = useAgentStore((s) => s.status);
@@ -136,6 +139,25 @@ export function WindowManager({ projectId, onInject, onAgentAction }: WindowMana
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
   }, [pan]);
+
+  /* ── Escape key exits focus mode ── */
+  useEffect(() => {
+    if (!focusMode) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        toggleFocusMode();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [focusMode, toggleFocusMode]);
+
+  /* ── Focus mode class helper ── */
+  const getFocusClassName = useCallback((panelId: PanelId): string | undefined => {
+    if (!focusMode) return undefined;
+    return panelId === activePanel ? 'focus-mode-target' : 'focus-mode-active';
+  }, [focusMode, activePanel]);
 
   /* ── Double-click background → reset pan ── */
   const handleCanvasDoubleClick = useCallback((e: React.MouseEvent) => {
@@ -272,6 +294,7 @@ export function WindowManager({ projectId, onInject, onAgentAction }: WindowMana
             key={panel.id}
             panel={panel}
             title={t(panel.title as never)}
+            focusClassName={getFocusClassName(panel.id)}
           >
             {renderPanelContent(panel.id)}
           </FloatingPanel>
@@ -284,10 +307,21 @@ export function WindowManager({ projectId, onInject, onAgentAction }: WindowMana
           key={panel.id}
           panel={panel}
           title={t(panel.title as never)}
+          focusClassName={getFocusClassName(panel.id)}
         >
           {renderPanelContent(panel.id)}
         </FloatingPanel>
       ))}
+
+      {/* Focus mode indicator */}
+      {focusMode && (
+        <button
+          onClick={toggleFocusMode}
+          className="absolute bottom-10 right-14 z-[99998] px-3 py-1 text-[10px] text-amber-400 bg-amber-900/40 hover:bg-amber-900/60 border border-amber-700/30 rounded-full backdrop-blur-sm transition-colors animate-fade-in"
+        >
+          Focus Mode · Esc
+        </button>
+      )}
 
       {/* Pan reset indicator */}
       {hasPan && (

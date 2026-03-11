@@ -1,5 +1,6 @@
 import { memo, useRef, useEffect, useCallback, useState } from 'react';
 import { Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { useTranslation } from '../../../i18n';
 
 /* ─── Renderable file extensions ─── */
 const RENDERABLE_EXTS = new Set([
@@ -303,6 +304,7 @@ export interface ContextMenuEventData {
 export const LivePreviewFrame = memo(function LivePreviewFrame({
   filePath, projectId, extension, content, onContextMenu, onStyleApplied,
 }: LivePreviewFrameProps) {
+  const { t } = useTranslation();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [errorMsg, setErrorMsg] = useState('');
@@ -355,7 +357,7 @@ export const LivePreviewFrame = memo(function LivePreviewFrame({
 
   const handleError = useCallback(() => {
     setStatus('error');
-    setErrorMsg('Preview yüklenemedi');
+    setErrorMsg(t('livePreview.loadFailed'));
   }, []);
 
   const handleRefresh = useCallback(() => {
@@ -388,8 +390,8 @@ export const LivePreviewFrame = memo(function LivePreviewFrame({
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
           <AlertTriangle size={24} className="text-yellow-500 mx-auto mb-2" />
-          <p className="text-xs text-slate-400">Bu dosya türü önizlenemez</p>
-          <p className="text-[10px] text-slate-600 mt-1">{ext} dosyaları için kod görünümünü kullanın</p>
+          <p className="text-xs text-slate-400">{t('livePreview.unsupportedType')}</p>
+          <p className="text-[10px] text-slate-600 mt-1">{t('livePreview.useCodeView').replace('{ext}', ext)}</p>
         </div>
       </div>
     );
@@ -402,7 +404,7 @@ export const LivePreviewFrame = memo(function LivePreviewFrame({
         <div className="absolute inset-0 flex items-center justify-center z-10" style={{ background: 'rgba(6,10,20,0.8)' }}>
           <div className="flex flex-col items-center gap-2">
             <Loader2 size={20} className="text-blue-400 animate-spin" />
-            <span className="text-[10px] text-slate-500">Render ediliyor...</span>
+            <span className="text-[10px] text-slate-500">{t('livePreview.rendering')}</span>
           </div>
         </div>
       )}
@@ -417,7 +419,7 @@ export const LivePreviewFrame = memo(function LivePreviewFrame({
               onClick={handleRefresh}
               className="flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 mt-1"
             >
-              <RefreshCw size={10} /> Yeniden dene
+              <RefreshCw size={10} /> {t('livePreview.retry')}
             </button>
           </div>
         </div>
@@ -428,7 +430,7 @@ export const LivePreviewFrame = memo(function LivePreviewFrame({
         <button
           onClick={handleRefresh}
           className="absolute top-2 right-2 z-10 p-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.06] text-slate-400 hover:text-slate-200 transition-all"
-          title="Yenile"
+          title={t('livePreview.refresh')}
         >
           <RefreshCw size={12} />
         </button>

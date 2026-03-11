@@ -2,6 +2,7 @@ import { memo, useCallback, useRef, useState, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import type { AgentBreadcrumb } from '@voltron/shared';
 import { ACTIVITY_COLORS } from './constants';
+import { useTranslation } from '../../../i18n';
 
 interface GPSTimelineProps {
   breadcrumbs: AgentBreadcrumb[];
@@ -12,6 +13,7 @@ interface GPSTimelineProps {
 export const GPSTimeline = memo(function GPSTimeline({
   breadcrumbs, timelineIndex, onTimelineChange,
 }: GPSTimelineProps) {
+  const { t } = useTranslation();
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const playRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -74,17 +76,17 @@ export const GPSTimeline = memo(function GPSTimeline({
       <button
         onClick={() => onTimelineChange(0)}
         className="p-1 rounded-md hover:bg-white/[0.06] text-slate-400 transition-colors"
-        title="Start"
+        title={t('gpsTimeline.start')}
       >
         <SkipBack size={14} />
       </button>
 
       {playing ? (
-        <button onClick={handlePause} className="p-1 rounded-md hover:bg-white/[0.06] text-slate-400 transition-colors" title="Pause">
+        <button onClick={handlePause} className="p-1 rounded-md hover:bg-white/[0.06] text-slate-400 transition-colors" title={t('gpsTimeline.pause')}>
           <Pause size={14} />
         </button>
       ) : (
-        <button onClick={handlePlay} className="p-1 rounded-md hover:bg-white/[0.06] text-slate-400 transition-colors" title="Play">
+        <button onClick={handlePlay} className="p-1 rounded-md hover:bg-white/[0.06] text-slate-400 transition-colors" title={t('gpsTimeline.play')}>
           <Play size={14} />
         </button>
       )}
@@ -92,7 +94,7 @@ export const GPSTimeline = memo(function GPSTimeline({
       <button
         onClick={handleLive}
         className="p-1 rounded-md hover:bg-white/[0.06] text-slate-400 transition-colors"
-        title="Skip to live"
+        title={t('gpsTimeline.skipToLive')}
       >
         <SkipForward size={14} />
       </button>
@@ -123,7 +125,7 @@ export const GPSTimeline = memo(function GPSTimeline({
         {isLive ? (
           <span className="text-green-400" style={{ textShadow: '0 0 8px rgba(34,197,94,0.5)' }}>
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 mr-1 align-middle animate-pulse" />
-            LIVE
+            {t('gpsTimeline.live')}
           </span>
         ) : (
           `${current + 1}/${total}`

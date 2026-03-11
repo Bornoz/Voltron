@@ -18,7 +18,6 @@ interface EventState {
   addEvents: (events: AiActionEvent[]) => void;
   setSelectedEvent: (event: AiActionEvent | null) => void;
   setFilter: (filter: Partial<EventFilter>) => void;
-  clearEvents: () => void;
   getFilteredEvents: () => AiActionEvent[];
 }
 
@@ -51,8 +50,6 @@ export const useEventStore = create<EventState>((set, get) => ({
     set((state) => ({
       filter: { ...state.filter, ...partial },
     })),
-
-  clearEvents: () => set({ events: [], selectedEvent: null }),
 
   getFilteredEvents: () => {
     const { events, filter } = get();

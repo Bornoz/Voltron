@@ -2,7 +2,7 @@ import { resolve, isAbsolute, normalize } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import type { WebSocket } from 'ws';
 import { z } from 'zod';
-import { ClientRegistration, WsMessage, hashString, schemas, type AiActionEvent, type Snapshot } from '@voltron/shared';
+import { ClientRegistration, WsMessage, hashString, schemas, type AiActionEvent, type Snapshot, type RiskLevel, type ClientType } from '@voltron/shared';
 import { Broadcaster } from './broadcaster.js';
 import { Replayer } from './replayer.js';
 import { EventBus } from '../services/event-bus.js';
@@ -136,8 +136,8 @@ export function createWsServices(config: ServerConfig, eventBus: EventBus, agent
 
   const constraintRepo = new SimulatorConstraintRepository();
 
-  // Periodic dead client cleanup
-  setInterval(() => broadcaster.cleanupDead(), 30_000);
+  // Periodic dead client cleanup — capture handle for cleanup
+  const cleanupInterval = setInterval(() => broadcaster.cleanupDead(), 30_000);
 
   // Wire agent EventBus listeners to broadcast to dashboards
   if (agentRunner) {
@@ -191,7 +191,7 @@ export function createWsServices(config: ServerConfig, eventBus: EventBus, agent
     });
   }
 
-  return { broadcaster, replayer, stateMachine, riskEngine, circuitBreaker, actionRepo, snapshotRepo, projectRepo, zoneRepo, sessionRepo, deduplicator, sequenceTracker, rateLimiter, agentRunner, constraintRepo };
+  return { broadcaster, replayer, stateMachine, riskEngine, circuitBreaker, actionRepo, snapshotRepo, projectRepo, zoneRepo, sessionRepo, deduplicator, sequenceTracker, rateLimiter, agentRunner, constraintRepo, cleanupInterval };
 }
 
 export function registerWsHandler(
@@ -425,7 +425,7 @@ async function handleMessage(
       const zones = zoneRepo.findByProject(projectId);
       const riskResult = riskEngine.classify(event, {
         protectionZones: zones,
-        autoStopThreshold: project.autoStopOnCritical ? 'CRITICAL' : 'NONE' as any,
+        autoStopThreshold: project.autoStopOnCritical ? 'CRITICAL' : ('NONE' as RiskLevel),
         rateLimit: project.rateLimit,
       });
 
@@ -557,13 +557,28 @@ async function handleMessage(
       break;
     }
 
+    case 'COMMAND_ROLLBACK': {
+      if (clientType !== 'dashboard') return;
+      // Rollback not implemented yet — acknowledge receipt
+      socket.send(JSON.stringify({ type: 'ERROR', payload: { message: 'COMMAND_ROLLBACK is not yet implemented' }, timestamp: Date.now() }));
+      break;
+    }
+
+    case 'SUBSCRIBE':
+    case 'UNSUBSCRIBE': {
+      // Topic subscription — currently all events are broadcast to registered project clients
+      // These are reserved for future per-topic filtering
+      socket.send(JSON.stringify({ type: 'ACK', payload: { message: `${msg.type} acknowledged (no-op)` }, timestamp: Date.now() }));
+      break;
+    }
+
     case 'SIMULATOR_PATCH':
     case 'SIMULATOR_RESYNC':
     case 'SIMULATOR_SNAPSHOT':
     case 'SIMULATOR_CONFLICT': {
       // Relay to appropriate targets
       const targetType = clientType === 'simulator' ? 'dashboard' : 'simulator';
-      broadcaster.broadcast(targetType as any, projectId, msg);
+      broadcaster.broadcast(targetType as ClientType, projectId, msg);
       break;
     }
 
@@ -590,10 +605,16 @@ async function handleMessage(
         ? resolve(project.rootPath, spawnPayload.targetDir)
         : spawnPayload.targetDir;
 
-      // Path traversal protection
+      // Path traversal protection — shared validation with REST routes
       const BLOCKED_PATHS = ['/etc', '/usr', '/bin', '/sbin', '/boot', '/proc', '/sys', '/dev', '/var/run'];
       const normalizedDir = normalize(resolvedDir);
-      if (BLOCKED_PATHS.some((bp) => normalizedDir === bp || normalizedDir.startsWith(bp + '/'))) {
+      // Also block Voltron's own source directories
+      const voltronRoot = resolve(import.meta.dirname, '../../../..');
+      const voltronServerDir = resolve(voltronRoot, 'packages/server');
+      const voltronSharedDir = resolve(voltronRoot, 'packages/shared');
+      if (BLOCKED_PATHS.some((bp) => normalizedDir === bp || normalizedDir.startsWith(bp + '/'))
+        || normalizedDir.startsWith(voltronServerDir)
+        || normalizedDir.startsWith(voltronSharedDir)) {
         socket.send(JSON.stringify({ type: 'AGENT_ERROR', payload: { error: 'Target directory is in a protected zone' }, timestamp: Date.now() }));
         return;
       }

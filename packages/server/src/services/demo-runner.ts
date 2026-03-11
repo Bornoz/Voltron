@@ -106,7 +106,7 @@ export class DemoRunner {
     this.onComplete = onComplete;
 
     // Broadcast demo start
-    this.broadcaster.broadcastAll('__all__', {
+    this.broadcaster.broadcastToDashboards({
       type: 'DEMO_STATUS',
       data: { running: true, phase: this.phase, sessionId: this.projectId },
     });
@@ -120,7 +120,7 @@ export class DemoRunner {
     for (const t of this.timers) clearTimeout(t);
     this.timers = [];
 
-    this.broadcaster.broadcastAll('__all__', {
+    this.broadcaster.broadcastToDashboards({
       type: 'DEMO_STATUS',
       data: { running: false, phase: 'stopped', sessionId: this.projectId },
     });
@@ -130,7 +130,7 @@ export class DemoRunner {
     if (!this.running || phaseIndex >= DEMO_PHASES.length) {
       // Demo complete
       this.running = false;
-      this.broadcaster.broadcastAll('__all__', {
+      this.broadcaster.broadcastToDashboards({
         type: 'DEMO_STATUS',
         data: { running: false, phase: 'complete', sessionId: this.projectId },
       });
@@ -142,7 +142,7 @@ export class DemoRunner {
     const phase = DEMO_PHASES[phaseIndex];
 
     // Broadcast phase change
-    this.broadcaster.broadcastAll('__all__', {
+    this.broadcaster.broadcastToDashboards({
       type: 'DEMO_STATUS',
       data: { running: true, phase: phase.name, sessionId: this.projectId },
     });
@@ -199,14 +199,14 @@ export class DemoRunner {
     event.riskReasons = riskResult.reasons;
 
     // Broadcast to all connected dashboards
-    this.broadcaster.broadcastAll('__all__', {
+    this.broadcaster.broadcastToDashboards({
       type: WS_EVENTS.EVENT_BROADCAST,
       data: { event, riskResult },
     });
 
     // If critical, also send risk alert
     if (riskResult.risk === 'CRITICAL' || riskResult.risk === 'HIGH') {
-      this.broadcaster.broadcastAll('__all__', {
+      this.broadcaster.broadcastToDashboards({
         type: WS_EVENTS.RISK_ALERT,
         data: {
           event,

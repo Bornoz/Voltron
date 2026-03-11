@@ -10,9 +10,6 @@ import type {
   RiskLevel,
   OperationType,
   ProtectionLevel,
-  DependencyGraph,
-  BreakingChangeReport,
-  ArchitectureComplianceResult,
 } from '@voltron/shared';
 
 const BASE = '/api';
@@ -20,7 +17,7 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 1_000;
 
-export class TimeoutError extends Error {
+class TimeoutError extends Error {
   constructor(ms: number) {
     super(`Request timed out after ${ms}ms`);
     this.name = 'TimeoutError';
@@ -128,39 +125,9 @@ export function getProjects(): Promise<ProjectConfig[]> {
   return request<ProjectConfig[]>('/projects');
 }
 
-export function createProject(input: CreateProjectInput): Promise<ProjectConfig> {
-  return request<ProjectConfig>('/projects', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
-}
-
-export function getProject(id: string): Promise<ProjectConfig> {
-  return request<ProjectConfig>(`/projects/${id}`);
-}
-
-export function updateProject(id: string, input: UpdateProjectInput): Promise<ProjectConfig> {
-  return request<ProjectConfig>(`/projects/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(input),
-  });
-}
-
-export function deleteProject(id: string): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(`/projects/${id}`, {
-    method: 'DELETE',
-  });
-}
-
 // ── Actions ───────────────────────────────────────────────
 
-export interface ActionQuery {
-  limit?: number;
-  offset?: number;
-  risk?: RiskLevel;
-}
-
-export function getActions(projectId: string, query?: ActionQuery): Promise<AiActionEvent[]> {
+export function getActions(projectId: string, query?: { limit?: number; offset?: number; risk?: RiskLevel }): Promise<AiActionEvent[]> {
   const params = new URLSearchParams();
   if (query?.limit) params.set('limit', String(query.limit));
   if (query?.offset) params.set('offset', String(query.offset));
@@ -169,24 +136,9 @@ export function getActions(projectId: string, query?: ActionQuery): Promise<AiAc
   return request<AiActionEvent[]>(`/projects/${projectId}/actions${qs ? `?${qs}` : ''}`);
 }
 
-export function getAction(projectId: string, actionId: string): Promise<AiActionEvent> {
-  return request<AiActionEvent>(`/projects/${projectId}/actions/${actionId}`);
-}
-
 export function getActionsByFile(projectId: string, filePath: string): Promise<AiActionEvent[]> {
   const params = new URLSearchParams({ path: filePath });
   return request<AiActionEvent[]>(`/projects/${projectId}/actions/file?${params}`);
-}
-
-export interface ActionStats {
-  totalActions: number;
-  byRisk: Record<string, number>;
-  byOperation: Record<string, number>;
-  recentRate: number;
-}
-
-export function getActionStats(projectId: string): Promise<ActionStats> {
-  return request<ActionStats>(`/projects/${projectId}/actions/stats`);
 }
 
 // ── Snapshots ─────────────────────────────────────────────
@@ -197,10 +149,6 @@ export function getSnapshots(
   offset = 0,
 ): Promise<Snapshot[]> {
   return request<Snapshot[]>(`/projects/${projectId}/snapshots?limit=${limit}&offset=${offset}`);
-}
-
-export function getSnapshot(projectId: string, snapshotId: string): Promise<Snapshot> {
-  return request<Snapshot>(`/projects/${projectId}/snapshots/${snapshotId}`);
 }
 
 // ── Protection Zones ──────────────────────────────────────
@@ -222,24 +170,6 @@ export function createZone(
 ): Promise<ProtectionZoneConfig> {
   return request<ProtectionZoneConfig>(`/projects/${projectId}/zones`, {
     method: 'POST',
-    body: JSON.stringify(input),
-  });
-}
-
-export interface UpdateZoneInput {
-  path?: string;
-  level?: ProtectionLevel;
-  reason?: string;
-  allowedOperations?: OperationType[];
-}
-
-export function updateZone(
-  projectId: string,
-  zoneId: string,
-  input: UpdateZoneInput,
-): Promise<ProtectionZoneConfig> {
-  return request<ProtectionZoneConfig>(`/projects/${projectId}/zones/${zoneId}`, {
-    method: 'PUT',
     body: JSON.stringify(input),
   });
 }
@@ -293,114 +223,13 @@ export function getControlHistory(projectId: string): Promise<ControlHistoryEntr
   return request<ControlHistoryEntry[]>(`/projects/${projectId}/control/history`);
 }
 
-// ── Health / Stats ────────────────────────────────────────
-
-export interface HealthResponse {
-  status: string;
-  service: string;
-  uptime: number;
-  timestamp: number;
-}
-
-export function getHealth(): Promise<HealthResponse> {
-  return request<HealthResponse>('/health');
-}
-
-export function getStats(projectId: string): Promise<Record<string, unknown>> {
-  return request<Record<string, unknown>>(`/projects/${projectId}/stats`);
-}
-
-export interface SessionInfo {
-  clientId: string;
-  clientType: string;
-  projectId: string;
-  connectedAt: number;
-}
-
-export function getSessions(): Promise<SessionInfo[]> {
-  return request<SessionInfo[]>('/sessions');
-}
-
 // ── GitHub Analysis ──────────────────────────────────────
 
-export interface GitHubAnalysisResult {
-  dependencies: DependencyGraph;
-  breakingChanges: BreakingChangeReport[];
-  compliance: ArchitectureComplianceResult[];
-}
-
-export function analyzeRepo(projectId: string, repoUrl: string): Promise<GitHubAnalysisResult> {
-  return request<GitHubAnalysisResult>(`/projects/${projectId}/github/analyze`, {
+export function analyzeRepo(projectId: string, repoUrl: string): Promise<{ dependencies: unknown; breakingChanges: unknown[]; compliance: unknown[] }> {
+  return request<{ dependencies: unknown; breakingChanges: unknown[]; compliance: unknown[] }>(`/projects/${projectId}/github/analyze`, {
     method: 'POST',
     body: JSON.stringify({ repoUrl }),
   });
-}
-
-export function getGitHubDependencies(projectId: string, repoUrl: string): Promise<any> {
-  const params = new URLSearchParams({ repoUrl });
-  return request<any>(`/projects/${projectId}/github/dependencies?${params}`);
-}
-
-export function getGitHubBreakingChanges(projectId: string, repoUrl: string): Promise<any> {
-  const params = new URLSearchParams({ repoUrl });
-  return request<any>(`/projects/${projectId}/github/breaking-changes?${params}`);
-}
-
-export function getGitHubCompliance(projectId: string, repoUrl: string): Promise<any> {
-  const params = new URLSearchParams({ repoUrl });
-  return request<any>(`/projects/${projectId}/github/compliance?${params}`);
-}
-
-// ── Zone Pattern Testing ─────────────────────────────────
-
-export function testZonePattern(
-  projectId: string,
-  pattern: string,
-  testPaths: string[],
-): Promise<{ matches: string[]; nonMatches: string[] }> {
-  return request<{ matches: string[]; nonMatches: string[] }>(`/projects/${projectId}/zones/test`, {
-    method: 'POST',
-    body: JSON.stringify({ pattern, testPaths }),
-  });
-}
-
-// ── Zone Violations ──────────────────────────────────────
-
-export interface ZoneViolation {
-  id: string;
-  sequenceNumber: number;
-  action: string;
-  filePath: string;
-  riskLevel: string;
-  protectionZone: string;
-  riskReasons: string[];
-  timestamp: number;
-}
-
-export function getZoneViolations(
-  projectId: string,
-  limit?: number,
-): Promise<{ violations: ZoneViolation[]; count: number }> {
-  const params = new URLSearchParams();
-  if (limit != null) params.set('limit', String(limit));
-  const qs = params.toString();
-  return request<{ violations: ZoneViolation[]; count: number }>(
-    `/projects/${projectId}/zones/violations${qs ? `?${qs}` : ''}`,
-  );
-}
-
-// ── Action Timeline ──────────────────────────────────────
-
-export function getActionTimeline(
-  projectId: string,
-  granularity?: 'hourly' | 'daily',
-  hours?: number,
-): Promise<any[]> {
-  const params = new URLSearchParams();
-  if (granularity) params.set('granularity', granularity);
-  if (hours != null) params.set('hours', String(hours));
-  const qs = params.toString();
-  return request<any[]>(`/projects/${projectId}/actions/timeline${qs ? `?${qs}` : ''}`);
 }
 
 // ── Snapshot Additional Endpoints ────────────────────────
@@ -423,19 +252,6 @@ export function rollbackSnapshot(
   return request<{ success: boolean; snapshot: Snapshot; gitCommitHash: string }>(
     `/projects/${projectId}/snapshots/${snapshotId}/rollback`,
     { method: 'POST' },
-  );
-}
-
-export function getSnapshotDiff(
-  projectId: string,
-  snapshotId: string,
-  compareWith?: string,
-): Promise<any> {
-  const params = new URLSearchParams();
-  if (compareWith) params.set('compareWith', compareWith);
-  const qs = params.toString();
-  return request<any>(
-    `/projects/${projectId}/snapshots/${snapshotId}/diff${qs ? `?${qs}` : ''}`,
   );
 }
 
@@ -527,10 +343,6 @@ export function getPromptVersions(projectId: string): Promise<PromptVersion[]> {
   return request<PromptVersion[]>(`/projects/${projectId}/prompts`);
 }
 
-export function getActivePrompt(projectId: string): Promise<PromptVersion | null> {
-  return request<PromptVersion | null>(`/projects/${projectId}/prompts/active`);
-}
-
 export function createPromptVersion(
   projectId: string,
   name: string,
@@ -620,14 +432,6 @@ export function getAgentSession(projectId: string): Promise<Record<string, unkno
   return request<Record<string, unknown> | null>(`/projects/${projectId}/agent/session`);
 }
 
-export function getAgentSessions(projectId: string): Promise<Record<string, unknown>[]> {
-  return request<Record<string, unknown>[]>(`/projects/${projectId}/agent/sessions`);
-}
-
-export function getAgentLocation(projectId: string): Promise<Record<string, unknown> | null> {
-  return request<Record<string, unknown> | null>(`/projects/${projectId}/agent/location`);
-}
-
 export function getAgentPlan(projectId: string): Promise<Record<string, unknown> | null> {
   return request<Record<string, unknown> | null>(`/projects/${projectId}/agent/plan`);
 }
@@ -638,43 +442,6 @@ export function getAgentBreadcrumbs(projectId: string): Promise<Record<string, u
 
 export function getAgentInjections(projectId: string): Promise<Record<string, unknown>[]> {
   return request<Record<string, unknown>[]>(`/projects/${projectId}/agent/injections`);
-}
-
-export function agentHardPause(projectId: string): Promise<{ status: string; checkpointId: string }> {
-  return request<{ status: string; checkpointId: string }>(`/projects/${projectId}/agent/hard-pause`, { method: 'POST' });
-}
-
-export function agentResumeCheckpoint(projectId: string): Promise<{ status: string }> {
-  return request<{ status: string }>(`/projects/${projectId}/agent/resume-checkpoint`, { method: 'POST' });
-}
-
-export function agentRedirect(
-  projectId: string,
-  filePath: string,
-  instruction?: string,
-): Promise<{ status: string }> {
-  return request<{ status: string }>(`/projects/${projectId}/agent/redirect`, {
-    method: 'POST',
-    body: JSON.stringify({ filePath, instruction }),
-  });
-}
-
-export function agentSetBreakpoint(projectId: string, filePath: string): Promise<{ status: string }> {
-  return request<{ status: string }>(`/projects/${projectId}/agent/breakpoint`, {
-    method: 'POST',
-    body: JSON.stringify({ filePath }),
-  });
-}
-
-export function agentRemoveBreakpoint(projectId: string, filePath: string): Promise<{ status: string }> {
-  return request<{ status: string }>(`/projects/${projectId}/agent/breakpoint`, {
-    method: 'DELETE',
-    body: JSON.stringify({ filePath }),
-  });
-}
-
-export function getAgentBreakpoints(projectId: string): Promise<string[]> {
-  return request<string[]>(`/projects/${projectId}/agent/breakpoints`);
 }
 
 export function getAgentFileTree(projectId: string): Promise<Record<string, unknown>> {
@@ -790,25 +557,6 @@ export function getAgentSessionsTyped(projectId: string): Promise<AgentSessionIn
   return request<AgentSessionInfo[]>(`/projects/${projectId}/agent/sessions`);
 }
 
-export interface SessionExportData {
-  meta: {
-    projectId: string;
-    sessionId: string;
-    model: string | null;
-    status: string;
-    startedAt: number | null;
-    exportedAt: number;
-  };
-  files: { written: string[]; read: string[] };
-  plan: Record<string, unknown> | null;
-  breadcrumbs: Record<string, unknown>[];
-  injections: Record<string, unknown>[];
-}
-
-export function getSessionExport(projectId: string, sessionId: string): Promise<SessionExportData> {
-  return request<SessionExportData>(`/projects/${projectId}/agent/session/${sessionId}/export`);
-}
-
 export function getPromptDiff(
   projectId: string,
   fromId: string,
@@ -851,10 +599,6 @@ export async function uploadFile(projectId: string, file: File): Promise<UploadR
   }
 
   return resp.json() as Promise<UploadResult>;
-}
-
-export function getUploads(projectId: string): Promise<UploadResult[]> {
-  return request<UploadResult[]>(`/projects/${projectId}/uploads`);
 }
 
 export function deleteUpload(id: string): Promise<void> {

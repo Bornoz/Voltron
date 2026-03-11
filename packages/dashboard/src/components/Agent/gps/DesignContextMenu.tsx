@@ -7,6 +7,7 @@ import {
   Droplets, Zap, Wind, Gem, Wand2, Blend, Send,
 } from 'lucide-react';
 import type { ContextMenuEventData } from './LivePreviewFrame';
+import { useTranslation } from '../../../i18n';
 
 /* ═══ Types ═══ */
 interface DesignAction {
@@ -35,31 +36,31 @@ interface DesignContextMenuProps {
 }
 
 /* ═══ Categories ═══ */
-const CATEGORIES = [
-  { id: 'content', label: 'Icerik', icon: <Type size={12} />, desc: 'Metin, font, hizalama' },
-  { id: 'appearance', label: 'Gorunum', icon: <Palette size={12} />, desc: 'Renk, opaklık, cerceve' },
-  { id: 'layout', label: 'Yerlesim', icon: <Grid3X3 size={12} />, desc: 'Flex, grid, bosluk' },
-  { id: 'effects', label: 'Efektler', icon: <Sparkles size={12} />, desc: 'Golge, blur, animasyon' },
+const getCategories = (t: (key: string) => string) => [
+  { id: 'content', label: t('designMenu.content'), icon: <Type size={12} />, desc: t('designMenu.contentDesc') },
+  { id: 'appearance', label: t('designMenu.appearance'), icon: <Palette size={12} />, desc: t('designMenu.appearanceDesc') },
+  { id: 'layout', label: t('designMenu.layout'), icon: <Grid3X3 size={12} />, desc: t('designMenu.layoutDesc') },
+  { id: 'effects', label: t('designMenu.effects'), icon: <Sparkles size={12} />, desc: t('designMenu.effectsDesc') },
   { id: 'premium', label: 'Premium', icon: <Gem size={12} />, desc: 'Gradient, glass, glow' },
-  { id: 'structure', label: 'Yapi', icon: <Layers size={12} />, desc: 'Kopyala, sil, sifirla' },
+  { id: 'structure', label: t('designMenu.structure'), icon: <Layers size={12} />, desc: t('designMenu.structureDesc') },
 ];
 
 /* ═══ Expanded Color Palette ═══ */
-const COLOR_GROUPS = [
+const getColorGroups = (t: (key: string) => string) => [
   {
-    label: 'Kirmizi',
+    label: t('designMenu.red'),
     colors: ['#fecaca', '#fca5a5', '#f87171', '#ef4444', '#dc2626', '#b91c1c', '#7f1d1d'],
   },
   {
-    label: 'Turuncu',
+    label: t('designMenu.orange'),
     colors: ['#fed7aa', '#fdba74', '#fb923c', '#f97316', '#ea580c', '#c2410c', '#7c2d12'],
   },
   {
-    label: 'Sari',
+    label: t('designMenu.yellow'),
     colors: ['#fef08a', '#fde047', '#facc15', '#eab308', '#ca8a04', '#a16207', '#713f12'],
   },
   {
-    label: 'Yesil',
+    label: t('designMenu.green'),
     colors: ['#bbf7d0', '#86efac', '#4ade80', '#22c55e', '#16a34a', '#15803d', '#14532d'],
   },
   {
@@ -67,56 +68,56 @@ const COLOR_GROUPS = [
     colors: ['#a5f3fc', '#67e8f9', '#22d3ee', '#06b6d4', '#0891b2', '#0e7490', '#164e63'],
   },
   {
-    label: 'Mavi',
+    label: t('designMenu.blue'),
     colors: ['#bfdbfe', '#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8', '#1e3a5f'],
   },
   {
-    label: 'Mor',
+    label: t('designMenu.purple'),
     colors: ['#ddd6fe', '#c4b5fd', '#a78bfa', '#8b5cf6', '#7c3aed', '#6d28d9', '#4c1d95'],
   },
   {
-    label: 'Pembe',
+    label: t('designMenu.pink'),
     colors: ['#fbcfe8', '#f9a8d4', '#f472b6', '#ec4899', '#db2777', '#be185d', '#831843'],
   },
   {
-    label: 'Notr',
+    label: t('designMenu.neutral'),
     colors: ['#ffffff', '#f1f5f9', '#cbd5e1', '#94a3b8', '#64748b', '#334155', '#0f172a', '#000000'],
   },
 ];
 
 /* ═══ Gradient Presets ═══ */
-const GRADIENT_PRESETS = [
-  { label: 'Gunes Batimi', value: 'linear-gradient(135deg, #f97316, #ef4444, #ec4899)', colors: ['#f97316', '#ef4444', '#ec4899'] },
-  { label: 'Okyanus', value: 'linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6)', colors: ['#06b6d4', '#3b82f6', '#8b5cf6'] },
-  { label: 'Orman', value: 'linear-gradient(135deg, #22c55e, #06b6d4)', colors: ['#22c55e', '#06b6d4'] },
-  { label: 'Gece', value: 'linear-gradient(135deg, #1e3a5f, #4c1d95)', colors: ['#1e3a5f', '#4c1d95'] },
-  { label: 'Altin', value: 'linear-gradient(135deg, #eab308, #f97316)', colors: ['#eab308', '#f97316'] },
-  { label: 'Buz', value: 'linear-gradient(135deg, #e0f2fe, #bae6fd, #7dd3fc)', colors: ['#e0f2fe', '#bae6fd', '#7dd3fc'] },
-  { label: 'Ates', value: 'linear-gradient(135deg, #ef4444, #f97316, #eab308)', colors: ['#ef4444', '#f97316', '#eab308'] },
+const getGradientPresets = (t: (key: string) => string) => [
+  { label: t('designMenu.sunset'), value: 'linear-gradient(135deg, #f97316, #ef4444, #ec4899)', colors: ['#f97316', '#ef4444', '#ec4899'] },
+  { label: t('designMenu.ocean'), value: 'linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6)', colors: ['#06b6d4', '#3b82f6', '#8b5cf6'] },
+  { label: t('designMenu.forest'), value: 'linear-gradient(135deg, #22c55e, #06b6d4)', colors: ['#22c55e', '#06b6d4'] },
+  { label: t('designMenu.night'), value: 'linear-gradient(135deg, #1e3a5f, #4c1d95)', colors: ['#1e3a5f', '#4c1d95'] },
+  { label: t('designMenu.gold'), value: 'linear-gradient(135deg, #eab308, #f97316)', colors: ['#eab308', '#f97316'] },
+  { label: t('designMenu.ice'), value: 'linear-gradient(135deg, #e0f2fe, #bae6fd, #7dd3fc)', colors: ['#e0f2fe', '#bae6fd', '#7dd3fc'] },
+  { label: t('designMenu.fire'), value: 'linear-gradient(135deg, #ef4444, #f97316, #eab308)', colors: ['#ef4444', '#f97316', '#eab308'] },
   { label: 'Neon', value: 'linear-gradient(135deg, #a855f7, #ec4899, #f43f5e)', colors: ['#a855f7', '#ec4899', '#f43f5e'] },
-  { label: 'Aurora', value: 'linear-gradient(135deg, #22d3ee, #a78bfa, #f472b6)', colors: ['#22d3ee', '#a78bfa', '#f472b6'] },
-  { label: 'Karbon', value: 'linear-gradient(135deg, #1e293b, #334155, #475569)', colors: ['#1e293b', '#334155', '#475569'] },
+  { label: t('designMenu.aurora'), value: 'linear-gradient(135deg, #22d3ee, #a78bfa, #f472b6)', colors: ['#22d3ee', '#a78bfa', '#f472b6'] },
+  { label: t('designMenu.carbon'), value: 'linear-gradient(135deg, #1e293b, #334155, #475569)', colors: ['#1e293b', '#334155', '#475569'] },
 ];
 
 /* ═══ Shadow Presets ═══ */
-const SHADOW_PRESETS = [
-  { label: 'Yok', value: 'none', preview: 'none' },
-  { label: 'Hafif', value: '0 1px 3px rgba(0,0,0,0.12)', preview: 'sm' },
-  { label: 'Orta', value: '0 4px 12px rgba(0,0,0,0.15)', preview: 'md' },
-  { label: 'Guclu', value: '0 8px 30px rgba(0,0,0,0.25)', preview: 'lg' },
-  { label: 'Yukari', value: '0 -4px 20px rgba(0,0,0,0.2)', preview: 'up' },
-  { label: 'Mavi Glow', value: '0 0 20px rgba(59,130,246,0.4), 0 0 60px rgba(59,130,246,0.1)', preview: 'glow-b' },
-  { label: 'Yesil Glow', value: '0 0 20px rgba(34,197,94,0.4), 0 0 60px rgba(34,197,94,0.1)', preview: 'glow-g' },
-  { label: 'Mor Glow', value: '0 0 20px rgba(139,92,246,0.4), 0 0 60px rgba(139,92,246,0.1)', preview: 'glow-p' },
-  { label: 'Kirmizi Glow', value: '0 0 20px rgba(239,68,68,0.4), 0 0 60px rgba(239,68,68,0.1)', preview: 'glow-r' },
+const getShadowPresets = (t: (key: string) => string) => [
+  { label: t('designMenu.none'), value: 'none', preview: 'none' },
+  { label: t('designMenu.light'), value: '0 1px 3px rgba(0,0,0,0.12)', preview: 'sm' },
+  { label: t('designMenu.medium'), value: '0 4px 12px rgba(0,0,0,0.15)', preview: 'md' },
+  { label: t('designMenu.strong'), value: '0 8px 30px rgba(0,0,0,0.25)', preview: 'lg' },
+  { label: t('designMenu.up'), value: '0 -4px 20px rgba(0,0,0,0.2)', preview: 'up' },
+  { label: t('designMenu.blueGlow'), value: '0 0 20px rgba(59,130,246,0.4), 0 0 60px rgba(59,130,246,0.1)', preview: 'glow-b' },
+  { label: t('designMenu.greenGlow'), value: '0 0 20px rgba(34,197,94,0.4), 0 0 60px rgba(34,197,94,0.1)', preview: 'glow-g' },
+  { label: t('designMenu.purpleGlow'), value: '0 0 20px rgba(139,92,246,0.4), 0 0 60px rgba(139,92,246,0.1)', preview: 'glow-p' },
+  { label: t('designMenu.redGlow'), value: '0 0 20px rgba(239,68,68,0.4), 0 0 60px rgba(239,68,68,0.1)', preview: 'glow-r' },
   { label: 'Neon', value: '0 0 8px rgba(59,130,246,0.6), 0 0 30px rgba(59,130,246,0.3), 0 0 60px rgba(59,130,246,0.1)', preview: 'neon' },
   { label: 'Inner', value: 'inset 0 2px 6px rgba(0,0,0,0.3)', preview: 'inner' },
   { label: 'Premium', value: '0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)', preview: 'premium' },
 ];
 
 /* ═══ Animation Presets ═══ */
-const ANIMATION_PRESETS = [
-  { label: 'Yok', value: 'none' },
+const getAnimationPresets = (t: (key: string) => string) => [
+  { label: t('designMenu.none'), value: 'none' },
   { label: 'Fade In', value: 'fadeIn 0.5s ease-out' },
   { label: 'Slide Up', value: 'slideUp 0.4s ease-out' },
   { label: 'Slide Down', value: 'slideDown 0.4s ease-out' },
@@ -138,6 +139,13 @@ export const DesignContextMenu = memo(function DesignContextMenu({
   const [customColor, setCustomColor] = useState('#3b82f6');
   const [appliedAction, setAppliedAction] = useState<string | null>(null);
   const [activeSubPanel, setActiveSubPanel] = useState<'gradients' | 'shadows' | 'animations' | null>(null);
+
+  const { t } = useTranslation();
+  const categories = getCategories(t);
+  const colorGroups = getColorGroups(t);
+  const gradientPresets = getGradientPresets(t);
+  const shadowPresets = getShadowPresets(t);
+  const animationPresets = getAnimationPresets(t);
 
   // Close on Escape
   useEffect(() => {
@@ -246,16 +254,16 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'edit-text', category: 'content',
       icon: <Type size={14} />,
-      label: 'Metni Duzenle',
-      description: 'Secili elementin ic metnini premium editor ile degistir.',
+      label: t('designMenu.editText'),
+      description: t('designMenu.editTextDesc'),
       action: () => { onEditText(data.selector); trackChange('__textContent', '(edited)'); },
       accent: true,
     },
     {
       id: 'bold', category: 'content',
       icon: <Bold size={14} />,
-      label: 'Kalin Yazi',
-      description: 'Font kalinligini bold/normal arasinda toggle et.',
+      label: t('designMenu.boldLabel'),
+      description: t('designMenu.boldDesc'),
       action: () => {
         const v = data.styles.fontWeight === '700' || data.styles.fontWeight === 'bold' ? 'normal' : 'bold';
         applyStyle('fontWeight', v); flashAction('bold');
@@ -264,8 +272,8 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'italic', category: 'content',
       icon: <Italic size={14} />,
-      label: 'Italik',
-      description: 'Yaziyi italik/normal arasinda toggle et.',
+      label: t('designMenu.italicLabel'),
+      description: t('designMenu.italicDesc'),
       action: () => {
         const v = data.styles.fontStyle === 'italic' ? 'normal' : 'italic';
         applyStyle('fontStyle', v); flashAction('italic');
@@ -274,8 +282,8 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'underline', category: 'content',
       icon: <Underline size={14} />,
-      label: 'Alti Cizili',
-      description: 'Yazi altina cizgi ekle veya kaldir.',
+      label: t('designMenu.underlineLabel'),
+      description: t('designMenu.underlineDesc'),
       action: () => {
         const v = data.styles.textDecoration?.includes('underline') ? 'none' : 'underline';
         applyStyle('textDecoration', v); flashAction('underline');
@@ -284,8 +292,8 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'font-increase', category: 'content',
       icon: <Plus size={14} />,
-      label: 'Yazi Boyutu +2px',
-      description: `Mevcut: ${data.styles.fontSize} → artir.`,
+      label: t('designMenu.fontIncrease'),
+      description: t('designMenu.fontIncreaseDesc').replace('{size}', data.styles.fontSize),
       action: () => {
         const current = parseInt(data.styles.fontSize) || 14;
         applyStyle('fontSize', `${current + 2}px`); flashAction('font-increase');
@@ -294,8 +302,8 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'font-decrease', category: 'content',
       icon: <Minus size={14} />,
-      label: 'Yazi Boyutu -2px',
-      description: `Mevcut: ${data.styles.fontSize} → azalt.`,
+      label: t('designMenu.fontDecrease'),
+      description: t('designMenu.fontDecreaseDesc').replace('{size}', data.styles.fontSize),
       action: () => {
         const current = parseInt(data.styles.fontSize) || 14;
         applyStyle('fontSize', `${Math.max(8, current - 2)}px`); flashAction('font-decrease');
@@ -304,22 +312,22 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'align-left', category: 'content',
       icon: <AlignLeft size={14} />,
-      label: 'Sola Hizala',
-      description: 'text-align: left uygula.',
+      label: t('designMenu.alignLeft'),
+      description: 'text-align: left',
       action: () => { applyStyle('textAlign', 'left'); flashAction('align-left'); },
     },
     {
       id: 'align-center', category: 'content',
       icon: <AlignCenter size={14} />,
-      label: 'Ortala',
-      description: 'text-align: center uygula.',
+      label: t('designMenu.alignCenter'),
+      description: 'text-align: center',
       action: () => { applyStyle('textAlign', 'center'); flashAction('align-center'); },
     },
     {
       id: 'align-right', category: 'content',
       icon: <AlignRight size={14} />,
-      label: 'Saga Hizala',
-      description: 'text-align: right uygula.',
+      label: t('designMenu.alignRight'),
+      description: 'text-align: right',
       action: () => { applyStyle('textAlign', 'right'); flashAction('align-right'); },
     },
 
@@ -327,31 +335,31 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'text-color', category: 'appearance',
       icon: <Paintbrush size={14} />,
-      label: 'Yazi Rengi',
-      description: `Mevcut: ${data.styles.color}. Genis renk paletinden sec.`,
+      label: t('designMenu.textColor'),
+      description: t('designMenu.textColorDesc').replace('{color}', data.styles.color),
       action: () => { setColorPickerTarget('color'); setActiveSubPanel(null); },
       accent: true,
     },
     {
       id: 'bg-color', category: 'appearance',
       icon: <Square size={14} />,
-      label: 'Arka Plan Rengi',
-      description: `Mevcut: ${data.styles.backgroundColor}. Renk sec.`,
+      label: t('designMenu.bgColor'),
+      description: t('designMenu.bgColorDesc').replace('{color}', data.styles.backgroundColor),
       action: () => { setColorPickerTarget('backgroundColor'); setActiveSubPanel(null); },
       accent: true,
     },
     {
       id: 'border-color', category: 'appearance',
       icon: <BoxSelect size={14} />,
-      label: 'Cerceve Rengi',
-      description: 'Border rengini degistir.',
+      label: t('designMenu.borderColor'),
+      description: t('designMenu.borderColor'),
       action: () => { setColorPickerTarget('borderColor'); setActiveSubPanel(null); },
     },
     {
       id: 'opacity-up', category: 'appearance',
       icon: <SunDim size={14} />,
-      label: 'Opaklik +10%',
-      description: 'Elementin gorununurluk yogunlugunu artir.',
+      label: t('designMenu.opacityUp'),
+      description: t('designMenu.opacityUpDesc'),
       action: () => {
         const current = parseFloat(data.styles.opacity) || 1;
         applyStyle('opacity', String(Math.min(1, +(current + 0.1).toFixed(1)))); flashAction('opacity-up');
@@ -360,8 +368,8 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'opacity-down', category: 'appearance',
       icon: <SunDim size={14} />,
-      label: 'Opaklik -10%',
-      description: 'Elementi daha seffaf yap. Katmanli tasarim icin.',
+      label: t('designMenu.opacityDown'),
+      description: t('designMenu.opacityDownDesc'),
       action: () => {
         const current = parseFloat(data.styles.opacity) || 1;
         applyStyle('opacity', String(Math.max(0, +(current - 0.1).toFixed(1)))); flashAction('opacity-down');
@@ -370,8 +378,8 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'border-radius-add', category: 'appearance',
       icon: <Circle size={14} />,
-      label: 'Koseleri Yuvarla +4px',
-      description: `Mevcut: ${data.styles.borderRadius}. Daha yumusak koseler.`,
+      label: t('designMenu.borderRadiusAdd'),
+      description: t('designMenu.borderRadiusAddDesc').replace('{radius}', data.styles.borderRadius),
       action: () => {
         const current = parseInt(data.styles.borderRadius) || 0;
         applyStyle('borderRadius', `${current + 4}px`); flashAction('border-radius-add');
@@ -380,29 +388,29 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'border-radius-remove', category: 'appearance',
       icon: <BoxSelect size={14} />,
-      label: 'Koseleri Duzlestir',
-      description: 'border-radius: 0 — keskin kare koseler.',
+      label: t('designMenu.borderRadiusRemove'),
+      description: 'border-radius: 0',
       action: () => { applyStyle('borderRadius', '0'); flashAction('border-radius-remove'); },
     },
     {
       id: 'border-add', category: 'appearance',
       icon: <Square size={14} />,
-      label: 'Cerceve Ekle',
-      description: '1px solid beyaz cerceve ekle.',
+      label: t('designMenu.borderAdd'),
+      description: '1px solid border',
       action: () => { applyStyle('border', '1px solid rgba(255,255,255,0.2)'); flashAction('border-add'); },
     },
     {
       id: 'border-2px', category: 'appearance',
       icon: <Square size={14} />,
-      label: 'Kalin Cerceve',
-      description: '2px solid cerceve ekle.',
+      label: t('designMenu.border2px'),
+      description: '2px solid border',
       action: () => { applyStyle('border', '2px solid rgba(255,255,255,0.3)'); flashAction('border-2px'); },
     },
     {
       id: 'border-remove', category: 'appearance',
       icon: <Minus size={14} />,
-      label: 'Cerceveyi Kaldir',
-      description: 'Tum border stillerini temizle.',
+      label: t('designMenu.borderRemove'),
+      description: 'border: none',
       action: () => { applyStyle('border', 'none'); flashAction('border-remove'); },
     },
 
@@ -411,7 +419,7 @@ export const DesignContextMenu = memo(function DesignContextMenu({
       id: 'display-flex', category: 'layout',
       icon: <Columns size={14} />,
       label: 'Flex Layout',
-      description: 'Cocuk elementleri yan yana diz. display:flex.',
+      description: t('designMenu.displayFlexDesc'),
       action: () => { applyStyle('display', 'flex'); flashAction('display-flex'); },
       accent: true,
     },
@@ -419,35 +427,35 @@ export const DesignContextMenu = memo(function DesignContextMenu({
       id: 'display-grid', category: 'layout',
       icon: <Grid3X3 size={14} />,
       label: 'Grid Layout',
-      description: 'CSS Grid sistemi aktif et. display:grid.',
+      description: t('designMenu.displayGridDesc'),
       action: () => { applyStyle('display', 'grid'); flashAction('display-grid'); },
     },
     {
       id: 'display-block', category: 'layout',
       icon: <Maximize2 size={14} />,
-      label: 'Blok',
-      description: 'display:block — her element yeni satirda.',
+      label: t('designMenu.displayBlock'),
+      description: t('designMenu.displayBlockDesc'),
       action: () => { applyStyle('display', 'block'); flashAction('display-block'); },
     },
     {
       id: 'display-inline-flex', category: 'layout',
       icon: <Columns size={14} />,
-      label: 'Inline Flex',
-      description: 'display:inline-flex — satir ici flex.',
+      label: t('designMenu.displayInlineFlex'),
+      description: 'display:inline-flex',
       action: () => { applyStyle('display', 'inline-flex'); flashAction('display-inline-flex'); },
     },
     {
       id: 'display-none', category: 'layout',
       icon: <EyeOff size={14} />,
-      label: 'Gizle',
-      description: 'display:none ile elementi tamamen gizle.',
+      label: t('designMenu.displayNone'),
+      description: t('designMenu.displayNoneDesc'),
       action: () => { applyStyle('display', 'none'); flashAction('display-none'); },
     },
     {
       id: 'center-flex', category: 'layout',
       icon: <AlignCenter size={14} />,
-      label: 'Flex ile Ortala',
-      description: 'display:flex + align-items:center + justify-content:center.',
+      label: t('designMenu.centerFlex'),
+      description: 'display:flex + align-items:center + justify-content:center',
       action: () => {
         applyMultiStyle({ display: 'flex', alignItems: 'center', justifyContent: 'center' });
         flashAction('center-flex');
@@ -457,22 +465,22 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'flex-column', category: 'layout',
       icon: <Columns size={14} />,
-      label: 'Flex Dikey',
-      description: 'flex-direction: column — elementleri alt alta diz.',
+      label: t('designMenu.flexColumn'),
+      description: t('designMenu.flexColumnDesc'),
       action: () => { applyMultiStyle({ display: 'flex', flexDirection: 'column' }); flashAction('flex-column'); },
     },
     {
       id: 'flex-between', category: 'layout',
       icon: <Columns size={14} />,
-      label: 'Flex Space-Between',
-      description: 'Elementleri esit aralikla diz.',
+      label: t('designMenu.flexBetween'),
+      description: t('designMenu.flexBetweenDesc'),
       action: () => { applyMultiStyle({ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }); flashAction('flex-between'); },
     },
     {
       id: 'gap-add', category: 'layout',
       icon: <Plus size={14} />,
-      label: 'Gap +8px',
-      description: 'Flex/Grid elemanlar arasi bosluk artir.',
+      label: t('designMenu.gapAdd'),
+      description: t('designMenu.gapAddDesc'),
       action: () => {
         const current = parseInt(data.styles.gap) || 0;
         applyStyle('gap', `${current + 8}px`); flashAction('gap-add');
@@ -481,8 +489,8 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'padding-add', category: 'layout',
       icon: <Plus size={14} />,
-      label: 'Padding +8px',
-      description: `Mevcut: ${data.styles.padding}. Ic bosluk artir.`,
+      label: t('designMenu.paddingAdd'),
+      description: t('designMenu.paddingAddDesc').replace('{padding}', data.styles.padding),
       action: () => {
         const current = parseInt(data.styles.padding) || 0;
         applyStyle('padding', `${current + 8}px`); flashAction('padding-add');
@@ -491,8 +499,8 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'padding-remove', category: 'layout',
       icon: <Minus size={14} />,
-      label: 'Padding -8px',
-      description: 'Ic boslugu azalt.',
+      label: t('designMenu.paddingRemove'),
+      description: t('designMenu.paddingRemove'),
       action: () => {
         const current = parseInt(data.styles.padding) || 0;
         applyStyle('padding', `${Math.max(0, current - 8)}px`); flashAction('padding-remove');
@@ -501,8 +509,8 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'margin-add', category: 'layout',
       icon: <Plus size={14} />,
-      label: 'Margin +8px',
-      description: `Mevcut: ${data.styles.margin}. Dis bosluk artir.`,
+      label: t('designMenu.marginAdd'),
+      description: t('designMenu.marginAddDesc').replace('{margin}', data.styles.margin),
       action: () => {
         const current = parseInt(data.styles.margin) || 0;
         applyStyle('margin', `${current + 8}px`); flashAction('margin-add');
@@ -511,29 +519,29 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'width-100', category: 'layout',
       icon: <Maximize2 size={14} />,
-      label: 'Tam Genislik',
-      description: 'width: 100% — tum genisligi kapla.',
+      label: t('designMenu.width100'),
+      description: t('designMenu.width100Desc'),
       action: () => { applyStyle('width', '100%'); flashAction('width-100'); },
     },
     {
       id: 'position-relative', category: 'layout',
       icon: <Move size={14} />,
-      label: 'Position: Relative',
-      description: 'Akis icerisinde kaydirmaya izin verir.',
+      label: t('designMenu.positionRelative'),
+      description: t('designMenu.positionRelativeDesc'),
       action: () => { applyStyle('position', 'relative'); flashAction('position-relative'); },
     },
     {
       id: 'position-absolute', category: 'layout',
       icon: <Move size={14} />,
-      label: 'Position: Absolute',
-      description: 'Parent elementa gore serbest konumlandirma.',
+      label: t('designMenu.positionAbsolute'),
+      description: t('designMenu.positionAbsoluteDesc'),
       action: () => { applyStyle('position', 'absolute'); flashAction('position-absolute'); },
     },
     {
       id: 'overflow-hidden', category: 'layout',
       icon: <BoxSelect size={14} />,
-      label: 'Overflow Hidden',
-      description: 'Tasmis icerigi gizle.',
+      label: t('designMenu.overflowHidden'),
+      description: t('designMenu.overflowHiddenDesc'),
       action: () => { applyStyle('overflow', 'hidden'); flashAction('overflow-hidden'); },
     },
 
@@ -541,73 +549,73 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'shadow-presets', category: 'effects',
       icon: <Droplets size={14} />,
-      label: 'Golge Preset\'leri',
-      description: '12 hazir golge efekti. Glow, neon, premium...',
+      label: t('designMenu.shadowPresets'),
+      description: t('designMenu.shadowPresetsDesc'),
       action: () => { setActiveSubPanel('shadows'); setColorPickerTarget(null); },
       accent: true,
     },
     {
       id: 'animation-presets', category: 'effects',
       icon: <Zap size={14} />,
-      label: 'Animasyon Preset\'leri',
-      description: 'Fade, slide, bounce, pulse, spin...',
+      label: t('designMenu.animationPresets'),
+      description: t('designMenu.animationPresetsDesc'),
       action: () => { setActiveSubPanel('animations'); setColorPickerTarget(null); },
       accent: true,
     },
     {
       id: 'blur-add', category: 'effects',
       icon: <SunDim size={14} />,
-      label: 'Bulaniklastir',
-      description: 'filter: blur(4px) — arka plan icin glassmorphism.',
+      label: t('designMenu.blurAdd'),
+      description: t('designMenu.blurAddDesc'),
       action: () => { applyStyle('filter', 'blur(4px)'); flashAction('blur-add'); },
     },
     {
       id: 'blur-remove', category: 'effects',
       icon: <RotateCcw size={14} />,
-      label: 'Bulanikligi Kaldir',
-      description: 'filter: none — netligi geri getir.',
+      label: t('designMenu.blurRemove'),
+      description: t('designMenu.blurRemoveDesc'),
       action: () => { applyStyle('filter', 'none'); flashAction('blur-remove'); },
     },
     {
       id: 'backdrop-blur', category: 'effects',
       icon: <Wind size={14} />,
-      label: 'Backdrop Blur',
-      description: 'Arka plani bulaniklastir. Cam efekti.',
+      label: t('designMenu.backdropBlur'),
+      description: t('designMenu.backdropBlurDesc'),
       action: () => { applyStyle('backdropFilter', 'blur(12px)'); flashAction('backdrop-blur'); },
     },
     {
       id: 'transition-smooth', category: 'effects',
       icon: <Sparkles size={14} />,
-      label: 'Gecis: Smooth (0.3s)',
-      description: 'transition: all 0.3s ease — yumusak gecis.',
+      label: t('designMenu.transitionSmooth'),
+      description: t('designMenu.transitionSmoothDesc'),
       action: () => { applyStyle('transition', 'all 0.3s ease'); flashAction('transition-smooth'); },
     },
     {
       id: 'transition-spring', category: 'effects',
       icon: <Sparkles size={14} />,
-      label: 'Gecis: Spring (0.5s)',
-      description: 'Yay efektli gecis animasyonu.',
+      label: t('designMenu.transitionSpring'),
+      description: t('designMenu.transitionSpringDesc'),
       action: () => { applyStyle('transition', 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'); flashAction('transition-spring'); },
     },
     {
       id: 'scale-up', category: 'effects',
       icon: <Maximize2 size={14} />,
-      label: 'Buyut (%110)',
-      description: 'transform: scale(1.1) — elementi buyut.',
+      label: t('designMenu.scaleUp'),
+      description: t('designMenu.scaleUpDesc'),
       action: () => { applyStyle('transform', 'scale(1.1)'); flashAction('scale-up'); },
     },
     {
       id: 'rotate-5', category: 'effects',
       icon: <RotateCcw size={14} />,
-      label: 'Dondur 5 derece',
-      description: 'transform: rotate(5deg) — hafif yana yatir.',
+      label: t('designMenu.rotate5'),
+      description: t('designMenu.rotate5Desc'),
       action: () => { applyStyle('transform', 'rotate(5deg)'); flashAction('rotate-5'); },
     },
     {
       id: 'scale-reset', category: 'effects',
       icon: <RotateCcw size={14} />,
-      label: 'Transform Sifirla',
-      description: 'transform: none — normal boyut ve pozisyona dondur.',
+      label: t('designMenu.transformReset'),
+      description: t('designMenu.transformResetDesc'),
       action: () => { applyStyle('transform', 'none'); flashAction('scale-reset'); },
     },
 
@@ -615,16 +623,16 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'gradient-presets', category: 'premium',
       icon: <Blend size={14} />,
-      label: 'Gradient Preset\'leri',
-      description: '10 hazir gradient. Gunes batimi, okyanus, neon...',
+      label: t('designMenu.gradientPresets'),
+      description: t('designMenu.gradientPresetsDesc'),
       action: () => { setActiveSubPanel('gradients'); setColorPickerTarget(null); },
       accent: true,
     },
     {
       id: 'glassmorphism', category: 'premium',
       icon: <Gem size={14} />,
-      label: 'Glassmorphism',
-      description: 'Cam efekti: seffaf bg + backdrop-blur + ince border.',
+      label: t('designMenu.glassmorphism'),
+      description: t('designMenu.glassmorphismDesc'),
       action: () => {
         applyMultiStyle({
           background: 'rgba(255,255,255,0.06)',
@@ -639,8 +647,8 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'glassmorphism-dark', category: 'premium',
       icon: <Gem size={14} />,
-      label: 'Glass Dark',
-      description: 'Koyu glassmorphism: karanlik seffaf cam efekti.',
+      label: t('designMenu.glassDark'),
+      description: t('designMenu.glassDarkDesc'),
       action: () => {
         applyMultiStyle({
           background: 'rgba(0,0,0,0.4)',
@@ -655,8 +663,8 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'neumorphism', category: 'premium',
       icon: <Wand2 size={14} />,
-      label: 'Neumorphism',
-      description: 'Kabartma efekti: ic ve dis golge kombinasyonu.',
+      label: t('designMenu.neumorphism'),
+      description: t('designMenu.neumorphismDesc'),
       action: () => {
         applyMultiStyle({
           background: '#1e293b',
@@ -670,8 +678,8 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'neon-border', category: 'premium',
       icon: <Zap size={14} />,
-      label: 'Neon Border',
-      description: 'Isildayan neon cerceve efekti.',
+      label: t('designMenu.neonBorder'),
+      description: t('designMenu.neonBorderDesc'),
       action: () => {
         applyMultiStyle({
           border: '1px solid rgba(59,130,246,0.6)',
@@ -684,8 +692,8 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'neon-text', category: 'premium',
       icon: <Zap size={14} />,
-      label: 'Neon Text',
-      description: 'Yaziyi isildayan neon efekti ile goster.',
+      label: t('designMenu.neonText'),
+      description: t('designMenu.neonTextDesc'),
       action: () => {
         applyMultiStyle({
           color: '#60a5fa',
@@ -697,8 +705,8 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'frosted-card', category: 'premium',
       icon: <Gem size={14} />,
-      label: 'Frosted Card',
-      description: 'Premium kart stili: glassmorphism + golge + radius.',
+      label: t('designMenu.frostedCard'),
+      description: t('designMenu.frostedCardDesc'),
       action: () => {
         applyMultiStyle({
           background: 'rgba(17,24,39,0.6)',
@@ -714,8 +722,8 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'hover-lift', category: 'premium',
       icon: <Sparkles size={14} />,
-      label: 'Hover Lift Efekti',
-      description: 'Hover\'da yukselme: translateY + shadow artisi.',
+      label: t('designMenu.hoverLift'),
+      description: t('designMenu.hoverLiftDesc'),
       action: () => {
         applyMultiStyle({
           transition: 'all 0.3s ease',
@@ -729,31 +737,31 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     {
       id: 'duplicate', category: 'structure',
       icon: <Copy size={14} />,
-      label: 'Kopyala',
-      description: 'Elementi birebir kopyalayip hemen sonrasina yerlestir.',
+      label: t('designMenu.duplicate'),
+      description: t('designMenu.duplicateDesc'),
       action: () => { onDuplicateElement(data.selector); trackChange('__duplicate', 'true'); },
       accent: true,
     },
     {
       id: 'toggle-visibility', category: 'structure',
       icon: <Eye size={14} />,
-      label: 'Gorunurlugu Toggle',
-      description: 'Elementi goster/gizle (display none ↔ block).',
+      label: t('designMenu.toggleVisibility'),
+      description: t('designMenu.toggleVisibilityDesc'),
       action: () => { onToggleVisibility(data.selector); },
     },
     {
       id: 'delete', category: 'structure',
       icon: <Trash2 size={14} />,
-      label: 'Elementi Sil',
-      description: 'DOM\'dan tamamen kaldir. Onay istenir.',
+      label: t('designMenu.deleteElement'),
+      description: t('designMenu.deleteElementDesc'),
       action: () => { onDeleteElement(data.selector); trackChange('__delete', 'true'); },
       danger: true,
     },
     {
       id: 'reset-styles', category: 'structure',
       icon: <RotateCcw size={14} />,
-      label: 'Tum Stilleri Sifirla',
-      description: 'Bu elemente yapilan tum CSS degisikliklerini geri al.',
+      label: t('designMenu.resetStyles'),
+      description: t('designMenu.resetStylesDesc'),
       action: () => {
         applyMultiStyle({
           color: '', backgroundColor: '', fontSize: '', fontWeight: '',
@@ -771,8 +779,8 @@ export const DesignContextMenu = memo(function DesignContextMenu({
     ...(onAskAI ? [{
       id: 'ask-ai', category: 'structure',
       icon: <Send size={14} />,
-      label: "AI'ya Sor",
-      description: 'Bu element hakkinda AI\'ya soru sor veya degisiklik iste.',
+      label: t('designMenu.askAI'),
+      description: t('designMenu.askAIDesc'),
       action: () => {
         const info = `<${data.tagName}> ${data.selector} — ${data.textContent?.slice(0, 50) || '(bos)'}`;
         onAskAI(data.selector, info);
@@ -783,7 +791,7 @@ export const DesignContextMenu = memo(function DesignContextMenu({
   ];
 
   // Group by category
-  const grouped = CATEGORIES.map((cat) => ({
+  const grouped = categories.map((cat) => ({
     ...cat,
     actions: actions.filter((a) => a.category === cat.id),
   }));
@@ -864,10 +872,10 @@ export const DesignContextMenu = memo(function DesignContextMenu({
               <button
                 onClick={() => { onUndo(); onClose(); }}
                 className="ml-auto flex items-center gap-1 px-2 py-0.5 text-[9px] text-yellow-400 hover:text-yellow-300 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/20 rounded-md transition-colors"
-                title="Geri Al (Ctrl+Z)"
+                title={t('designMenu.undoTitle')}
               >
                 <RotateCcw size={10} />
-                Geri Al
+                {t('designMenu.undoLabel')}
               </button>
             )}
           </div>
@@ -875,7 +883,7 @@ export const DesignContextMenu = memo(function DesignContextMenu({
 
         {/* ─── Category tabs ─── */}
         <div className="flex border-b border-white/[0.06] shrink-0">
-          {CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => { setActiveCategory(activeCategory === cat.id ? null : cat.id); setActiveSubPanel(null); setColorPickerTarget(null); }}
@@ -993,7 +1001,7 @@ export const DesignContextMenu = memo(function DesignContextMenu({
                   <Palette size={12} className="text-blue-400" />
                 </div>
                 <span className="text-xs text-slate-200 font-medium">
-                  {colorPickerTarget === 'color' ? 'Yazi Rengi' : colorPickerTarget === 'backgroundColor' ? 'Arka Plan' : 'Cerceve Rengi'}
+                  {colorPickerTarget === 'color' ? t('designMenu.textColorLabel') : colorPickerTarget === 'backgroundColor' ? t('designMenu.bgColorLabel') : t('designMenu.borderColorLabel')}
                 </span>
               </div>
 
@@ -1004,13 +1012,13 @@ export const DesignContextMenu = memo(function DesignContextMenu({
                   style={{ background: customColor === 'transparent' ? 'repeating-conic-gradient(#333 0% 25%, #555 0% 50%) 50% / 8px 8px' : customColor }}
                 />
                 <div className="min-w-0">
-                  <span className="text-[10px] text-slate-400 block">Secili renk</span>
+                  <span className="text-[10px] text-slate-400 block">{t('designMenu.selectedColor')}</span>
                   <span className="text-[11px] font-mono text-slate-200 truncate block">{customColor}</span>
                 </div>
               </div>
 
               {/* Color groups */}
-              {COLOR_GROUPS.map((group) => (
+              {colorGroups.map((group) => (
                 <div key={group.label} className="mb-2">
                   <span className="text-[8px] text-slate-600 font-medium uppercase tracking-wider mb-1 block">{group.label}</span>
                   <div className="flex gap-1 flex-wrap">
@@ -1084,7 +1092,7 @@ export const DesignContextMenu = memo(function DesignContextMenu({
                     boxShadow: '0 4px 16px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.1)',
                   }}
                 >
-                  Rengi Uygula
+                  {t('designMenu.applyColor')}
                 </button>
               </div>
             </div>
@@ -1097,11 +1105,11 @@ export const DesignContextMenu = memo(function DesignContextMenu({
                 <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/15 flex items-center justify-center">
                   <Blend size={12} className="text-purple-400" />
                 </div>
-                <span className="text-xs text-slate-200 font-medium">Gradient Preset'leri</span>
+                <span className="text-xs text-slate-200 font-medium">{t('designMenu.gradientPanelTitle')}</span>
               </div>
 
               <div className="space-y-2">
-                {GRADIENT_PRESETS.map((preset) => (
+                {gradientPresets.map((preset) => (
                   <button
                     key={preset.label}
                     onClick={() => {
@@ -1129,7 +1137,7 @@ export const DesignContextMenu = memo(function DesignContextMenu({
 
               {/* Custom gradient */}
               <div className="mt-3 pt-3 border-t border-white/[0.06]">
-                <span className="text-[10px] text-slate-500 font-medium block mb-2">Ozel Gradient (CSS)</span>
+                <span className="text-[10px] text-slate-500 font-medium block mb-2">{t('designMenu.customGradient')}</span>
                 <input
                   type="text"
                   placeholder="linear-gradient(135deg, #a855f7, #ec4899)"
@@ -1156,11 +1164,11 @@ export const DesignContextMenu = memo(function DesignContextMenu({
                 <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/15 flex items-center justify-center">
                   <Droplets size={12} className="text-cyan-400" />
                 </div>
-                <span className="text-xs text-slate-200 font-medium">Golge Preset'leri</span>
+                <span className="text-xs text-slate-200 font-medium">{t('designMenu.shadowPanelTitle')}</span>
               </div>
 
               <div className="space-y-2">
-                {SHADOW_PRESETS.map((preset) => (
+                {shadowPresets.map((preset) => (
                   <button
                     key={preset.label}
                     onClick={() => {
@@ -1184,7 +1192,7 @@ export const DesignContextMenu = memo(function DesignContextMenu({
 
               {/* Custom shadow */}
               <div className="mt-3 pt-3 border-t border-white/[0.06]">
-                <span className="text-[10px] text-slate-500 font-medium block mb-2">Ozel Shadow (CSS)</span>
+                <span className="text-[10px] text-slate-500 font-medium block mb-2">{t('designMenu.customShadow')}</span>
                 <input
                   type="text"
                   placeholder="0 4px 20px rgba(0,0,0,0.3)"
@@ -1211,11 +1219,11 @@ export const DesignContextMenu = memo(function DesignContextMenu({
                 <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/15 flex items-center justify-center">
                   <Zap size={12} className="text-yellow-400" />
                 </div>
-                <span className="text-xs text-slate-200 font-medium">Animasyon Preset'leri</span>
+                <span className="text-xs text-slate-200 font-medium">{t('designMenu.animationPanelTitle')}</span>
               </div>
 
               <div className="space-y-1">
-                {ANIMATION_PRESETS.map((preset) => (
+                {animationPresets.map((preset) => (
                   <button
                     key={preset.label}
                     onClick={() => {
@@ -1238,13 +1246,13 @@ export const DesignContextMenu = memo(function DesignContextMenu({
 
               {/* Transition presets */}
               <div className="mt-3 pt-3 border-t border-white/[0.06]">
-                <span className="text-[10px] text-slate-500 font-medium block mb-2">Gecis (Transition)</span>
+                <span className="text-[10px] text-slate-500 font-medium block mb-2">{t('designMenu.transitionLabel')}</span>
                 <div className="space-y-1">
                   {[
                     { label: 'Smooth', value: 'all 0.3s ease' },
                     { label: 'Spring', value: 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' },
                     { label: 'Bounce', value: 'all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)' },
-                    { label: 'Hizli', value: 'all 0.15s ease' },
+                    { label: t('designMenu.fast'), value: 'all 0.15s ease' },
                   ].map((tr) => (
                     <button
                       key={tr.label}

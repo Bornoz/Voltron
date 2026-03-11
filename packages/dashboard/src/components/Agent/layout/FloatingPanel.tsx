@@ -32,9 +32,10 @@ interface FloatingPanelProps {
   panel: PanelState;
   title: string;
   children: ReactNode;
+  focusClassName?: string;
 }
 
-export function FloatingPanel({ panel, title, children }: FloatingPanelProps) {
+export function FloatingPanel({ panel, title, children, focusClassName }: FloatingPanelProps) {
   const { t } = useTranslation();
   const movePanel = useWindowStore((s) => s.movePanel);
   const resizePanel = useWindowStore((s) => s.resizePanel);
@@ -146,6 +147,7 @@ export function FloatingPanel({ panel, title, children }: FloatingPanelProps) {
         backdrop-blur-md
         ${isMaximized ? 'rounded-none' : 'rounded-lg'}
         ${isActive ? 'ring-1 ring-blue-500/20' : ''}
+        ${focusClassName ?? ''}
       `}
       style={isMaximized ? {
         top: 0,

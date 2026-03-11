@@ -116,7 +116,7 @@ export class AgentRunner extends EventEmitter {
     });
 
     const agent: RunningAgent = {
-      process: null as any,
+      process: null as unknown as ChildProcess,
       parser: new AgentStreamParser(),
       projectId,
       sessionDbId: sessionDbRow.id,
@@ -425,7 +425,7 @@ export class AgentRunner extends EventEmitter {
       });
 
       agent = {
-        process: null as any,
+        process: null as unknown as ChildProcess,
         parser: new AgentStreamParser(),
         projectId,
         sessionDbId: newSessionRow.id,
@@ -521,10 +521,15 @@ export class AgentRunner extends EventEmitter {
     });
 
     this.sessionRepo.incrementInjections(agent.sessionDbId);
+    // Set INJECTING status BEFORE kill to guard against exit handler race condition
     this.setStatus(agent, 'INJECTING');
+    agent._sessionEnded = false; // Reset so exit handler doesn't mark as completed
 
     // Kill current process
     await this.killProcess(agent);
+
+    // Guard: if agent was removed during kill (race), abort re-spawn
+    if (!this.agents.has(projectId)) return;
 
     // Keep SAME session ID — AI retains full conversation memory
     // No new session ID generation — continuity is critical

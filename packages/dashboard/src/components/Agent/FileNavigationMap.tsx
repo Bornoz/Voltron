@@ -717,7 +717,7 @@ export function FileNavigationMap({ onAgentAction, onFileAction }: FileNavigatio
               {isActive ? t('agent.noNavigation') : t('agent.startAgent')}
             </p>
             <p className="text-[9px] text-gray-600 mt-1">
-              {isActive ? 'Agent dosya islemleri basladiginda harita canlanir' : 'GPS navigasyon haritasi'}
+              {isActive ? t('agent.mapWillActivate') : t('agent.gpsNavigation')}
             </p>
           </div>
         </div>

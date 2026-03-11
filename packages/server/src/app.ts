@@ -2,6 +2,7 @@ import { resolve, join } from 'node:path';
 import { existsSync } from 'node:fs';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
+import helmet from '@fastify/helmet';
 import websocket from '@fastify/websocket';
 import multipart from '@fastify/multipart';
 import { initDb } from './db/connection.js';
@@ -51,6 +52,21 @@ export async function buildApp(config: ServerConfig) {
 
   // Plugins
   await registerCors(app, config);
+  await app.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "https://cdn.tailwindcss.com"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "blob:"],
+        connectSrc: ["'self'", "ws:", "wss:"],
+        fontSrc: ["'self'", "https://cdn.jsdelivr.net"],
+        frameSrc: ["'self'"],
+      },
+    },
+    hsts: { maxAge: 31536000, includeSubDomains: true },
+    crossOriginEmbedderPolicy: false,
+  });
   await app.register(websocket);
   await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024 } });
   registerAuth(app, config);
@@ -145,6 +161,7 @@ export async function buildApp(config: ServerConfig) {
   app.addHook('onClose', async () => {
     snapshotPruner.stop();
     behaviorScorer.stop();
+    clearInterval(wsServices.cleanupInterval);
     await devServerManager.stopAll();
   });
 
