@@ -215,6 +215,8 @@ export const useAgentStore = create<AgentState>((set) => ({
   addBreadcrumb: (crumb) =>
     set((state) => ({
       breadcrumbs: [...state.breadcrumbs.slice(-499), crumb],
+      currentFile: crumb.filePath,
+      activity: crumb.activity,
     })),
 
   addOutput: (entry) =>

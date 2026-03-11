@@ -1383,7 +1383,7 @@ export function FileNavigationMap({ onAgentAction, onFileAction }: FileNavigatio
                       setShowPromptInput(null);
                     }
                   }}
-                  placeholder="Prompt..."
+                  placeholder={t('agent.promptPlaceholder')}
                   className="flex-1 bg-gray-800/60 border border-gray-700/50 rounded px-1.5 py-0.5 text-[9px] text-gray-300 outline-none focus:border-blue-500/50"
                   autoFocus
                   onClick={(e) => e.stopPropagation()}
@@ -1514,7 +1514,7 @@ export function FileNavigationMap({ onAgentAction, onFileAction }: FileNavigatio
                       setShowPromptInput(null);
                     }
                   }}
-                  placeholder="What to do..."
+                  placeholder={t('agent.injectPlaceholder')}
                   className="flex-1 bg-gray-800/60 border border-gray-700/50 rounded px-1.5 py-0.5 text-[9px] text-gray-300 outline-none focus:border-blue-500/50"
                   autoFocus
                   onClick={(e) => e.stopPropagation()}

@@ -17,7 +17,7 @@ export function demoRoutes(app: FastifyInstance, broadcaster: Broadcaster): void
       demoRunner = null;
     });
 
-    return reply.send({ sessionId, status: 'running', phase: demoRunner.phase });
+    return reply.send({ running: true, sessionId, status: 'running', phase: demoRunner.phase });
   });
 
   // Stop demo mode

@@ -26,9 +26,11 @@ import { projectSettingsRoutes } from './routes/project-settings.js';
 import { uploadRoutes } from './routes/uploads.js';
 import { smartSetupRoutes } from './routes/smart-setup.js';
 import { demoRoutes } from './routes/demo.js';
+import { aiToolRoutes } from './routes/ai-tools.js';
 import { createWsServices, registerWsHandler } from './ws/handler.js';
 import { EventBus } from './services/event-bus.js';
 import { AgentRunner } from './services/agent-runner.js';
+import { AiDetector } from './services/ai-detector.js';
 import { DevServerManager } from './services/dev-server-manager.js';
 import { SnapshotPruner } from './services/snapshot-pruner.js';
 import { BehaviorScorer } from './services/behavior-scorer.js';
@@ -100,6 +102,10 @@ export async function buildApp(config: ServerConfig) {
   smartSetupRoutes(app, config.githubToken);
   demoRoutes(app, wsServices.broadcaster);
 
+  // AI tool detection
+  const aiDetector = new AiDetector();
+  aiToolRoutes(app, aiDetector);
+
   // Serve dashboard static files in production
   const dashboardDist = resolve(import.meta.dirname, '../../dashboard/dist');
   if (existsSync(dashboardDist)) {
@@ -165,5 +171,5 @@ export async function buildApp(config: ServerConfig) {
     await devServerManager.stopAll();
   });
 
-  return { app, eventBus, wsServices, agentRunner };
+  return { app, eventBus, wsServices, agentRunner, aiDetector };
 }

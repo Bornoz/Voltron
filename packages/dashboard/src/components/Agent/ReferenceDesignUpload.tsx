@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { ImagePlus, X, Upload, Wand2 } from 'lucide-react';
 import * as api from '../../lib/api';
+import { useTranslation } from '../../i18n';
 
 interface ReferenceDesignUploadProps {
   projectId: string;
@@ -8,6 +9,7 @@ interface ReferenceDesignUploadProps {
 }
 
 export function ReferenceDesignUpload({ projectId, onGenerate }: ReferenceDesignUploadProps) {
+  const { t } = useTranslation();
   const [image, setImage] = useState<{ url: string; name: string; uploadId?: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [instruction, setInstruction] = useState('');
@@ -73,14 +75,14 @@ export function ReferenceDesignUpload({ projectId, onGenerate }: ReferenceDesign
         {uploading ? (
           <>
             <Upload className="w-8 h-8 text-purple-400 animate-bounce mb-2" />
-            <span className="text-xs text-gray-400">Uploading...</span>
+            <span className="text-xs text-gray-400">{t('referenceDesign.uploading')}</span>
           </>
         ) : (
           <>
             <ImagePlus className="w-8 h-8 text-gray-500 mb-2" />
-            <span className="text-xs text-gray-400 font-medium">Upload Reference Design</span>
+            <span className="text-xs text-gray-400 font-medium">{t('referenceDesign.uploadTitle')}</span>
             <span className="text-[10px] text-gray-600 mt-1">
-              Drop a screenshot or click to browse — AI will generate similar UI
+              {t('referenceDesign.uploadDesc')}
             </span>
           </>
         )}
@@ -94,7 +96,7 @@ export function ReferenceDesignUpload({ projectId, onGenerate }: ReferenceDesign
       <div className="relative group">
         <img
           src={image.url}
-          alt="Reference design"
+          alt={t('referenceDesign.altText')}
           className="w-full max-h-48 object-contain bg-black/30"
         />
         <button
@@ -113,7 +115,7 @@ export function ReferenceDesignUpload({ projectId, onGenerate }: ReferenceDesign
         <textarea
           value={instruction}
           onChange={(e) => setInstruction(e.target.value)}
-          placeholder="Optional: specific instructions (e.g. 'use dark theme', 'add animations', 'make it responsive')..."
+          placeholder={t('referenceDesign.instructionPlaceholder')}
           rows={2}
           className="w-full px-3 py-2 bg-white/[0.03] border border-white/[0.06] rounded-lg text-xs text-gray-300
             placeholder:text-gray-600 focus:outline-none focus:border-purple-500/40 resize-none"
@@ -125,7 +127,7 @@ export function ReferenceDesignUpload({ projectId, onGenerate }: ReferenceDesign
             text-white transition-all active:scale-[0.98] shadow-lg shadow-purple-500/20"
         >
           <Wand2 className="w-3.5 h-3.5" />
-          Generate Similar UI
+          {t('referenceDesign.generateBtn')}
         </button>
       </div>
     </div>

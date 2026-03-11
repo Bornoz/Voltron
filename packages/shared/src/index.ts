@@ -26,6 +26,10 @@ export type { PhaseEdit, Phase, PhaseExecution, FileTreeNodeType } from './types
 export {
   type ProjectProfile, type DiscoveredRepo, type SmartSetupRun, type SmartSetupPhase,
 } from './types/smart-setup.js';
+export {
+  AiToolTier, AiToolId, AiToolStatus,
+  AiToolDetectionResult, AiToolScanResult,
+} from './types/ai-tool.js';
 
 // Constants
 export { RISK_COLORS, RISK_THRESHOLDS } from './constants/risk-levels.js';
@@ -33,6 +37,7 @@ export { SELF_PROTECTION_PATHS, DEFAULT_IGNORE_PATTERNS } from './constants/prot
 export { WS_EVENTS } from './constants/event-names.js';
 export { DEFAULTS } from './constants/defaults.js';
 export { AGENT_CONSTANTS } from './constants/agent.js';
+export { AI_TOOL_REGISTRY, type AiToolRegistryEntry } from './constants/ai-tools.js';
 
 // Utils
 export { hashString, hashBuffer, hashStream } from './utils/hash.js';

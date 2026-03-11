@@ -63,7 +63,7 @@ export const ComponentTree = memo(function ComponentTree({
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700/50">
         <div className="flex items-center gap-2">
           <Layers size={14} className="text-blue-400" />
-          <span className="text-xs font-medium text-slate-200">DOM Tree</span>
+          <span className="text-xs font-medium text-slate-200">{t('editorPanels.domTree')}</span>
         </div>
         <div className="flex items-center gap-1">
           <button onClick={fetchTree} className="p-1 rounded hover:bg-slate-700 text-slate-400">
@@ -81,7 +81,7 @@ export const ComponentTree = memo(function ComponentTree({
         ) : tree ? (
           <TreeNode node={tree} depth={0} onSelect={onSelect} />
         ) : (
-          <div className="p-3 text-xs text-slate-500">No DOM data</div>
+          <div className="p-3 text-xs text-slate-500">{t('editorPanels.noDOMData')}</div>
         )}
       </div>
     </div>

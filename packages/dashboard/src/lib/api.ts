@@ -10,6 +10,7 @@ import type {
   RiskLevel,
   OperationType,
   ProtectionLevel,
+  AiToolScanResult,
 } from '@voltron/shared';
 
 const BASE = '/api';
@@ -694,4 +695,14 @@ export interface SmartSetupRunResponse {
   error: string | null;
   createdAt: number;
   updatedAt: number;
+}
+
+// ── AI Tool Detection ────────────────────────────────────
+
+export function getAiTools(): Promise<AiToolScanResult> {
+  return request<AiToolScanResult>('/ai-tools');
+}
+
+export function rescanAiTools(): Promise<AiToolScanResult> {
+  return request<AiToolScanResult>('/ai-tools/rescan', { method: 'POST' });
 }

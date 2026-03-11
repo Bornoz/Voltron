@@ -204,21 +204,27 @@ function buildPresetPanels(preset: WindowPreset, vw: number, vh: number): Record
     }
 
     case 'gps-focus': {
-      const gpsW = Math.round(aw * 0.6);
+      const gpsW = Math.round(aw * 0.65);
       const sideW = aw - gpsW - 4;
       const sideX = gpsW + 4;
 
+      // GPS map takes left 65%
       base['gps-navigator'].visible = true;
       base['gps-navigator'].x = 0;
       base['gps-navigator'].y = 0;
       base['gps-navigator'].width = gpsW;
       base['gps-navigator'].height = vh;
+      base['gps-navigator'].zIndex = 20;
 
-      base['visual-editor'].visible = true;
-      base['visual-editor'].x = sideX;
-      base['visual-editor'].y = 0;
-      base['visual-editor'].width = sideW;
-      base['visual-editor'].height = Math.round(vh * 0.5);
+      // Visual editor hidden in GPS focus mode
+      base['visual-editor'].visible = false;
+
+      // Right side: agent output (top 50%) + tracker (mid 25%) + activity timeline (bottom 25%)
+      base['agent-output'].visible = true;
+      base['agent-output'].x = sideX;
+      base['agent-output'].y = 0;
+      base['agent-output'].width = sideW;
+      base['agent-output'].height = Math.round(vh * 0.5);
 
       base['agent-tracker'].visible = true;
       base['agent-tracker'].x = sideX;
@@ -226,11 +232,11 @@ function buildPresetPanels(preset: WindowPreset, vw: number, vh: number): Record
       base['agent-tracker'].width = sideW;
       base['agent-tracker'].height = Math.round(vh * 0.24);
 
-      base['prompt-injector'].visible = true;
-      base['prompt-injector'].x = sideX;
-      base['prompt-injector'].y = Math.round(vh * 0.76);
-      base['prompt-injector'].width = sideW;
-      base['prompt-injector'].height = Math.round(vh * 0.24);
+      base['activity-timeline'].visible = true;
+      base['activity-timeline'].x = sideX;
+      base['activity-timeline'].y = Math.round(vh * 0.76);
+      base['activity-timeline'].width = sideW;
+      base['activity-timeline'].height = Math.round(vh * 0.24);
       return base;
     }
 

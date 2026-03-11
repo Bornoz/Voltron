@@ -238,20 +238,20 @@ export function BehaviorPanel({ projectId }: BehaviorPanelProps) {
             <div className="px-3 py-2.5 rounded-lg" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
               <div className="flex items-center gap-1.5 mb-2">
                 <Activity className="w-3.5 h-3.5" style={{ color: 'var(--color-text-muted)' }} />
-                <span className="text-[11px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>Nasıl Çalışır?</span>
+                <span className="text-[11px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>{t('behavior.howItWorks')}</span>
               </div>
               <div className="space-y-1.5 text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
                 <div className="flex items-start gap-2">
                   <span className="shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold" style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' }}>1</span>
-                  <span>Agent çalışırken aksiyonlar otomatik loglanır</span>
+                  <span>{t('behavior.step1')}</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <span className="shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold" style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' }}>2</span>
-                  <span>Her 5 dakikada davranış puanı hesaplanır</span>
+                  <span>{t('behavior.step2')}</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <span className="shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold" style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)' }}>3</span>
-                  <span>Trend grafik ile geçmiş performans takip edilir</span>
+                  <span>{t('behavior.step3')}</span>
                 </div>
               </div>
             </div>
@@ -260,7 +260,7 @@ export function BehaviorPanel({ projectId }: BehaviorPanelProps) {
             <div className="flex items-center justify-center gap-2 py-2">
               <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" />
               <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
-                Agent aktif olduğunda veriler otomatik oluşacak
+                {t('behavior.dataWillAppear')}
               </span>
             </div>
           </div>

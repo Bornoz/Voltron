@@ -60,10 +60,13 @@ export function RiskGauge() {
   let highestValue = 0;
 
   for (const event of events) {
-    const val = riskValues[event.risk];
+    if (!event) continue;
+    const risk = event.risk as RiskLevel | undefined;
+    if (!risk || !(risk in riskValues)) continue;
+    const val = riskValues[risk];
     if (val > highestValue) {
       highestValue = val;
-      highestRisk = event.risk;
+      highestRisk = risk;
     }
     if (highestValue === 4) break;
   }
@@ -71,7 +74,9 @@ export function RiskGauge() {
   // Count by risk level
   const riskCounts: Record<RiskLevel, number> = { NONE: 0, LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0 };
   for (const event of events) {
-    riskCounts[event.risk]++;
+    if (!event) continue;
+    const risk = event.risk as RiskLevel | undefined;
+    if (risk && risk in riskCounts) riskCounts[risk]++;
   }
 
   const gaugePercent = highestValue / 4;

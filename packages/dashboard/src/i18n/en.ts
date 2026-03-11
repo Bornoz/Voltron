@@ -4,6 +4,7 @@ export const en: TranslationKeys = {
   // Header
   header: {
     title: 'VOLTRON',
+    subtitle: 'AI Operation Control Center',
     connected: 'Connected',
     connecting: 'Connecting',
     reconnecting: 'Reconnecting',
@@ -303,6 +304,11 @@ export const en: TranslationKeys = {
     zoneViolations: 'Zone Violations',
     trend: 'Trend',
     noData: 'No behavior data yet',
+    howItWorks: 'How it Works?',
+    step1: 'Actions are automatically logged while agent is running',
+    step2: 'Behavior score is calculated every 5 minutes',
+    step3: 'Track past performance with trend graphs',
+    dataWillAppear: 'Data will appear automatically when agent is active',
   },
 
   // Prompt Versioning
@@ -435,6 +441,9 @@ export const en: TranslationKeys = {
     modelDescHaiku: 'Fast, economical',
     modelDescSonnet: 'Balanced, powerful',
     modelDescOpus: 'Maximum capability',
+    detectedTools: 'Detected AI Tools',
+    toolNotFound: 'Not found on this system',
+    noSpawnableTools: 'No spawnable AI CLI tools detected. Install Claude Code, Aider, or Codex CLI.',
     quickUseTailwind: 'Use Tailwind',
     quickFollowPatterns: 'Follow Patterns',
     quickAddTypeScript: 'Add TypeScript',
@@ -1227,5 +1236,45 @@ export const en: TranslationKeys = {
     animationPanelTitle: 'Animation Presets',
     transitionLabel: 'Transition',
     fast: 'Fast',
+  },
+
+  // Demo
+  demo: {
+    phaseProjectSetup: 'Project Setup',
+    phaseBuilding: 'Building Source',
+    phaseConfigChanges: 'Config Changes',
+    phaseCritical: '.env CRITICAL',
+    phaseCascadeAttack: 'Cascade Attack',
+    running: 'Demo Running',
+    stop: 'Stop',
+    starting: 'Starting...',
+    tryDemo: 'Try Demo',
+    inProgress: 'Demo in Progress',
+    inProgressDesc: 'Watch the risk engine analyze file operations in real-time. Events stream through 5 escalating phases — from safe edits to a critical .env breach.',
+    stopDemo: 'Stop Demo',
+    seeInAction: 'See Voltron in Action',
+    seeInActionDesc1: 'Watch the 14-rule risk engine classify file operations in real-time. No Claude CLI needed — synthetic events showcase the full protection pipeline.',
+    seeInActionDesc2: '5 phases: safe setup, source building, config changes, critical .env access, and a cascade attack that triggers the circuit breaker.',
+    startingDemo: 'Starting Demo...',
+    tryInteractiveDemo: 'Try Interactive Demo',
+    zeroTokens: 'Zero tokens, zero AI calls — pure synthetic events',
+  },
+
+  // Reference Design Upload
+  referenceDesign: {
+    title: 'Reference Design',
+    uploading: 'Uploading...',
+    uploadTitle: 'Upload Reference Design',
+    uploadDesc: 'Drop a screenshot or click to browse — AI will generate similar UI',
+    instructionPlaceholder: "Optional: specific instructions (e.g. 'use dark theme', 'add animations', 'make it responsive')...",
+    generateBtn: 'Generate Similar UI',
+    altText: 'Reference design',
+  },
+
+  // Editor panels
+  editorPanels: {
+    domTree: 'DOM Tree',
+    noDOMData: 'No DOM data',
+    visualDiff: 'Visual Diff ({count} edits)',
   },
 } as const;

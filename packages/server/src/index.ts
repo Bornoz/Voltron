@@ -4,7 +4,7 @@ import { closeDb, performBackup } from './db/connection.js';
 
 async function main() {
   const config = loadConfig();
-  const { app, wsServices, agentRunner } = await buildApp(config);
+  const { app, wsServices, agentRunner, aiDetector } = await buildApp(config);
 
   let isShuttingDown = false;
 
@@ -126,6 +126,19 @@ async function main() {
     for (const line of banner) {
       app.log.info(line);
     }
+
+    // Non-blocking AI tool scan after startup
+    aiDetector.scan().then((result) => {
+      const detected = result.tools.filter((t) => t.status === 'detected');
+      const notFound = result.tools.filter((t) => t.status === 'not_found');
+      const parts = [
+        ...detected.map((t) => `${t.name}${t.version ? ' v' + t.version : ''} ✓`),
+        ...notFound.map((t) => `${t.name} ✗`),
+      ];
+      app.log.info(`  AI Tools  : ${parts.join(' | ')} (${result.totalDurationMs}ms)`);
+    }).catch((err) => {
+      app.log.warn(`AI tool scan failed: ${err instanceof Error ? err.message : err}`);
+    });
   } catch (err) {
     app.log.error(err);
     process.exit(1);

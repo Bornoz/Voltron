@@ -1,5 +1,6 @@
 import { memo, useMemo } from 'react';
 import { GitCompare, X } from 'lucide-react';
+import { useTranslation } from '../../../i18n';
 
 interface VisualEdit {
   id: string;
@@ -17,6 +18,7 @@ interface DiffViewerProps {
 }
 
 export const DiffViewer = memo(function DiffViewer({ edits, visible, onClose }: DiffViewerProps) {
+  const { t } = useTranslation();
   const diffLines = useMemo(() => {
     const lines: Array<{ type: 'header' | 'remove' | 'add' | 'context'; text: string }> = [];
 
@@ -62,7 +64,7 @@ export const DiffViewer = memo(function DiffViewer({ edits, visible, onClose }: 
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700/50">
         <div className="flex items-center gap-2">
           <GitCompare size={14} className="text-blue-400" />
-          <span className="text-xs font-medium text-slate-200">Visual Diff ({edits.length} edits)</span>
+          <span className="text-xs font-medium text-slate-200">{t('editorPanels.visualDiff').replace('{count}', String(edits.length))}</span>
         </div>
         <button onClick={onClose} className="p-1 rounded hover:bg-slate-700 text-slate-400">
           <X size={12} />

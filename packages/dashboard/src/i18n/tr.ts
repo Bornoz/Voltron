@@ -2,6 +2,7 @@ export const tr = {
   // Header
   header: {
     title: 'VOLTRON',
+    subtitle: 'AI Operasyon Kontrol Merkezi',
     connected: 'Baglanti Aktif',
     connecting: 'Baglaniliyor',
     reconnecting: 'Yeniden Baglaniliyor',
@@ -301,6 +302,11 @@ export const tr = {
     zoneViolations: 'Bolge Ihlalleri',
     trend: 'Trend',
     noData: 'Henuz davranis verisi yok',
+    howItWorks: 'Nasil Calisir?',
+    step1: 'Agent calisirken aksiyonlar otomatik loglanir',
+    step2: 'Her 5 dakikada davranis puani hesaplanir',
+    step3: 'Trend grafik ile gecmis performans takip edilir',
+    dataWillAppear: 'Agent aktif oldugunda veriler otomatik olusacak',
   },
 
   // Prompt Versioning
@@ -433,6 +439,9 @@ export const tr = {
     modelDescHaiku: 'Hizli, ekonomik',
     modelDescSonnet: 'Dengeli, guclu',
     modelDescOpus: 'Maksimum yetenek',
+    detectedTools: 'Algilanan AI Araclari',
+    toolNotFound: 'Bu sistemde bulunamadi',
+    noSpawnableTools: 'Calistirilebilir AI CLI araci bulunamadi. Claude Code, Aider veya Codex CLI yukleyin.',
     quickUseTailwind: 'Tailwind Kullan',
     quickFollowPatterns: 'Desenleri Takip Et',
     quickAddTypeScript: 'TypeScript Ekle',
@@ -1218,6 +1227,46 @@ export const tr = {
     animationPanelTitle: 'Animasyon Preset\'leri',
     transitionLabel: 'Gecis (Transition)',
     fast: 'Hizli',
+  },
+
+  // Demo
+  demo: {
+    phaseProjectSetup: 'Proje Kurulumu',
+    phaseBuilding: 'Kaynak Derleme',
+    phaseConfigChanges: 'Yapilandirma Degisiklikleri',
+    phaseCritical: '.env KRITIK',
+    phaseCascadeAttack: 'Kaskad Saldiri',
+    running: 'Demo Calisiyor',
+    stop: 'Durdur',
+    starting: 'Baslatiliyor...',
+    tryDemo: 'Demo Dene',
+    inProgress: 'Demo Devam Ediyor',
+    inProgressDesc: 'Risk motorunun dosya islemlerini gercek zamanli analiz etmesini izleyin. 5 tirmanan fazda olaylar akisi — guvenli duzenlemelerden kritik .env ihlaline.',
+    stopDemo: 'Demoyu Durdur',
+    seeInAction: 'Voltron\'u Aksiyonda Gorun',
+    seeInActionDesc1: '14 kurallik risk motorunun dosya islemlerini gercek zamanli siniflandirmasini izleyin. Claude CLI gerekmez — sentetik olaylar tam koruma hattini gosterir.',
+    seeInActionDesc2: '5 faz: guvenli kurulum, kaynak derleme, yapilandirma degisiklikleri, kritik .env erisimi ve devre kesiciyi tetikleyen kaskad saldiri.',
+    startingDemo: 'Demo Baslatiliyor...',
+    tryInteractiveDemo: 'Interaktif Demoyu Dene',
+    zeroTokens: 'Sifir token, sifir AI cagrisi — tamamen sentetik olaylar',
+  },
+
+  // Reference Design Upload
+  referenceDesign: {
+    title: 'Referans Tasarim',
+    uploading: 'Yukleniyor...',
+    uploadTitle: 'Referans Tasarim Yukle',
+    uploadDesc: 'Ekran goruntusu surukleyin veya tiklayarak secin — AI benzer UI uretecek',
+    instructionPlaceholder: "Istege bagli: ozel talimatlar (orn. 'koyu tema kullan', 'animasyon ekle', 'responsive yap')...",
+    generateBtn: 'Benzer UI Uret',
+    altText: 'Referans tasarim',
+  },
+
+  // Editor panels
+  editorPanels: {
+    domTree: 'DOM Agaci',
+    noDOMData: 'DOM verisi yok',
+    visualDiff: 'Gorsel Fark ({count} degisiklik)',
   },
 } as const;
 

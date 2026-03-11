@@ -92,7 +92,7 @@ export function Header({ projectName, executionState, connectionStatus, onOpenSe
         />
         <div className="flex flex-col">
           <span className="text-sm font-bold tracking-tight leading-none" style={{ color: 'var(--color-text-primary)' }}>VOLTRON</span>
-          <span className="text-[9px] tracking-widest uppercase leading-none mt-0.5" style={{ color: 'var(--color-text-muted)' }}>AI Operation Control Center</span>
+          <span className="text-[9px] tracking-widest uppercase leading-none mt-0.5" style={{ color: 'var(--color-text-muted)' }}>{t('header.subtitle')}</span>
         </div>
       </div>
 

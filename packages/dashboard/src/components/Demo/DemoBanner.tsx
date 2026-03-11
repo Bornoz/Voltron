@@ -1,12 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Play, Square, Sparkles, Shield, AlertTriangle, Zap, Activity } from 'lucide-react';
 import * as api from '../../lib/api';
+import { useTranslation } from '../../i18n';
+import { useWindowStore } from '../../stores/windowStore';
 
 interface DemoBannerProps {
   variant: 'full' | 'compact';
+  onDemoStarted?: (sessionId: string) => void;
+  onDemoStopped?: () => void;
 }
 
-export function DemoBanner({ variant }: DemoBannerProps) {
+export function DemoBanner({ variant, onDemoStarted, onDemoStopped }: DemoBannerProps) {
+  const { t } = useTranslation();
   const [running, setRunning] = useState(false);
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState(0);
@@ -26,34 +31,41 @@ export function DemoBanner({ variant }: DemoBannerProps) {
     return () => clearInterval(interval);
   }, [running]);
 
+  const applyPreset = useWindowStore((s) => s.applyPreset);
+
   const handleStart = useCallback(async () => {
     setLoading(true);
     try {
       const result = await api.startDemo();
       setRunning(result.running);
+      if (result.running && result.sessionId) {
+        onDemoStarted?.(result.sessionId);
+        applyPreset('gps-focus');
+      }
     } catch {
       // ignore
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [applyPreset, onDemoStarted]);
 
   const handleStop = useCallback(async () => {
     try {
       await api.stopDemo();
       setRunning(false);
       setPhase(0);
+      onDemoStopped?.();
     } catch {
       // ignore
     }
-  }, []);
+  }, [onDemoStopped]);
 
   const phases = [
-    { icon: <Zap className="w-3 h-3" />, label: 'Project Setup', color: 'text-blue-400' },
-    { icon: <Activity className="w-3 h-3" />, label: 'Building Source', color: 'text-green-400' },
-    { icon: <AlertTriangle className="w-3 h-3" />, label: 'Config Changes', color: 'text-yellow-400' },
-    { icon: <Shield className="w-3 h-3" />, label: '.env CRITICAL', color: 'text-red-400' },
-    { icon: <Sparkles className="w-3 h-3" />, label: 'Cascade Attack', color: 'text-purple-400' },
+    { icon: <Zap className="w-3 h-3" />, label: t('demo.phaseProjectSetup'), color: 'text-blue-400' },
+    { icon: <Activity className="w-3 h-3" />, label: t('demo.phaseBuilding'), color: 'text-green-400' },
+    { icon: <AlertTriangle className="w-3 h-3" />, label: t('demo.phaseConfigChanges'), color: 'text-yellow-400' },
+    { icon: <Shield className="w-3 h-3" />, label: t('demo.phaseCritical'), color: 'text-red-400' },
+    { icon: <Sparkles className="w-3 h-3" />, label: t('demo.phaseCascadeAttack'), color: 'text-purple-400' },
   ];
 
   if (variant === 'compact') {
@@ -63,7 +75,7 @@ export function DemoBanner({ variant }: DemoBannerProps) {
           <>
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-[11px] text-green-400 font-medium">Demo Running</span>
+              <span className="text-[11px] text-green-400 font-medium">{t('demo.running')}</span>
               {phases[phase] && (
                 <span className={`text-[10px] ${phases[phase].color}`}>
                   — {phases[phase].label}
@@ -75,7 +87,7 @@ export function DemoBanner({ variant }: DemoBannerProps) {
               className="ml-auto px-2 py-1 text-[10px] rounded-md bg-red-900/30 border border-red-900/40 text-red-400 hover:bg-red-900/50 transition-colors"
             >
               <Square className="w-3 h-3 inline mr-1" />
-              Stop
+              {t('demo.stop')}
             </button>
           </>
         ) : (
@@ -87,7 +99,7 @@ export function DemoBanner({ variant }: DemoBannerProps) {
               text-purple-300 hover:from-purple-500/20 hover:to-blue-500/20 hover:text-purple-200"
           >
             <Play className="w-3.5 h-3.5" />
-            {loading ? 'Starting...' : 'Try Demo'}
+            {loading ? t('demo.starting') : t('demo.tryDemo')}
           </button>
         )}
       </div>
@@ -107,10 +119,9 @@ export function DemoBanner({ variant }: DemoBannerProps) {
             <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500 animate-ping" />
           </div>
 
-          <h3 className="text-lg font-semibold text-gray-200 mb-2">Demo in Progress</h3>
+          <h3 className="text-lg font-semibold text-gray-200 mb-2">{t('demo.inProgress')}</h3>
           <p className="text-sm text-gray-400 mb-4 max-w-md">
-            Watch the risk engine analyze file operations in real-time. Events stream through
-            5 escalating phases — from safe edits to a critical .env breach.
+            {t('demo.inProgressDesc')}
           </p>
 
           {/* Phase progress */}
@@ -138,7 +149,7 @@ export function DemoBanner({ variant }: DemoBannerProps) {
               bg-red-900/20 border border-red-900/30 text-red-400 hover:bg-red-900/30"
           >
             <Square className="w-3.5 h-3.5 inline mr-1.5" />
-            Stop Demo
+            {t('demo.stopDemo')}
           </button>
         </>
       ) : (
@@ -151,14 +162,12 @@ export function DemoBanner({ variant }: DemoBannerProps) {
             </div>
           </div>
 
-          <h3 className="text-lg font-semibold text-gray-200 mb-2">See Voltron in Action</h3>
+          <h3 className="text-lg font-semibold text-gray-200 mb-2">{t('demo.seeInAction')}</h3>
           <p className="text-sm text-gray-400 mb-2 max-w-md">
-            Watch the 14-rule risk engine classify file operations in real-time.
-            No Claude CLI needed — synthetic events showcase the full protection pipeline.
+            {t('demo.seeInActionDesc1')}
           </p>
           <p className="text-xs text-gray-500 mb-6 max-w-sm">
-            5 phases: safe setup, source building, config changes, critical .env access, and a
-            cascade attack that triggers the circuit breaker.
+            {t('demo.seeInActionDesc2')}
           </p>
 
           <button
@@ -170,9 +179,9 @@ export function DemoBanner({ variant }: DemoBannerProps) {
               active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Play className="w-4 h-4" />
-            {loading ? 'Starting Demo...' : 'Try Interactive Demo'}
+            {loading ? t('demo.startingDemo') : t('demo.tryInteractiveDemo')}
           </button>
-          <span className="text-[10px] text-gray-600 mt-2">Zero tokens, zero AI calls — pure synthetic events</span>
+          <span className="text-[10px] text-gray-600 mt-2">{t('demo.zeroTokens')}</span>
         </>
       )}
     </div>

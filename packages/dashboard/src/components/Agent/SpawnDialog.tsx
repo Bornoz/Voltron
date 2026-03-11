@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bot, X, Zap, ClipboardList, Brain } from 'lucide-react';
+import { Bot, X, Zap, ClipboardList, Brain, RefreshCw, Check, AlertCircle } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 import { useSettingsStore, useUserDefaultModel } from '../../stores/settingsStore';
+import { useAiToolStore } from '../../stores/aiToolStore';
 import { QuickSpawnPresets } from './QuickSpawnPresets';
 import type { PresetConfig } from './QuickSpawnPresets';
 
@@ -25,6 +26,14 @@ export function SpawnDialog({ projectId, defaultConfig, onSpawn, onClose }: Spaw
   const [model, setModel] = useState(defaultConfig?.model ?? userDefaultModel);
   const [targetDir, setTargetDir] = useState(defaultConfig?.targetDir ?? '/tmp/voltron-project');
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  // AI tool detection
+  const { scanResult, loading: toolsLoading, fetch: fetchTools, rescan: rescanTools } = useAiToolStore();
+  const spawnableTools = useAiToolStore((s) => s.getSpawnableTools());
+
+  useEffect(() => {
+    fetchTools();
+  }, [fetchTools]);
 
   // Rules & memory preview
   const { rules, rulesActive, memories, loadRules, loadMemories } = useSettingsStore();
@@ -96,6 +105,53 @@ export function SpawnDialog({ projectId, defaultConfig, onSpawn, onClose }: Spaw
                   <Brain className="w-3 h-3 flex-shrink-0" />
                   <span>{pinnedCount} {t('agent.memory.pinnedWillBeIncluded')}</span>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Detected AI Tools */}
+          {scanResult && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] text-gray-500 uppercase tracking-wider">{t('agent.detectedTools')}</label>
+                <button
+                  type="button"
+                  onClick={() => rescanTools()}
+                  disabled={toolsLoading}
+                  className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3 h-3 ${toolsLoading ? 'animate-spin' : ''}`} />
+                  {t('common.refresh')}
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {scanResult.tools.map((tool) => (
+                  <div
+                    key={tool.toolId}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] border transition-all ${
+                      tool.status === 'detected'
+                        ? tool.capabilities.canSpawn
+                          ? 'bg-emerald-900/20 border-emerald-900/30 text-emerald-400'
+                          : 'bg-blue-900/20 border-blue-900/30 text-blue-400'
+                        : 'bg-white/[0.02] border-white/[0.04] text-gray-600'
+                    }`}
+                    title={tool.status === 'detected'
+                      ? `${tool.detectedVia}${tool.version ? ` v${tool.version}` : ''}`
+                      : t('agent.toolNotFound')
+                    }
+                  >
+                    {tool.status === 'detected' ? (
+                      <Check className="w-3 h-3" />
+                    ) : tool.status === 'error' ? (
+                      <AlertCircle className="w-3 h-3 text-red-400" />
+                    ) : null}
+                    <span>{tool.name}</span>
+                    {tool.version && <span className="opacity-60">v{tool.version}</span>}
+                  </div>
+                ))}
+              </div>
+              {spawnableTools.length === 0 && !toolsLoading && (
+                <p className="text-[10px] text-amber-500/70">{t('agent.noSpawnableTools')}</p>
               )}
             </div>
           )}

@@ -1,9 +1,27 @@
 import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import type { AiActionEvent, RiskLevel, OperationType } from '@voltron/shared';
+import type { AgentActivity } from '@voltron/shared';
 import { RiskEngine, type RiskResult } from './risk-engine.js';
 import type { Broadcaster } from '../ws/broadcaster.js';
 import { WS_EVENTS } from '@voltron/shared';
+
+/** Map file operation to GPS activity */
+function actionToActivity(action: OperationType): AgentActivity {
+  switch (action) {
+    case 'FILE_CREATE':
+    case 'FILE_MODIFY':
+      return 'WRITING';
+    case 'FILE_DELETE':
+    case 'DIR_DELETE':
+      return 'EXECUTING';
+    case 'CONFIG_CHANGE':
+    case 'DEPENDENCY_CHANGE':
+      return 'SEARCHING';
+    default:
+      return 'READING';
+  }
+}
 
 interface DemoPhase {
   name: string;
@@ -108,7 +126,21 @@ export class DemoRunner {
     // Broadcast demo start
     this.broadcaster.broadcastToDashboards({
       type: 'DEMO_STATUS',
-      data: { running: true, phase: this.phase, sessionId: this.projectId },
+      payload: { running: true, phase: this.phase, sessionId: this.projectId },
+      timestamp: Date.now(),
+    });
+
+    // Set agent status to RUNNING so GPS panel becomes visible
+    this.broadcaster.broadcastToDashboards({
+      type: 'AGENT_STATUS_CHANGE',
+      payload: {
+        projectId: this.projectId,
+        status: 'RUNNING',
+        sessionId: this.projectId,
+        model: 'demo',
+        startedAt: Date.now(),
+      },
+      timestamp: Date.now(),
     });
 
     this.schedulePhase(0);
@@ -122,7 +154,15 @@ export class DemoRunner {
 
     this.broadcaster.broadcastToDashboards({
       type: 'DEMO_STATUS',
-      data: { running: false, phase: 'stopped', sessionId: this.projectId },
+      payload: { running: false, phase: 'stopped', sessionId: this.projectId },
+      timestamp: Date.now(),
+    });
+
+    // Reset agent status
+    this.broadcaster.broadcastToDashboards({
+      type: 'AGENT_STATUS_CHANGE',
+      payload: { projectId: this.projectId, status: 'IDLE' },
+      timestamp: Date.now(),
     });
   }
 
@@ -132,8 +172,17 @@ export class DemoRunner {
       this.running = false;
       this.broadcaster.broadcastToDashboards({
         type: 'DEMO_STATUS',
-        data: { running: false, phase: 'complete', sessionId: this.projectId },
+        payload: { running: false, phase: 'complete', sessionId: this.projectId },
+        timestamp: Date.now(),
       });
+
+      // Set agent status to COMPLETED
+      this.broadcaster.broadcastToDashboards({
+        type: 'AGENT_STATUS_CHANGE',
+        payload: { projectId: this.projectId, status: 'COMPLETED' },
+        timestamp: Date.now(),
+      });
+
       this.onComplete?.();
       return;
     }
@@ -144,7 +193,24 @@ export class DemoRunner {
     // Broadcast phase change
     this.broadcaster.broadcastToDashboards({
       type: 'DEMO_STATUS',
-      data: { running: true, phase: phase.name, sessionId: this.projectId },
+      payload: { running: true, phase: phase.name, sessionId: this.projectId },
+      timestamp: Date.now(),
+    });
+
+    // Emit a THINKING breadcrumb at phase start (agent is "planning")
+    const firstFile = phase.events[0]?.file ?? 'project';
+    this.broadcaster.broadcastToDashboards({
+      type: 'AGENT_BREADCRUMB',
+      payload: {
+        breadcrumb: {
+          filePath: firstFile,
+          activity: 'THINKING' as AgentActivity,
+          timestamp: Date.now(),
+          toolName: 'Plan',
+        },
+        projectId: this.projectId,
+      },
+      timestamp: Date.now(),
     });
 
     let cumulativeDelay = 0;
@@ -201,20 +267,52 @@ export class DemoRunner {
     // Broadcast to all connected dashboards
     this.broadcaster.broadcastToDashboards({
       type: WS_EVENTS.EVENT_BROADCAST,
-      data: { event, riskResult },
+      payload: event,
+      timestamp: Date.now(),
+    });
+
+    // Emit GPS breadcrumb so the map tracks file activity
+    const activity = actionToActivity(eventDef.action);
+    this.broadcaster.broadcastToDashboards({
+      type: 'AGENT_BREADCRUMB',
+      payload: {
+        breadcrumb: {
+          filePath: eventDef.file,
+          activity,
+          timestamp: Date.now(),
+          toolName: activity === 'WRITING' ? 'Write' : 'Read',
+          contentSnippet: eventDef.diff?.slice(0, 100),
+        },
+        projectId: this.projectId,
+      },
+      timestamp: Date.now(),
+    });
+
+    // Emit location update so GPS cursor moves
+    this.broadcaster.broadcastToDashboards({
+      type: 'AGENT_LOCATION_UPDATE',
+      payload: {
+        location: {
+          filePath: eventDef.file,
+          activity,
+          timestamp: Date.now(),
+          toolName: activity === 'WRITING' ? 'Write' : 'Read',
+        },
+        projectId: this.projectId,
+      },
+      timestamp: Date.now(),
     });
 
     // If critical, also send risk alert
     if (riskResult.risk === 'CRITICAL' || riskResult.risk === 'HIGH') {
       this.broadcaster.broadcastToDashboards({
         type: WS_EVENTS.RISK_ALERT,
-        data: {
-          event,
-          risk: riskResult.risk,
-          reasons: riskResult.reasons,
-          shouldAutoStop: riskResult.shouldAutoStop,
-          timestamp: Date.now(),
+        payload: {
+          riskLevel: riskResult.risk,
+          message: riskResult.reasons.join(', '),
+          eventId: event.id,
         },
+        timestamp: Date.now(),
       });
     }
   }

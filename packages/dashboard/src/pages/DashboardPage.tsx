@@ -218,38 +218,7 @@ export function DashboardPage() {
     }
   }, [projectId, currentLang, setLangDirect]);
 
-  // Loading screen
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen" style={{ background: 'var(--color-bg-primary)' }}>
-        <div className="text-center">
-          <Spinner size="lg" className="mb-4" />
-          <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{t('app.loadingVoltron')}</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Error screen
-  if (error && projects.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-screen" style={{ background: 'var(--color-bg-primary)' }}>
-        <div className="text-center max-w-md">
-          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <h1 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>{t('app.connectionError')}</h1>
-          <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>{error}</p>
-          <button
-            onClick={loadProjects}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm"
-          >
-            {t('app.retry')}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Agent action handlers (memoized to prevent unnecessary re-renders)
+  // Agent action handlers — MUST be before conditional returns (Rules of Hooks)
   const handleAgentSpawn = useCallback(async (config: { model: string; prompt: string; targetDir: string }) => {
     if (!projectId) return;
     try {
@@ -366,6 +335,65 @@ export function DashboardPage() {
   const modeOrder: DashboardMode[] = useMemo(() => ['essential', 'active', 'power'], []);
   const currentModeIndex = modeOrder.indexOf(dashboardMode);
   const tabs = useMemo(() => allTabs.filter(tab => modeOrder.indexOf(tab.minMode) <= currentModeIndex), [allTabs, modeOrder, currentModeIndex]);
+
+  // Demo mode: create temporary project so WS connects and agent tab works
+  const handleDemoStarted = useCallback((sessionId: string) => {
+    // Use existing project if one is selected (WS already connected with valid UUID)
+    // Otherwise create a virtual project with a real UUID so WS registration passes
+    if (!selectedProject) {
+      const demoProject: ProjectConfig = {
+        id: crypto.randomUUID(),
+        name: 'Demo Project',
+        rootPath: '/demo',
+        isActive: true,
+        watchIgnorePatterns: [],
+        maxFileSize: 10_000_000,
+        debounceMs: 100,
+        autoStopOnCritical: false,
+        snapshotRetention: 10,
+        rateLimit: 100,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      setSelectedProject(demoProject);
+    }
+    setCenterTab('agent');
+  }, [selectedProject]);
+
+  const handleDemoStopped = useCallback(() => {
+    setCenterTab('feed');
+  }, []);
+
+  // Loading screen
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen" style={{ background: 'var(--color-bg-primary)' }}>
+        <div className="text-center">
+          <Spinner size="lg" className="mb-4" />
+          <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{t('app.loadingVoltron')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error screen
+  if (error && projects.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-screen" style={{ background: 'var(--color-bg-primary)' }}>
+        <div className="text-center max-w-md">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <h1 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>{t('app.connectionError')}</h1>
+          <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>{error}</p>
+          <button
+            onClick={loadProjects}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm"
+          >
+            {t('app.retry')}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Center content
   const centerContent = (
@@ -503,7 +531,7 @@ export function DashboardPage() {
               <div className="flex flex-col h-full">
                 {/* Demo banner — compact when events exist */}
                 {!agentIsActive && (
-                  <DemoBanner variant={hasEvents ? 'compact' : 'full'} />
+                  <DemoBanner variant={hasEvents ? 'compact' : 'full'} onDemoStarted={handleDemoStarted} onDemoStopped={handleDemoStopped} />
                 )}
                 <div className="flex-1 overflow-hidden">
                   <ActionFeed />
@@ -624,7 +652,7 @@ export function DashboardPage() {
       {/* Reference Design Upload — active+ mode when agent idle */}
       {projectId && !agentIsActive && (dashboardMode === 'active' || dashboardMode === 'power') && (
         <div className="p-2" style={{ borderBottom: '1px solid var(--glass-border)' }}>
-          <div className="text-[10px] uppercase tracking-wider mb-1.5 px-1" style={{ color: 'var(--color-text-muted)' }}>Reference Design</div>
+          <div className="text-[10px] uppercase tracking-wider mb-1.5 px-1" style={{ color: 'var(--color-text-muted)' }}>{t('referenceDesign.title')}</div>
           <ReferenceDesignUpload
             projectId={projectId}
             onGenerate={(prompt, attachmentUrls) => {
