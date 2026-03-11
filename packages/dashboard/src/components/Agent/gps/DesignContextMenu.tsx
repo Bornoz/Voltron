@@ -774,7 +774,7 @@ export const DesignContextMenu = memo(function DesignContextMenu({
       label: "AI'ya Sor",
       description: 'Bu element hakkinda AI\'ya soru sor veya degisiklik iste.',
       action: () => {
-        const info = `<${data.tagName}> ${data.selector} — ${data.text?.slice(0, 50) || '(bos)'}`;
+        const info = `<${data.tagName}> ${data.selector} — ${data.textContent?.slice(0, 50) || '(bos)'}`;
         onAskAI(data.selector, info);
         onClose();
       },

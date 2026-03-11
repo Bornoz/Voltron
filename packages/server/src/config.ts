@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { DEFAULTS, AGENT_CONSTANTS } from '@voltron/shared';
 
@@ -59,7 +60,7 @@ export function loadConfig(): ServerConfig {
     process.exit(1);
   }
 
-  return {
+  const config: ServerConfig = {
     port: env.VOLTRON_PORT,
     host: env.VOLTRON_HOST,
     dbPath: env.VOLTRON_DB_PATH,
@@ -80,4 +81,23 @@ export function loadConfig(): ServerConfig {
     adminUser: env.VOLTRON_ADMIN_USER ?? '',
     adminPass: env.VOLTRON_ADMIN_PASS ?? '',
   };
+
+  // Auto-generate admin password if not set
+  if (!config.adminPass && config.adminUser) {
+    const generatedPass = randomBytes(12).toString('base64url');
+    config.adminPass = generatedPass;
+    console.log('\n' + '='.repeat(60));
+    console.log('[VOLTRON] Auto-generated admin password (no VOLTRON_ADMIN_PASS set)');
+    console.log(`[VOLTRON]   Username: ${config.adminUser}`);
+    console.log(`[VOLTRON]   Password: ${generatedPass}`);
+    console.log('[VOLTRON] Set VOLTRON_ADMIN_PASS in .env to use a fixed password.');
+    console.log('='.repeat(60) + '\n');
+  }
+
+  // Auto-generate auth secret in development
+  if (!config.authSecret && env.NODE_ENV !== 'production') {
+    config.authSecret = randomBytes(32).toString('hex');
+  }
+
+  return config;
 }

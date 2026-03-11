@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, AlertCircle, Loader2, UserPlus, LogIn } from 'lucide-react';
+import { User, Lock, AlertCircle, Loader2, UserPlus, LogIn, Shield, Activity, Eye, Zap } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { useTranslation } from '../i18n';
 import type { Language } from '../i18n';
@@ -211,6 +211,21 @@ export function LoginPage() {
             </p>
           )}
         </div>
+      </div>
+
+      {/* Feature highlights */}
+      <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10 flex gap-6 opacity-60 hover:opacity-100 transition-opacity">
+        {[
+          { icon: Shield, label: '14 Risk Rules', color: 'text-blue-400' },
+          { icon: Activity, label: 'Real-time Monitor', color: 'text-green-400' },
+          { icon: Eye, label: 'File Protection', color: 'text-purple-400' },
+          { icon: Zap, label: 'Circuit Breaker', color: 'text-amber-400' },
+        ].map((f) => (
+          <div key={f.label} className="flex items-center gap-1.5 text-[10px] text-gray-500">
+            <f.icon className={`w-3 h-3 ${f.color}`} />
+            <span>{f.label}</span>
+          </div>
+        ))}
       </div>
 
       {/* Language switcher - bottom right */}

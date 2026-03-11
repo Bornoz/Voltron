@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAgentStore } from '../../stores/agentStore';
 import type { PromptPin, ReferenceImage } from '../../stores/agentStore';
+import { useWindowStore } from '../../stores/windowStore';
 import { useTranslation } from '../../i18n';
 import { PromptPinModal } from './PromptPinModal';
 import { EditorToolbar, type EditorTool } from './editor/EditorToolbar';
@@ -342,7 +343,7 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
   const [editingPinId, setEditingPinId] = useState<string | null>(null);
 
   const isActive = !['IDLE'].includes(status);
-  const canInject = ['RUNNING', 'PAUSED', 'COMPLETED', 'CRASHED'].includes(status);
+  const canInject = ['RUNNING', 'PAUSED', 'COMPLETED', 'CRASHED', 'SPAWNING', 'INJECTING'].includes(status);
   const isPreview = mode === 'preview';
   // Use location.filePath (live), fallback to storeCurrentFile (hydrated from breadcrumbs after page reload)
   const activeFilePath = location?.filePath ?? storeCurrentFile;
@@ -592,13 +593,28 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
     }
   }, [editingPinId, pinCreateReq, updatePromptPin, addPromptPin, postToIframe, promptPins.length]);
 
-  // SAVE & SEND — Phase-formatted
+  // SAVE & SEND — Phase-formatted + direct window management
   const handleSaveAndSend = useCallback(() => {
     if ((edits.length === 0 && promptPins.length === 0) || !onInject) return;
 
     const prompt = formatPhasePrompt(edits, promptPins, referenceImage);
 
     const activeFile = location?.filePath ?? storeCurrentFile ?? 'index.html';
+
+    // 1. ÖNCE: Visual editor'ü maximize'dan çıkar (doğrudan store erişimi)
+    const ws = useWindowStore.getState();
+    if (ws.panels['visual-editor']?.maximized) {
+      ws.toggleMaximize('visual-editor');
+    }
+
+    // 2. Agent output panelini aç ve öne getir
+    const ws2 = useWindowStore.getState(); // fresh state after toggle
+    if (!ws2.panels['agent-output']?.visible) {
+      ws2.toggleVisibility('agent-output');
+    }
+    useWindowStore.getState().bringToFront('agent-output');
+
+    // 3. Prompt'u AI'ye gönder
     onInject(prompt, {
       filePath: activeFile,
       constraints: [
@@ -606,9 +622,11 @@ export function SimulatorEmbed({ projectId, onInject }: SimulatorEmbedProps) {
         ...promptPins.map((p, i) => `[pin-${i + 1}] prompt @ (${Math.round(p.pageX)},${Math.round(p.pageY)})`),
       ],
     });
+
+    // 4. Editleri temizle
     clearEdits();
     clearPromptPins();
-  }, [edits, promptPins, referenceImage, onInject, clearEdits, clearPromptPins]);
+  }, [edits, promptPins, referenceImage, onInject, location?.filePath, storeCurrentFile, clearEdits, clearPromptPins]);
 
   const editingPin = editingPinId ? promptPins.find((p) => p.id === editingPinId) : null;
   const totalChanges = edits.length + promptPins.length;

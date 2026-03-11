@@ -1,0 +1,31 @@
+{
+  "name": "voltron-ai",
+  "version": "0.2.0",
+  "description": "AI Agent Governance Platform — Monitor, control, and protect your codebase when AI agents edit files",
+  "type": "module",
+  "bin": {
+    "voltron": "./bin/voltron.js"
+  },
+  "files": [
+    "bin/"
+  ],
+  "keywords": [
+    "ai",
+    "agent",
+    "governance",
+    "claude",
+    "monitoring",
+    "risk-engine",
+    "file-protection",
+    "developer-tools"
+  ],
+  "author": "Bornoz",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Bornoz/Voltron"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -842,6 +842,27 @@ export function deleteUpload(id: string): Promise<void> {
   return request<void>(`/uploads/${id}`, { method: 'DELETE' });
 }
 
+// ── Demo Mode ───────────────────────────────────────────
+
+export interface DemoStatus {
+  running: boolean;
+  sessionId?: string;
+  phase?: number;
+  eventsEmitted?: number;
+}
+
+export function startDemo(): Promise<DemoStatus> {
+  return request<DemoStatus>('/demo/start', { method: 'POST' });
+}
+
+export function stopDemo(): Promise<DemoStatus> {
+  return request<DemoStatus>('/demo/stop', { method: 'POST' });
+}
+
+export function getDemoStatus(): Promise<DemoStatus> {
+  return request<DemoStatus>('/demo/status');
+}
+
 // ── Smart Setup ─────────────────────────────────────────
 
 export function startSmartSetup(projectId: string, skipGithub = false): Promise<{ runId: string }> {

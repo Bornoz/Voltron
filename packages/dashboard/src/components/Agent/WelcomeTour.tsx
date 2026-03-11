@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, X, CheckCircle, Rocket, FolderOpen, Bot, Shield, Map, Paintbrush, Keyboard } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, CheckCircle, Rocket, FolderOpen, Bot, Shield, Map, Paintbrush, Keyboard, Play, MessageSquare } from 'lucide-react';
 import { useTranslation } from '../../i18n';
 
 /* ─── Constants ─── */
@@ -19,15 +19,15 @@ const TOUR_STEPS: TourStep[] = [
   {
     titleKey: 'tour.step1Title',
     descKey: 'tour.step1Desc',
-    icon: FolderOpen,
-    iconColor: 'text-amber-400',
-    accentColor: 'border-amber-500/40',
-    bgGradient: 'from-amber-500/10 to-transparent',
+    icon: Play,
+    iconColor: 'text-purple-400',
+    accentColor: 'border-purple-500/40',
+    bgGradient: 'from-purple-500/10 to-transparent',
   },
   {
     titleKey: 'tour.step2Title',
     descKey: 'tour.step2Desc',
-    icon: Bot,
+    icon: MessageSquare,
     iconColor: 'text-blue-400',
     accentColor: 'border-blue-500/40',
     bgGradient: 'from-blue-500/10 to-transparent',
@@ -35,30 +35,38 @@ const TOUR_STEPS: TourStep[] = [
   {
     titleKey: 'tour.step3Title',
     descKey: 'tour.step3Desc',
+    icon: Bot,
+    iconColor: 'text-green-400',
+    accentColor: 'border-green-500/40',
+    bgGradient: 'from-green-500/10 to-transparent',
+  },
+  {
+    titleKey: 'tour.step4Title',
+    descKey: 'tour.step4Desc',
     icon: Shield,
     iconColor: 'text-red-400',
     accentColor: 'border-red-500/40',
     bgGradient: 'from-red-500/10 to-transparent',
   },
   {
-    titleKey: 'tour.step4Title',
-    descKey: 'tour.step4Desc',
+    titleKey: 'tour.step5Title',
+    descKey: 'tour.step5Desc',
     icon: Map,
     iconColor: 'text-emerald-400',
     accentColor: 'border-emerald-500/40',
     bgGradient: 'from-emerald-500/10 to-transparent',
   },
   {
-    titleKey: 'tour.step5Title',
-    descKey: 'tour.step5Desc',
+    titleKey: 'tour.step6Title',
+    descKey: 'tour.step6Desc',
     icon: Paintbrush,
     iconColor: 'text-purple-400',
     accentColor: 'border-purple-500/40',
     bgGradient: 'from-purple-500/10 to-transparent',
   },
   {
-    titleKey: 'tour.step6Title',
-    descKey: 'tour.step6Desc',
+    titleKey: 'tour.step7Title',
+    descKey: 'tour.step7Desc',
     icon: Keyboard,
     iconColor: 'text-cyan-400',
     accentColor: 'border-cyan-500/40',

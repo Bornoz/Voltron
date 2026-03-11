@@ -148,8 +148,13 @@ export function FloatingPanel({ panel, title, children }: FloatingPanelProps) {
         ${isActive ? 'ring-1 ring-blue-500/20' : ''}
       `}
       style={isMaximized ? {
-        inset: '0 0 0 0',
-        zIndex: 99999,
+        top: 0,
+        left: 0,
+        bottom: 0,
+        right: 40, // Reserve space for Taskbar dock
+        width: 'auto',
+        height: 'auto',
+        zIndex: 99997, // Below Taskbar (99998) so dock stays accessible
         background: 'var(--glass-bg)',
         border: `1px solid ${isActive ? 'rgba(59,130,246,0.4)' : 'var(--glass-border)'}`,
         boxShadow: 'var(--shadow-elevated)',
@@ -210,12 +215,14 @@ export function FloatingPanel({ panel, title, children }: FloatingPanelProps) {
         </button>
       </div>
 
-      {/* ── ESC hint for maximized ── */}
+      {/* ── ESC hint + clickable exit button for maximized ── */}
       {isMaximized && (
-        <div className="absolute top-10 right-3 px-2 py-1 rounded text-[9px] font-mono animate-pulse pointer-events-none"
-          style={{ background: 'rgba(0,0,0,0.5)', color: 'rgba(255,255,255,0.5)', zIndex: 1 }}>
-          ESC: {t('agent.windowManager.restore')}
-        </div>
+        <button
+          onClick={handleMaximize}
+          className="absolute top-10 right-3 px-3 py-1.5 rounded-lg text-[10px] font-medium cursor-pointer transition-all hover:bg-gray-700/80 hover:text-white"
+          style={{ background: 'rgba(0,0,0,0.7)', color: 'rgba(255,255,255,0.7)', zIndex: 1, border: '1px solid rgba(255,255,255,0.1)' }}>
+          ESC — {t('agent.windowManager.restore')}
+        </button>
       )}
 
       {/* ── Content ── */}

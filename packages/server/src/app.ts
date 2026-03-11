@@ -24,6 +24,7 @@ import { agentRoutes } from './routes/agent.js';
 import { projectSettingsRoutes } from './routes/project-settings.js';
 import { uploadRoutes } from './routes/uploads.js';
 import { smartSetupRoutes } from './routes/smart-setup.js';
+import { demoRoutes } from './routes/demo.js';
 import { createWsServices, registerWsHandler } from './ws/handler.js';
 import { EventBus } from './services/event-bus.js';
 import { AgentRunner } from './services/agent-runner.js';
@@ -81,6 +82,7 @@ export async function buildApp(config: ServerConfig) {
   projectSettingsRoutes(app);
   uploadRoutes(app);
   smartSetupRoutes(app, config.githubToken);
+  demoRoutes(app, wsServices.broadcaster);
 
   // Serve dashboard static files in production
   const dashboardDist = resolve(import.meta.dirname, '../../dashboard/dist');

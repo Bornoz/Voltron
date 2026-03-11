@@ -16,7 +16,6 @@ import { useAgentHydration } from '../hooks/useAgentHydration';
 import { useFileTreeStore } from '../stores/fileTreeStore';
 import { useAuthStore } from '../stores/authStore';
 import { useLanguageStore } from '../stores/languageStore';
-import { useWindowStore } from '../stores/windowStore';
 import { MainLayout } from '../components/Layout/MainLayout';
 import { MobileBottomNav } from '../components/Layout/MobileBottomNav';
 import { ActionFeed } from '../components/ActionFeed/ActionFeed';
@@ -39,6 +38,11 @@ import { SettingsModal } from '../components/Agent/SettingsModal';
 import { PromptHistory } from '../components/Agent/PromptHistory';
 import { WelcomeTour } from '../components/Agent/WelcomeTour';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
+import { useDashboardModeStore, type DashboardMode } from '../stores/dashboardModeStore';
+import { QuickPromptBar } from '../components/Agent/QuickPromptBar';
+import { ReferenceDesignUpload } from '../components/Agent/ReferenceDesignUpload';
+import { DemoBanner } from '../components/Demo/DemoBanner';
+import { GettingStarted } from '../components/Onboarding/GettingStarted';
 import { useTranslation } from '../i18n';
 
 // Lazy-loaded heavy tab components for chunk splitting
@@ -164,6 +168,7 @@ export function DashboardPage() {
 
   // Load initial events
   const addEvents = useEventStore((s) => s.addEvents);
+  const hasEvents = useEventStore((s) => s.events.length > 0);
   useEffect(() => {
     if (!projectId) return;
     (async () => {
@@ -180,7 +185,17 @@ export function DashboardPage() {
   const setLangDirect = useLanguageStore((s) => s.setLanguage);
   const currentLang = useLanguageStore((s) => s.language);
 
+  const dashboardMode = useDashboardModeStore((s) => s.mode);
+  const setDashboardMode = useDashboardModeStore((s) => s.setMode);
+
   const agentIsActive = !['IDLE', 'COMPLETED', 'CRASHED'].includes(agentStatus);
+
+  // Auto-switch to 'active' mode when agent starts running
+  useEffect(() => {
+    if (agentIsActive && dashboardMode === 'essential') {
+      setDashboardMode('active');
+    }
+  }, [agentIsActive, dashboardMode, setDashboardMode]);
 
   // Tablet: auto-scroll active tab into view
   useEffect(() => {
@@ -286,23 +301,11 @@ export function DashboardPage() {
   const handleAgentInject = async (prompt: string, context?: { filePath?: string; constraints?: string[]; attachmentUrls?: string[] }) => {
     if (!projectId) return;
 
-    // ÖNCE: Maximize paneli hemen restore et (kullanıcı sıkışmasın)
-    const windowState = useWindowStore.getState();
-    if (windowState.panels['visual-editor']?.maximized) {
-      windowState.toggleMaximize('visual-editor');
-    }
-
-    // ÖNCE: Agent output panelini hemen aç
-    if (!windowState.panels['agent-output']?.visible) {
-      windowState.toggleVisibility('agent-output');
-    }
-    windowState.bringToFront('agent-output');
-
-    // ÖNCE: Anında bildirim göster (API çağrısından ÖNCE)
+    // Bildirim göster
     useNotificationStore.getState().addNotification({
       type: 'info',
-      title: 'Gönderiliyor...',
-      message: 'Değişiklikler yapay zekaya iletiliyor...',
+      title: t('agent.sending'),
+      message: t('agent.sendingEdits'),
     });
 
     try {
@@ -310,27 +313,31 @@ export function DashboardPage() {
 
       useNotificationStore.getState().addNotification({
         type: 'success',
-        title: 'Düzenlemeler gönderildi',
-        message: 'Yapay zeka değişiklikleri uyguluyor...',
+        title: t('agent.editsSent'),
+        message: t('agent.aiApplying'),
       });
     } catch (err) {
       useNotificationStore.getState().addNotification({
         type: 'error',
-        title: 'Gönderim başarısız',
-        message: err instanceof Error ? err.message : 'Değişiklikler gönderilemedi',
+        title: t('agent.sendFailed'),
+        message: err instanceof Error ? err.message : t('agent.couldNotSendEdits'),
       });
     }
   };
 
-  // Tab definitions
-  const tabs = [
-    { id: 'feed' as const, icon: null, label: t('app.actionFeed') },
-    { id: 'github' as const, icon: <GitBranch className="w-3.5 h-3.5" />, label: t('app.github') },
-    { id: 'snapshots' as const, icon: <GitCommit className="w-3.5 h-3.5" />, label: t('app.snapshots') },
-    { id: 'behavior' as const, icon: <Brain className="w-3.5 h-3.5" />, label: t('app.behavior') },
-    { id: 'prompts' as const, icon: <FileText className="w-3.5 h-3.5" />, label: t('app.prompts') },
-    { id: 'smart-setup' as const, icon: <Sparkles className="w-3.5 h-3.5" />, label: t('app.smartSetup') },
+  // Tab definitions — filtered by dashboard mode
+  const allTabs = [
+    { id: 'feed' as const, icon: null, label: t('app.actionFeed'), minMode: 'essential' as DashboardMode },
+    { id: 'github' as const, icon: <GitBranch className="w-3.5 h-3.5" />, label: t('app.github'), minMode: 'power' as DashboardMode },
+    { id: 'snapshots' as const, icon: <GitCommit className="w-3.5 h-3.5" />, label: t('app.snapshots'), minMode: 'power' as DashboardMode },
+    { id: 'behavior' as const, icon: <Brain className="w-3.5 h-3.5" />, label: t('app.behavior'), minMode: 'power' as DashboardMode },
+    { id: 'prompts' as const, icon: <FileText className="w-3.5 h-3.5" />, label: t('app.prompts'), minMode: 'power' as DashboardMode },
+    { id: 'smart-setup' as const, icon: <Sparkles className="w-3.5 h-3.5" />, label: t('app.smartSetup'), minMode: 'power' as DashboardMode },
   ];
+
+  const modeOrder: DashboardMode[] = ['essential', 'active', 'power'];
+  const currentModeIndex = modeOrder.indexOf(dashboardMode);
+  const tabs = allTabs.filter(tab => modeOrder.indexOf(tab.minMode) <= currentModeIndex);
 
   // Center content
   const centerContent = (
@@ -367,6 +374,26 @@ export function DashboardPage() {
               )}
             </div>
           )}
+        </div>
+
+        {/* Dashboard mode toggle */}
+        <div className="flex items-center gap-0.5 rounded-md p-0.5 ml-2" style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--glass-border)' }}>
+          {(['essential', 'active', 'power'] as DashboardMode[]).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setDashboardMode(mode)}
+              className="px-2 py-1 text-[10px] rounded transition-all duration-150"
+              style={dashboardMode === mode ? {
+                background: mode === 'power' ? 'rgba(168,85,247,0.15)' : 'var(--color-bg-tertiary)',
+                color: mode === 'power' ? '#c084fc' : 'var(--color-accent)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+              } : {
+                color: 'var(--color-text-muted)',
+              }}
+            >
+              {mode === 'essential' ? 'Essential' : mode === 'active' ? 'Active' : 'All Tools'}
+            </button>
+          ))}
         </div>
 
         {/* Center tabs — hidden on mobile (bottom nav replaces them) */}
@@ -441,10 +468,20 @@ export function DashboardPage() {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-hidden" role="tabpanel" aria-labelledby={`tab-${centerTab}`}>
+      <div className="flex-1 overflow-hidden flex flex-col" role="tabpanel" aria-labelledby={`tab-${centerTab}`}>
         <ErrorBoundary resetKeys={[centerTab, projectId]}>
           <Suspense fallback={<div className="flex items-center justify-center h-full"><Spinner size="md" /></div>}>
-            {centerTab === 'feed' && <ActionFeed />}
+            {centerTab === 'feed' && (
+              <div className="flex flex-col h-full">
+                {/* Demo banner — compact when events exist */}
+                {!agentIsActive && (
+                  <DemoBanner variant={hasEvents ? 'compact' : 'full'} />
+                )}
+                <div className="flex-1 overflow-hidden">
+                  <ActionFeed />
+                </div>
+              </div>
+            )}
             {centerTab === 'github' && projectId && <RepoAnalyzer projectId={projectId} />}
             {centerTab === 'github' && !projectId && (
               <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--color-text-muted)' }}>
@@ -496,12 +533,42 @@ export function DashboardPage() {
           </Suspense>
         </ErrorBoundary>
       </div>
+
+      {/* Quick Prompt Bar — always visible at bottom */}
+      <QuickPromptBar
+        projectId={projectId}
+        onSpawn={(config) => {
+          setSpawnDefaultConfig(config);
+          setShowSpawnDialog(true);
+        }}
+        onInject={(prompt) => {
+          if (projectId) handleAgentInject(prompt);
+        }}
+      />
     </div>
   );
+
+  // Track if agent has ever run (for onboarding)
+  const agentEverRun = agentStatus !== 'IDLE' || hasEvents;
 
   // Right panel content
   const rightContent = (
     <>
+      {/* Getting Started checklist */}
+      <GettingStarted
+        onTryDemo={() => {
+          setCenterTab('feed');
+          // Demo will auto-start via DemoBanner
+        }}
+        onSpawnAgent={() => {
+          setSpawnDefaultConfig(undefined);
+          setShowSpawnDialog(true);
+        }}
+        onOpenSettings={() => setShowSettings(true)}
+        hasEvents={hasEvents}
+        agentEverRun={agentEverRun}
+      />
+
       {/* Agent Control - show mini widgets only when NOT on agent tab */}
       {projectId && centerTab !== 'agent' && (
         <div className="space-y-2 p-2" style={{ borderBottom: '1px solid var(--glass-border)' }}>
@@ -526,14 +593,38 @@ export function DashboardPage() {
         </div>
       )}
 
+      {/* Reference Design Upload — active+ mode when agent idle */}
+      {projectId && !agentIsActive && (dashboardMode === 'active' || dashboardMode === 'power') && (
+        <div className="p-2" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+          <div className="text-[10px] uppercase tracking-wider mb-1.5 px-1" style={{ color: 'var(--color-text-muted)' }}>Reference Design</div>
+          <ReferenceDesignUpload
+            projectId={projectId}
+            onGenerate={(prompt, attachmentUrls) => {
+              setSpawnDefaultConfig({ prompt });
+              setShowSpawnDialog(true);
+            }}
+          />
+        </div>
+      )}
+
       {projectId && <InterceptorStatus projectId={projectId} />}
       <ExecutionControls projectId={projectId} />
       <RiskGauge />
-      <RiskTimeline />
-      <StateHistory />
-      <ActivityChart />
-      <RiskBreakdown />
-      <ProjectStats />
+      {/* Active+ mode: show timeline and history */}
+      {(dashboardMode === 'active' || dashboardMode === 'power') && (
+        <>
+          <RiskTimeline />
+          <StateHistory />
+        </>
+      )}
+      {/* Power mode: show full analytics */}
+      {dashboardMode === 'power' && (
+        <>
+          <ActivityChart />
+          <RiskBreakdown />
+          <ProjectStats />
+        </>
+      )}
     </>
   );
 
