@@ -120,11 +120,14 @@ interface GPSFilePreviewProps {
   onInject?: (prompt: string, context?: { filePath?: string }) => void;
 }
 
+/** Minimal syntax highlighter. Safe: HTML entities escaped before any span injection. */
 function highlightSyntax(code: string): string {
+  // SECURITY: Escape all HTML entities FIRST — prevents XSS even with untrusted content
   let result = code
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 
   result = result.replace(SYNTAX.COMMENTS_SINGLE, '<span style="color:#6b7280">$&</span>');
   result = result.replace(SYNTAX.COMMENTS_MULTI, '<span style="color:#6b7280">$&</span>');
@@ -668,7 +671,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
             }`}
           >
             <MonitorPlay size={14} />
-            Gorsel Onizleme
+            {t('agent.gps.previewFile')}
             {canPreview && viewMode === 'preview' && (
               <Sparkles size={10} className="text-green-400 animate-pulse" />
             )}
@@ -685,7 +688,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
             }`}
           >
             <Code size={14} />
-            Kaynak Kod
+            {t('agent.gps.viewContent')}
           </button>
         </div>
 
@@ -719,7 +722,7 @@ export const GPSFilePreview = memo(function GPSFilePreview({
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full">
-                    <span className="text-sm text-slate-500">Onizleme kullanilamiyor</span>
+                    <span className="text-sm text-slate-500">{t('agent.gps.noPreview')}</span>
                   </div>
                 )}
               </div>

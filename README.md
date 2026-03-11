@@ -48,21 +48,22 @@ Without Voltron, these happen silently:
 ## Quick Start
 
 ```bash
-# Method 1: npx (quickest)
-npx voltron-ai
-
-# Method 2: Docker
+# Method 1: Docker (quickest)
 git clone https://github.com/Bornoz/Voltron.git && cd Voltron
+cp .env.example .env
 docker compose up -d
 
-# Method 3: From source
+# Method 2: From source
 git clone https://github.com/Bornoz/Voltron.git
-cd Voltron && pnpm install && pnpm build && pnpm dev
+cd Voltron
+cp .env.example .env
+pnpm install && pnpm build && pnpm dev
 ```
 
 Open **http://localhost:8600** → Log in → Click **"Try Demo"** → Watch the risk engine in action.
 
 > **Zero AI tokens required for the demo.** Synthetic events showcase the full protection pipeline.
+> Default admin password is auto-generated on first start — check the server console output.
 
 ---
 

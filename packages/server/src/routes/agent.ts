@@ -149,9 +149,11 @@ export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner, devS
     // Path traversal protection: block sensitive system paths
     const BLOCKED_PATHS = ['/etc', '/usr', '/bin', '/sbin', '/boot', '/proc', '/sys', '/dev', '/var/run'];
     const normalizedTarget = normalize(resolvedTargetDir);
+    // Self-protection: block access to Voltron's own source
+    const voltronRoot = resolve(import.meta.dirname, '../../../..');
     if (BLOCKED_PATHS.some((bp) => normalizedTarget === bp || normalizedTarget.startsWith(bp + '/'))
-      || normalizedTarget.startsWith('/opt/voltron/packages/server')
-      || normalizedTarget.startsWith('/opt/voltron/packages/shared')) {
+      || normalizedTarget.startsWith(resolve(voltronRoot, 'packages/server'))
+      || normalizedTarget.startsWith(resolve(voltronRoot, 'packages/shared'))) {
       return reply.status(403).send({ error: 'Target directory is in a protected zone' });
     }
 

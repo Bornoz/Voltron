@@ -382,8 +382,14 @@ describe('RiskEngine', () => {
   // ─── Rule 13: Self-Protection ──────────────────────────────
 
   describe('self-protection rule', () => {
-    it('should return CRITICAL + block for /opt/voltron paths', () => {
-      const result = engine.classify(makeEvent({ file: '/opt/voltron/src/index.ts' }), defaultCtx);
+    it('should return CRITICAL + block for Voltron install paths', async () => {
+      // Use actual Voltron root — self-protection is now dynamic
+      // risk-engine.ts resolves: resolve(import.meta.dirname, '../../../..')
+      // from services/ → 4 levels up = monorepo root (/opt/voltron)
+      // __tests__/ is 5 levels deep, so go up 5
+      const { resolve } = await import('node:path');
+      const voltronRoot = resolve(import.meta.dirname, '../../../../..');
+      const result = engine.classify(makeEvent({ file: `${voltronRoot}/src/index.ts` }), defaultCtx);
       const rule = result.ruleResults.find(r => r.ruleName === 'self-protection');
       expect(rule?.riskLevel).toBe('CRITICAL');
       expect(rule?.shouldBlock).toBe(true);

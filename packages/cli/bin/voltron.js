@@ -91,7 +91,8 @@ function findVoltronRoot() {
   // Check common locations
   const locations = [
     join(process.env.HOME || '~', '.voltron'),
-    '/opt/voltron',
+    join(process.env.HOME || '~', 'Voltron'),
+    ...(process.env.VOLTRON_ROOT ? [process.env.VOLTRON_ROOT] : []),
   ];
   for (const loc of locations) {
     if (existsSync(join(loc, 'packages/server/dist/index.js'))) return loc;

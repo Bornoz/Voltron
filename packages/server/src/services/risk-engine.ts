@@ -1,5 +1,9 @@
+import { resolve } from 'node:path';
 import { type AiActionEvent, type RiskLevel, type ProtectionZoneConfig, RISK_VALUE, RISK_THRESHOLDS } from '@voltron/shared';
 import picomatch from 'picomatch';
+
+/** Voltron's own installation root — computed once for self-protection */
+const VOLTRON_ROOT = resolve(import.meta.dirname, '../../../..');
 
 interface RuleResult {
   ruleName: string;
@@ -206,7 +210,7 @@ const BUILT_IN_RULES: RiskRule[] = [
   {
     name: 'self-protection',
     evaluate: (event) => {
-      const selfPaths = ['/opt/voltron/**', '**/voltron.db*', '/etc/nginx/**', '/etc/systemd/**', '/etc/letsencrypt/**'];
+      const selfPaths = [`${VOLTRON_ROOT}/**`, '**/voltron.db*', '/etc/nginx/**', '/etc/systemd/**', '/etc/letsencrypt/**'];
       for (const pattern of selfPaths) {
         if (picomatch.isMatch(event.file, pattern)) {
           return { risk: 'CRITICAL', reason: `Self-protection: ${event.file}`, block: true };
