@@ -119,6 +119,9 @@ export function computeForceLayout(input: LayoutInput): LayoutResult {
   const centerY = height / 2;
   const n = nodes.length;
 
+  // Pre-build node lookup map for O(1) edge resolution (avoids O(n) find per edge)
+  const edgeNodeMap = new Map(nodes.map((nd) => [nd.id, nd]));
+
   for (let iter = 0; iter < FORCE.ITERATIONS; iter++) {
     // Repulsion (all pairs — simplified O(n²), fine for <500 nodes)
     for (let i = 0; i < n; i++) {
@@ -141,8 +144,8 @@ export function computeForceLayout(input: LayoutInput): LayoutResult {
 
     // Spring forces (connected nodes)
     for (const e of edges) {
-      const a = nodes.find((n) => n.id === e.source);
-      const b = nodes.find((n) => n.id === e.target);
+      const a = edgeNodeMap.get(e.source);
+      const b = edgeNodeMap.get(e.target);
       if (!a || !b) continue;
       const dx = b.x - a.x;
       const dy = b.y - a.y;

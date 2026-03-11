@@ -597,6 +597,25 @@ export function agentInject(
   });
 }
 
+// ── Breakpoints ──────────────────────────────────────
+export function getBreakpoints(projectId: string): Promise<string[]> {
+  return request<string[]>(`/projects/${projectId}/agent/breakpoints`);
+}
+
+export function setBreakpoint(projectId: string, filePath: string): Promise<{ status: string }> {
+  return request<{ status: string }>(`/projects/${projectId}/agent/breakpoints`, {
+    method: 'POST',
+    body: JSON.stringify({ filePath }),
+  });
+}
+
+export function removeBreakpoint(projectId: string, filePath: string): Promise<{ status: string }> {
+  return request<{ status: string }>(`/projects/${projectId}/agent/breakpoints`, {
+    method: 'DELETE',
+    body: JSON.stringify({ filePath }),
+  });
+}
+
 export function getAgentSession(projectId: string): Promise<Record<string, unknown> | null> {
   return request<Record<string, unknown> | null>(`/projects/${projectId}/agent/session`);
 }

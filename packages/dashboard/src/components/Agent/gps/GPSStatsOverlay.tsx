@@ -2,6 +2,7 @@ import { memo, useMemo } from 'react';
 import { BarChart3, FileCode, Eye, Zap } from 'lucide-react';
 import type { AgentBreadcrumb } from '@voltron/shared';
 import { ACTIVITY_COLORS } from './constants';
+import { useTranslation } from '../../../i18n';
 
 interface GPSStatsOverlayProps {
   breadcrumbs: AgentBreadcrumb[];
@@ -38,6 +39,8 @@ export const GPSStatsOverlay = memo(function GPSStatsOverlay({
     };
   }, [breadcrumbs]);
 
+  const { t } = useTranslation();
+
   if (!visible) return null;
 
   return (
@@ -55,25 +58,25 @@ export const GPSStatsOverlay = memo(function GPSStatsOverlay({
       {/* Summary */}
       <div className="flex items-center gap-2 text-[11px] text-slate-200 font-semibold">
         <BarChart3 size={12} className="text-blue-400 drop-shadow-[0_0_4px_rgba(59,130,246,0.4)]" />
-        Statistics
+        {t('agent.gps.stats')}
       </div>
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
         <div className="flex items-center gap-1 text-slate-400">
           <FileCode size={10} />
-          Files
+          {t('agent.gps.filesVisited')}
         </div>
         <div className="text-slate-200 font-mono">{stats.visitedFiles}/{totalFiles}</div>
 
         <div className="flex items-center gap-1 text-slate-400">
           <Eye size={10} />
-          Visits
+          {t('agent.gps.totalVisits')}
         </div>
         <div className="text-slate-200 font-mono">{stats.totalVisits}</div>
 
         <div className="flex items-center gap-1 text-slate-400">
           <Zap size={10} />
-          Avg/file
+          {t('agent.gps.avgPerFile')}
         </div>
         <div className="text-slate-200 font-mono">{stats.avgVisitsPerFile}</div>
       </div>
@@ -81,7 +84,7 @@ export const GPSStatsOverlay = memo(function GPSStatsOverlay({
       {/* Top files */}
       {stats.topFiles.length > 0 && (
         <div className="mt-1 border-t border-white/[0.06] pt-1">
-          <div className="text-[9px] text-slate-500 mb-1">TOP FILES</div>
+          <div className="text-[9px] text-slate-500 mb-1">{t('agent.gps.topFiles')}</div>
           {stats.topFiles.map((f) => (
             <div key={f.path} className="flex items-center gap-1 py-0.5">
               <div
@@ -101,7 +104,7 @@ export const GPSStatsOverlay = memo(function GPSStatsOverlay({
 
       {/* Activity breakdown */}
       <div className="border-t border-white/[0.06] pt-1">
-        <div className="text-[9px] text-slate-500 mb-1">ACTIVITY</div>
+        <div className="text-[9px] text-slate-500 mb-1">{t('agent.gps.activity')}</div>
         <div className="flex gap-1 flex-wrap">
           {Object.entries(stats.activityCounts).map(([activity, count]) => (
             <span

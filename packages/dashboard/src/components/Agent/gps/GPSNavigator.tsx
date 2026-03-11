@@ -3,6 +3,7 @@ import {
   Search, ZoomIn, ZoomOut, RotateCcw, Flame, BarChart3, Map as MapIcon, Maximize2, Minimize2, Crosshair,
 } from 'lucide-react';
 import { useAgentStore } from '../../../stores/agentStore';
+import * as api from '../../../lib/api';
 import { useTranslation } from '../../../i18n';
 import type { ForceNode, GPSViewport } from './types';
 import { DARK_THEME, VIEW } from './constants';
@@ -45,6 +46,14 @@ export function GPSNavigator({ projectId, files, onAgentAction, onInject }: GPSN
   const [contextMenu, setContextMenu] = useState<{ node: ForceNode; pos: { x: number; y: number } } | null>(null);
   const [breakpoints, setBreakpoints] = useState<Set<string>>(new Set());
 
+  // Load breakpoints from server
+  useEffect(() => {
+    if (!projectId) return;
+    api.getBreakpoints(projectId).then((bps) => {
+      if (bps.length > 0) setBreakpoints(new Set(bps));
+    }).catch(() => {});
+  }, [projectId]);
+
   // ResizeObserver
   useEffect(() => {
     const el = containerRef.current;
@@ -58,11 +67,19 @@ export function GPSNavigator({ projectId, files, onAgentAction, onInject }: GPSN
     return () => obs.disconnect();
   }, []);
 
-  // Filter files by search
+  // Filter files by search (includes + fuzzy match)
   const filteredFiles = useMemo(() => {
     if (!search) return files;
     const q = search.toLowerCase();
-    return files.filter((f) => f.toLowerCase().includes(q));
+    const fuzzyMatch = (str: string) => {
+      let j = 0;
+      const s = str.toLowerCase();
+      for (let i = 0; i < s.length && j < q.length; i++) {
+        if (s[i] === q[j]) j++;
+      }
+      return j === q.length;
+    };
+    return files.filter((f) => f.toLowerCase().includes(q) || fuzzyMatch(f));
   }, [files, search]);
 
   // Compute layout (memoized — only recalculates when files change)
@@ -127,11 +144,17 @@ export function GPSNavigator({ projectId, files, onAgentAction, onInject }: GPSN
   const handleBreakpoint = useCallback((filePath: string) => {
     setBreakpoints((prev) => {
       const next = new Set(prev);
-      if (next.has(filePath)) next.delete(filePath);
-      else next.add(filePath);
+      const removing = next.has(filePath);
+      if (removing) {
+        next.delete(filePath);
+        if (projectId) api.removeBreakpoint(projectId, filePath).catch(() => {});
+      } else {
+        next.add(filePath);
+        if (projectId) api.setBreakpoint(projectId, filePath).catch(() => {});
+      }
       return next;
     });
-  }, []);
+  }, [projectId]);
 
   const resetView = useCallback(() => {
     setViewport({ x: 0, y: 0, zoom: 1 });
@@ -312,6 +335,7 @@ export function GPSNavigator({ projectId, files, onAgentAction, onInject }: GPSN
           onRedirect={handleRedirect}
           onPreview={(node) => setPreviewNode(node)}
           onBreakpoint={handleBreakpoint}
+          onInject={onInject}
           breakpoints={breakpoints}
         />
       </div>

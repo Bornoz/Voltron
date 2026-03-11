@@ -28,7 +28,7 @@ export const GPSEdges = memo(function GPSEdges({ edges, nodes }: GPSEdgesProps) 
         const color = ACTIVITY_COLORS[edge.activity] ?? DARK_THEME.edgeDefault;
 
         return (
-          <g key={`${edge.source}-${edge.target}-${i}`}>
+          <g key={`edge-${edge.source}-${edge.target}`}>
             {/* Glow trail behind edge */}
             <path
               d={`M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`}

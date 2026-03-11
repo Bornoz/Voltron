@@ -14,11 +14,12 @@ interface GPSContextMenuProps {
   onRedirect: (filePath: string) => void;
   onPreview: (node: ForceNode) => void;
   onBreakpoint: (filePath: string) => void;
+  onInject?: (prompt: string, context?: { filePath?: string }) => void;
   breakpoints: Set<string>;
 }
 
 export const GPSContextMenu = memo(function GPSContextMenu({
-  node, position, onClose, onRedirect, onPreview, onBreakpoint, breakpoints,
+  node, position, onClose, onRedirect, onPreview, onBreakpoint, onInject, breakpoints,
 }: GPSContextMenuProps) {
   const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -80,7 +81,7 @@ export const GPSContextMenu = memo(function GPSContextMenu({
       <div className="px-3 py-2 border-b border-white/[0.06]">
         <div className="text-[10px] font-mono text-slate-400 truncate">{node.filePath}</div>
         <div className="flex items-center gap-2 mt-1">
-          <span className="text-[9px] text-slate-600">{node.visits} ziyaret</span>
+          <span className="text-[9px] text-slate-600">{node.visits} {t('agent.gps.visitCount')}</span>
           <span className="text-[9px] font-mono text-blue-400/60 bg-blue-900/20 px-1 rounded">{node.extension}</span>
         </div>
       </div>
@@ -89,8 +90,7 @@ export const GPSContextMenu = memo(function GPSContextMenu({
       {canPreview && (
         <MenuItem
           icon={<MonitorPlay size={13} />}
-          label="Gorsel Onizleme"
-          description="Dosyayi canli render et, sag tikla ile duzenle"
+          label={t('agent.gps.previewFile')}
           onClick={() => { onPreview(node); onClose(); }}
           accent
         />
@@ -99,49 +99,58 @@ export const GPSContextMenu = memo(function GPSContextMenu({
       <MenuItem
         icon={<Eye size={13} />}
         label={t('agent.gps.viewContent')}
-        description="Kaynak kodunu goruntule, syntax highlighting ile"
         onClick={() => { onPreview(node); onClose(); }}
       />
 
       <MenuItem
         icon={<Navigation size={13} />}
-        label={t('agent.gps.switchFile')}
-        description="Agent'i bu dosyaya yonlendir ve uzerinde calistir"
+        label={t('agent.gps.redirect')}
         onClick={() => { onRedirect(node.filePath); onClose(); }}
         accent
       />
 
-      <MenuItem
-        icon={<MessageSquare size={13} />}
-        label="Agent'a Talimat Ver"
-        description="Bu dosya hakkinda agent'a ozel prompt gonder"
-        onClick={() => { onRedirect(node.filePath); onClose(); }}
-      />
+      {onInject && (
+        <MenuItem
+          icon={<MessageSquare size={13} />}
+          label={t('agent.gps.sendPrompt')}
+          description={t('agent.gps.doInFile')}
+          onClick={() => {
+            const prompt = `Analyze and work on this file: ${node.filePath}\nProvide a summary and suggest improvements.`;
+            onInject(prompt, { filePath: node.filePath });
+            onClose();
+          }}
+        />
+      )}
 
       <div className="my-1 mx-2 border-t border-white/[0.06]" />
 
       {/* Secondary actions */}
       <MenuItem
         icon={<Crosshair size={13} />}
-        label={hasBreakpoint ? 'Breakpoint Kaldir' : 'Breakpoint Koy'}
+        label={hasBreakpoint ? t('agent.gps.removeBreakpoint') : t('agent.gps.setBreakpoint')}
         description={hasBreakpoint ? 'Dosyadaki durdurma noktasini kaldir' : 'Agent bu dosyaya gelince duraklat'}
         onClick={() => { onBreakpoint(node.filePath); onClose(); }}
         danger={hasBreakpoint}
       />
 
-      <MenuItem
-        icon={<Pencil size={13} />}
-        label="Agent ile Duzenle"
-        description="Agent'tan bu dosyayi iyilestirmesini iste"
-        onClick={() => { onRedirect(node.filePath); onClose(); }}
-      />
+      {onInject && (
+        <MenuItem
+          icon={<Pencil size={13} />}
+          label={t('agent.gps.doInFile')}
+          description="Agent'tan bu dosyayi iyilestirmesini iste"
+          onClick={() => {
+            const prompt = `Improve this file: ${node.filePath}\nRefactor, fix issues, and optimize the code.`;
+            onInject(prompt, { filePath: node.filePath });
+            onClose();
+          }}
+        />
+      )}
 
       <div className="my-1 mx-2 border-t border-white/[0.06]" />
 
       <MenuItem
         icon={<Copy size={13} />}
-        label="Dosya Yolunu Kopyala"
-        description="Tam dosya yolunu panoya kopyala"
+        label={t('agent.gps.copyPath')}
         onClick={handleCopyPath}
         dataAction="copy"
       />
@@ -149,8 +158,8 @@ export const GPSContextMenu = memo(function GPSContextMenu({
       {canPreview && (
         <MenuItem
           icon={<Sparkles size={13} />}
-          label="Tasarim Modu"
-          description="Gorsel duzenleyiciyi ac. Elementleri sag tikla ile duzenle"
+          label={t('agent.gps.previewFile')}
+          description="Design Mode"
           onClick={() => { onPreview(node); onClose(); }}
           accent
         />
@@ -162,7 +171,7 @@ export const GPSContextMenu = memo(function GPSContextMenu({
 function MenuItem({ icon, label, description, onClick, accent, danger, dataAction }: {
   icon: React.ReactNode;
   label: string;
-  description: string;
+  description?: string;
   onClick: () => void;
   accent?: boolean;
   danger?: boolean;
@@ -173,14 +182,14 @@ function MenuItem({ icon, label, description, onClick, accent, danger, dataActio
     <button
       onClick={onClick}
       data-action={dataAction}
-      className={`flex items-start gap-2.5 px-3 py-2 hover:bg-white/[0.05] text-left w-full transition-colors group ${
+      className={`flex items-center gap-2.5 px-3 py-2 hover:bg-white/[0.05] text-left w-full transition-colors group ${
         danger ? 'hover:bg-red-900/15' : ''
       }`}
     >
-      <span className={`mt-0.5 shrink-0 ${color}`}>{icon}</span>
+      <span className={`shrink-0 ${color}`}>{icon}</span>
       <div className="min-w-0 flex-1">
         <span className={`text-[11px] font-medium block ${color}`}>{label}</span>
-        <span className="text-[9px] text-slate-600 block mt-0.5 leading-tight">{description}</span>
+        {description && <span className="text-[9px] text-slate-600 block mt-0.5 leading-tight">{description}</span>}
       </div>
     </button>
   );

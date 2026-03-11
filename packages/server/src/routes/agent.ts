@@ -364,6 +364,32 @@ export function agentRoutes(app: FastifyInstance, agentRunner: AgentRunner, devS
     return reply.send(agentRunner.getInjections(request.params.id));
   });
 
+  // ── Breakpoints ──────────────────────────────────────
+  app.get<{ Params: { id: string } }>('/api/projects/:id/agent/breakpoints', async (_request, reply) => {
+    return reply.send(agentRunner.getBreakpoints(_request.params.id));
+  });
+
+  app.post<{ Params: { id: string } }>('/api/projects/:id/agent/breakpoints', async (request, reply) => {
+    const { filePath } = z.object({ filePath: z.string().min(1) }).parse(request.body);
+    try {
+      agentRunner.setBreakpoint(request.params.id, filePath);
+      return reply.send({ status: 'OK', filePath });
+    } catch {
+      // Agent not running — store breakpoint for when it starts
+      return reply.send({ status: 'QUEUED', filePath });
+    }
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/projects/:id/agent/breakpoints', async (request, reply) => {
+    const { filePath } = z.object({ filePath: z.string().min(1) }).parse(request.body);
+    try {
+      agentRunner.removeBreakpoint(request.params.id, filePath);
+      return reply.send({ status: 'OK', filePath });
+    } catch {
+      return reply.send({ status: 'OK', filePath });
+    }
+  });
+
   // Get dev server status
   app.get<{ Params: { id: string } }>('/api/projects/:id/agent/devserver', async (request, reply) => {
     if (!devServerManager) {

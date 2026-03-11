@@ -64,6 +64,7 @@ interface RunningAgent {
 
 export class AgentRunner extends EventEmitter {
   private agents = new Map<string, RunningAgent>();
+  private pendingBreakpoints = new Map<string, Set<string>>();
   private sessionRepo = new AgentSessionRepository();
   private breadcrumbRepo = new AgentBreadcrumbRepository();
   private planRepo = new AgentPlanRepository();
@@ -315,10 +316,18 @@ export class AgentRunner extends EventEmitter {
 
   /**
    * Set a breakpoint on a file path.
+   * Works even when agent is not running — persists in pendingBreakpoints.
    */
   setBreakpoint(projectId: string, filePath: string): void {
-    const agent = this.getRunningAgent(projectId);
-    agent.breakpoints.add(filePath);
+    const agent = this.agents.get(projectId);
+    if (agent) {
+      agent.breakpoints.add(filePath);
+    }
+    // Always persist in pending map so breakpoints survive agent restart
+    if (!this.pendingBreakpoints.has(projectId)) {
+      this.pendingBreakpoints.set(projectId, new Set());
+    }
+    this.pendingBreakpoints.get(projectId)!.add(filePath);
     this.eventBus.emit('AGENT_BREAKPOINT_SET', { projectId, filePath, timestamp: Date.now() });
   }
 
@@ -326,18 +335,25 @@ export class AgentRunner extends EventEmitter {
    * Remove a breakpoint from a file path.
    */
   removeBreakpoint(projectId: string, filePath: string): void {
-    const agent = this.getRunningAgent(projectId);
-    agent.breakpoints.delete(filePath);
+    const agent = this.agents.get(projectId);
+    if (agent) {
+      agent.breakpoints.delete(filePath);
+    }
+    this.pendingBreakpoints.get(projectId)?.delete(filePath);
     this.eventBus.emit('AGENT_BREAKPOINT_REMOVED', { projectId, filePath, timestamp: Date.now() });
   }
 
   /**
-   * Get all breakpoints for a project.
+   * Get all breakpoints for a project (running agent + pending).
    */
   getBreakpoints(projectId: string): string[] {
     const agent = this.agents.get(projectId);
-    if (!agent) return [];
-    return [...agent.breakpoints];
+    const running = agent ? [...agent.breakpoints] : [];
+    const pending = this.pendingBreakpoints.get(projectId);
+    if (!pending) return running;
+    // Merge both sets
+    const merged = new Set([...running, ...pending]);
+    return [...merged];
   }
 
   /**
@@ -698,6 +714,13 @@ export class AgentRunner extends EventEmitter {
     this.sessionRepo.updatePid(agent.sessionDbId, proc.pid ?? null);
     this.setStatus(agent, 'RUNNING');
     this.sessionRepo.updateStatus(agent.sessionDbId, 'RUNNING');
+
+    // Apply pending breakpoints to the new agent session
+    const pending = this.pendingBreakpoints.get(agent.projectId);
+    if (pending && pending.size > 0) {
+      for (const bp of pending) agent.breakpoints.add(bp);
+      console.log(`[AgentRunner] Applied ${pending.size} pending breakpoints (project=${agent.projectId})`);
+    }
 
     // Agent timeout enforcement
     if (agent._timeoutTimer) clearTimeout(agent._timeoutTimer);
